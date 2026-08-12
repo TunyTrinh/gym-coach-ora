@@ -60,3 +60,7 @@
 - [ ] Verify Vietnamese layout fit on mobile and preserve role boundaries
 - [ ] Add language and localization regression tests and revalidate production build/export
 - [ ] Save a verified language-feature checkpoint
+
+- [ ] Centralize all translations in a robust type-safe i18n catalog covering auth, membership, notifications, installation help, navigation, booking, schedules, health, forms, and errors
+- [ ] Wire the centralized translation helper across all screens and shared UI primitives without translating user-created content
+- [ ] Verify Vietnamese layout fit and immediate persistence across mobile screens and production export
