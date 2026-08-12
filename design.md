@@ -43,6 +43,22 @@ Every action should resolve visibly. Booking keeps the existing confirmation and
 
 The scheduler uses the **device’s local time** as its current clock. It derives a seven-day date rail from local midnight, initializes selection to today, and updates its now value on an interval so that a slot naturally becomes unavailable when its start time passes. A user may jump back to the current day with **Today** after browsing forward. Sessions that started in the past are never presented as bookable; existing booking, capacity, overlap, and cancellation validations remain unchanged.
 
+## Coach Availability and Free Shifts
+
+Coach accounts receive a dedicated **Availability** tab in place of the member booking tab. It uses the same one-handed Spectrum layout: a compact week/date rail, an available-hours summary, an always-visible **Add availability** action, and a focused list of shifts. The default view is deliberately simple: choose a date, see current shifts, and add free time. A secondary sheet offers a list/calendar switch, semantic status filters, copy-previous-week, and shift details without crowding the primary workflow.
+
+| Role | What the role can see | What the role can change |
+|---|---|---|
+| Client | Only future `Available` coach shifts, grouped by coach and local date; no private notes or blocked periods | Confirm one available shift after the existing booking checks pass. |
+| Coach | Their own Available, Booked, Blocked, Completed, Cancelled, and Expired shifts, with private notes | Create one or recurring shifts, block a period, edit or delete a future unbooked shift, and decide whether a cancelled booking should be re-opened or remain blocked. |
+| Admin | All coaches’ shifts, including status, actor trail, and filters | Create, edit, block, remove, and review future shifts for any coach; configure policy defaults in the protected backend. |
+
+An availability shift is an explicit, coach-owned record with a start and end time, service type, location, optional note, and status. It may generate a matching bookable slot for the existing scheduler, but a booking retains a reference to the originating availability shift. Status uses labels as well as subtle semantic color: **Available**, **Booked**, **Blocked**, **Completed**, **Cancelled**, and **Expired**. Past available shifts naturally read as Expired and are never returned as bookable.
+
+Creating multiple shifts happens in a review-first sheet. The coach supplies a date or range, start/end time, duration of 30/45/60/90 minutes, optional break, weekdays, recurrence end, location, session type, and note. The UI previews each generated interval before submission. Server validation rejects invalid intervals, past time, overlap with another managed shift, and conflicts with existing booked or blocked time. The server creates shifts in a transaction and records the actor in the audit log.
+
+The client booking journey becomes **coach → locally dated availability → specific shift → confirmation**. The confirmation sheet names the coach, date, start/end, location, and service. Immediately before confirmation, the server atomically changes the selected shift from `Available` to `Booked`, creates the booking that references it, and records both member and booking IDs. An affected-row check and the one-booking-per-shift constraint prevent two clients from reserving the same time. When a member cancels, the booking is retained as `Cancelled`, both parties receive a notification, and the associated shift is held as `Cancelled` until the coach chooses **Re-open** or **Keep blocked**.
+
 ## Key User Flows
 
 | Flow | Steps |
@@ -52,6 +68,9 @@ The scheduler uses the **device’s local time** as its current clock. It derive
 | Staff attendance | Switch to the existing coach/admin preview → open Coach view → mark attendee Completed or No-show → retain current booking state behavior. |
 | Review the month | Open My Schedule → use previous/next month or Today → tap a day with a booking signal → review all sessions for the selected day → use the existing check-in or cancellation action where available. |
 | Record progress | Open Progress from the primary tab or Home summary → review the latest selected metric and its change from the previous check-in → change the metric or open detailed history as needed → select Add measurement → enter any available fields from weight, body fat, chest, waist, hips, arms, and thighs → save with the device-local date. |
+| Create coach availability | Sign in as a Coach → Availability → Add availability → choose Single or Multiple → enter a future date/range, start/end, service, location, note, duration and optional recurrence → review generated shifts → confirm → see the availability summary update. |
+| Book a coach shift | Open Book as a Client → choose a coach → select a date with an availability indicator → choose one Available shift → review coach, start/end, location, and session type → confirm → receive booking and coach notification. |
+| Release a cancelled shift | Client cancels within the existing policy → booking remains in history as Cancelled and the shift is held → coach opens shift details → choose Re-open or Keep blocked → both client and coach receive the existing semantic feedback. |
 
 ## Color and Surface Tokens
 

@@ -15,6 +15,13 @@
       "when": 1786504991666,
       "tag": "0001_brave_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1786518674949,
+      "tag": "0002_fresh_robbie_robertson",
+      "breakpoints": true
     }
   ]
 }

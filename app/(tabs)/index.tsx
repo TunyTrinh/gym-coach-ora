@@ -31,13 +31,13 @@ export default function HomeScreen() {
       <OfflineBanner label="Your schedule stays ready offline" />
 
       <>
-        {role === "coach" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/schedule")} accessibilityLabel="View today's sessions">
+        {role === "coach" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/availability")} accessibilityLabel="Manage coach availability">
           <View style={styles.heroTopRow}>
-            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>COACH DASHBOARD</Text><Text style={styles.heroTitle}>Today's Sessions</Text></View>
+            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>COACH DASHBOARD</Text><Text style={styles.heroTitle}>Today&apos;s Sessions</Text></View>
             <StatusBadge label="Active" tone="success" />
           </View>
-          <Text style={styles.heroDate}>Manage your client sessions and availability.</Text>
-          <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⌘</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>Client Management</Text><Text style={styles.heroMetaMuted}>View assigned health progress</Text></View><Text style={styles.heroArrow}>→</Text></View>
+          <Text style={styles.heroDate}>Create, block, and manage bookable coaching shifts.</Text>
+          <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⌘</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>Availability</Text><Text style={styles.heroMetaMuted}>Publish coaching time in minutes</Text></View><Text style={styles.heroArrow}>→</Text></View>
         </SpectrumCard>}
 
         {role === "admin" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/schedule")} accessibilityLabel="System overview">

@@ -1,6 +1,7 @@
 export type Role = "member" | "coach" | "admin";
 export type BookingStatus = "Pending" | "Confirmed" | "Cancelled" | "Completed" | "No-show";
 export type SlotStatus = "Open" | "Full" | "Blocked" | "Cancelled" | "Completed";
+export type AvailabilityShiftStatus = "Available" | "Booked" | "Blocked" | "Completed" | "Cancelled" | "Expired";
 export type NotificationType = "confirmation" | "reminder" | "announcement" | "cancellation" | "membership";
 
 export interface Gym {
@@ -36,6 +37,8 @@ export interface TimeSlot {
   id: string;
   gymId: string;
   coachId?: string;
+  /** Present only when a coach-created availability shift produced this bookable slot. */
+  availabilityShiftId?: string;
   serviceTypeId: string;
   start: string;
   end: string;
@@ -43,6 +46,38 @@ export interface TimeSlot {
   bookedCount: number;
   status: SlotStatus;
   room: string;
+}
+
+export interface AvailabilityShift {
+  id: string;
+  gymId: string;
+  coachId: string;
+  serviceTypeId: string;
+  start: string;
+  end: string;
+  location: string;
+  note?: string;
+  status: AvailabilityShiftStatus;
+  createdBy: string;
+  updatedBy?: string;
+  recurrenceGroupId?: string;
+  memberId?: string;
+  bookingId?: string;
+}
+
+export interface AvailabilityCreateInput {
+  coachId: string | number;
+  serviceTypeId: string | number;
+  startDate: string;
+  endDate?: string;
+  startTime: string;
+  endTime: string;
+  durationMinutes: 30 | 45 | 60 | 90;
+  breakMinutes?: number;
+  weekdays?: number[];
+  location: string;
+  note?: string;
+  recurrenceGroupId?: string;
 }
 
 export interface Booking {
@@ -110,6 +145,7 @@ export interface GymSnapshot {
   coaches: Coach[];
   services: ServiceType[];
   slots: TimeSlot[];
+  availabilityShifts: AvailabilityShift[];
   bookings: Booking[];
   member: MemberProfile;
   measurements: HealthMeasurementRecord[];
@@ -194,6 +230,29 @@ export function seedGymData(now = new Date()): GymSnapshot {
 
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 2);
+  const coachAvailabilityBlueprints = [
+    { day: 1, hour: 15, coachId: "coach-maya", serviceTypeId: "service-strength", room: "Gym floor 2", note: "Gym floor 2" },
+    { day: 2, hour: 11, coachId: "coach-jordan", serviceTypeId: "service-strength", room: "Studio B", note: "Online coaching available" },
+    { day: 3, hour: 14, coachId: "coach-maya", serviceTypeId: "service-strength", room: "Studio A", note: "Form-focused session" },
+  ];
+  coachAvailabilityBlueprints.forEach((blueprint, index) => {
+    const start = atDay(now, blueprint.day + 1, blueprint.hour, 0);
+    const service = services.find((item) => item.id === blueprint.serviceTypeId)!;
+    slots.push({
+      id: `availability-slot-${index + 1}`,
+      availabilityShiftId: `availability-seed-${index + 1}`,
+      gymId: gym.id,
+      coachId: blueprint.coachId,
+      serviceTypeId: blueprint.serviceTypeId,
+      start: iso(start),
+      end: iso(addMinutes(start, service.durationMinutes)),
+      maximumCapacity: 1,
+      bookedCount: 0,
+      status: "Open",
+      room: blueprint.room,
+    });
+  });
+
   const historySlot: TimeSlot = {
     id: "slot-history-1",
     gymId: gym.id,
@@ -220,11 +279,28 @@ export function seedGymData(now = new Date()): GymSnapshot {
   };
   slots.push(historySlot, secondHistorySlot);
 
+  const availabilityShifts: AvailabilityShift[] = coachAvailabilityBlueprints.map((blueprint, index) => {
+    const slot = slots.find((item) => item.availabilityShiftId === `availability-seed-${index + 1}`)!;
+    return {
+      id: `availability-seed-${index + 1}`,
+      gymId: gym.id,
+      coachId: blueprint.coachId,
+      serviceTypeId: blueprint.serviceTypeId,
+      start: slot.start,
+      end: slot.end,
+      location: blueprint.room,
+      note: blueprint.note,
+      status: "Available",
+      createdBy: blueprint.coachId,
+    };
+  });
+
   return {
     gyms: [gym],
     coaches,
     services,
     slots,
+    availabilityShifts,
     bookings: [
       booking,
       { id: "booking-1002", memberId: "member-demo", timeSlotId: historySlot.id, status: "Completed", bookingTime: iso(atDay(yesterday, 0, 10, 0)), checkInTime: iso(atDay(yesterday, 0, 17, 46)), checkedInBy: "member-demo" },

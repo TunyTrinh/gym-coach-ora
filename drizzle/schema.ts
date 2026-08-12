@@ -1,4 +1,4 @@
-import { boolean, int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { boolean, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -66,11 +66,35 @@ export const timeSlots = mysqlTable("timeSlots", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+export const availabilityShifts = mysqlTable("availabilityShifts", {
+  id: int("id").autoincrement().primaryKey(),
+  externalId: varchar("externalId", { length: 64 }).notNull().unique(),
+  gymId: int("gymId").notNull(),
+  coachId: int("coachId").notNull(),
+  serviceTypeId: int("serviceTypeId").notNull(),
+  startAt: timestamp("startAt").notNull(),
+  endAt: timestamp("endAt").notNull(),
+  location: varchar("location", { length: 128 }).notNull(),
+  note: text("note"),
+  status: mysqlEnum("status", ["Available", "Booked", "Blocked", "Completed", "Cancelled", "Expired"]).default("Available").notNull(),
+  memberUserId: int("memberUserId"),
+  bookingId: int("bookingId"),
+  createdBy: int("createdBy").notNull(),
+  updatedBy: int("updatedBy"),
+  recurrenceGroupId: varchar("recurrenceGroupId", { length: 64 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  coachStartIndex: index("availability_shifts_coach_start_idx").on(table.coachId, table.startAt),
+  statusStartIndex: index("availability_shifts_status_start_idx").on(table.status, table.startAt),
+}));
+
 export const bookings = mysqlTable("bookings", {
   id: int("id").autoincrement().primaryKey(),
   externalId: varchar("externalId", { length: 64 }).notNull().unique(),
   memberUserId: int("memberUserId").notNull(),
   timeSlotId: int("timeSlotId").notNull(),
+  availabilityShiftId: int("availabilityShiftId"),
   status: mysqlEnum("status", ["Pending", "Confirmed", "Cancelled", "Completed", "No-show"]).default("Pending").notNull(),
   bookingTime: timestamp("bookingTime").defaultNow().notNull(),
   cancellationTime: timestamp("cancellationTime"),
@@ -80,7 +104,9 @@ export const bookings = mysqlTable("bookings", {
   memberNotes: text("memberNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  availabilityShiftUnique: uniqueIndex("bookings_availability_shift_unique").on(table.availabilityShiftId),
+}));
 
 export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),

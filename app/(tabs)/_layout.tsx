@@ -23,7 +23,7 @@ export default function TabLayout() {
   return <Tabs screenOptions={{ tabBarActiveTintColor: "#ff82b7", tabBarInactiveTintColor: "#777780", headerShown: false, tabBarButton: HapticTab, tabBarStyle: { paddingTop: 9, paddingBottom: bottomPadding, height: tabBarHeight, backgroundColor: "#151518", borderTopColor: colors.border, borderTopWidth: 1 }, tabBarLabelStyle: { fontSize: 10, fontWeight: "800", letterSpacing: 0.1 } }}>
     <Tabs.Screen name="index" options={{ title: isCoach ? "Dashboard" : isAdmin ? "Admin Hub" : "Home", tabBarIcon: ({ color }) => <IconSymbol size={22} name="house.fill" color={color} /> }} />
     <Tabs.Screen name="schedule" options={{ title: isCoach ? "Schedule" : isAdmin ? "Bookings" : "Schedule", tabBarIcon: ({ color }) => <IconSymbol size={22} name="calendar" color={color} /> }} />
-    <Tabs.Screen name="book" options={{ title: isCoach ? "Availability" : isAdmin ? "Coaches" : "Book", tabBarIcon: ({ color }) => <IconSymbol size={22} name="calendar.badge.plus" color={color} /> }} />
+    <Tabs.Screen name="book" options={{ title: isCoach ? "Availability" : isAdmin ? "Coaches" : "Book", href: isCoach || isAdmin ? "/availability" : undefined, tabBarIcon: ({ color }) => <IconSymbol size={22} name="calendar.badge.plus" color={color} /> }} />
     <Tabs.Screen name="progress" options={{ title: isCoach ? "Clients" : isAdmin ? "Users" : "Progress", tabBarIcon: ({ color }) => <IconSymbol size={22} name={isCoach || isAdmin ? "person.2.fill" : "chart.line.uptrend.xyaxis"} color={color} /> }} />
     <Tabs.Screen name="profile" options={{ title: "Profile", tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.fill" color={color} /> }} />
     <Tabs.Screen name="history" options={{ href: null }} />

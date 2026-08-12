@@ -39,3 +39,9 @@
 - [x] Add backend tRPC procedures for role management, client assignment, and protected coach-client access
 - [x] Make tab navigation and home dashboard role-aware for Clients, Coaches, and Admins
 - [x] Pass all TypeScript checks, automated tests, production web export, and server build
+- [x] Audit existing coach, booking, database, API, navigation, and container build paths for the Coach Availability module
+- [x] Design availability shifts, status transitions, recurrence, cancellation release behavior, and secure role boundaries
+- [x] Add safe schema migrations and transactional server-side availability, booking, blocking, cancellation, and audit operations
+- [x] Build a mobile Coach Availability interface with calendar/list views, shift creation preview, filters, details, and future-shift management
+- [x] Connect client booking to coach-managed Available shifts and expose guarded Admin oversight controls
+- [x] Add complete feedback states, availability conflict regression tests, and validate the repaired PWA export; Docker remains unavailable in this sandbox for a local container image build
