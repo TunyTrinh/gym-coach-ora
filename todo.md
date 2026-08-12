@@ -74,3 +74,7 @@
 
 - [x] Replace the outdated gym-style splash/loading logo with the supplied premium Coachora C logo across all Expo branding assets
 - [x] Verify the old logo is no longer referenced and re-run branding validation
+- [ ] Force-refresh Expo Go branding metadata by using unique Coachora icon and splash asset paths instead of reusing cached filenames
+- [ ] Revalidate the clean Expo manifest and device-ready development bundle
+- [x] Replace stale dist/icon-192.png and dist/icon-512.png with the supplied Coachora C logo and synchronize generated PWA icon output
+- [x] Validate production icon hashes and install manifests after the replacement
