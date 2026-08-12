@@ -78,3 +78,7 @@
 - [ ] Revalidate the clean Expo manifest and device-ready development bundle
 - [x] Replace stale dist/icon-192.png and dist/icon-512.png with the supplied Coachora C logo and synchronize generated PWA icon output
 - [x] Validate production icon hashes and install manifests after the replacement
+- [x] Replace typed Coach availability time fields with scrollable start and end time pickers
+- [x] Remove Duration and Break from the primary Coach availability flow
+- [x] Show clear localized reasons when Coach availability publishing is blocked
+- [x] Validate the updated Coach availability flow across tests and previews
