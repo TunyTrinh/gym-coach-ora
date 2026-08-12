@@ -68,7 +68,7 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: 10, paddingBottom: 38, gap: 18 },
+  content: { paddingTop: 28, paddingBottom: 38, gap: 18 },
   heroCard: { minHeight: 206 },
   heroTopRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
   heroHeading: { flex: 1 },

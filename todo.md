@@ -69,3 +69,6 @@
 - [ ] Verify Vietnamese layout fit and immediate persistence across mobile screens and production export
 - [ ] Rename app branding to "Coachora" and finish 100% Vietnamese localization for Schedule, Progress, and Profile tabs without mixed languages
 - [ ] Fix untranslated Schedule empty-state text ("Nothing booked") and route all Schedule strings through centralized catalog
+- [x] Fix Home screen top safe-area spacing so Coachora branding and the welcome heading remain below the mobile status bar
+- [x] Re-run validation and visual verification for the safe-area fix
+
