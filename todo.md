@@ -84,3 +84,4 @@
 - [x] Validate the updated Coach availability flow across tests and previews
 - [x] Upgrade Coach availability time selection to an iPhone-style wheel with hour, minute, and AM/PM columns
 - [x] Validate the wheel picker behavior and save a verified checkpoint
+- [x] Diagnose and fix dev-server bundling failure and re-establish a responsive preview
