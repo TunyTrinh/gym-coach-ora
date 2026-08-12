@@ -88,7 +88,7 @@ export interface Booking {
   status: BookingStatus;
   bookingTime: string;
   /** Selected by the client for bookings made inside a continuous availability window. */
-  durationMinutes?: 30 | 45 | 60 | 90 | 120;
+  durationMinutes?: number;
   cancellationTime?: string;
   cancellationReason?: string;
   checkInTime?: string;

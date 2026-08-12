@@ -112,3 +112,8 @@
 - [x] Enforce a 30-minute minimum lead time for same-day availability and provide localized inline red guidance
 - [x] Restore persistent Coach bottom navigation on Add Availability and preserve active-tab context
 - [x] Validate Coach calendar, lead-time feedback, navigation, bilingual labels, and production build
+
+- [x] Audit the current Client duration and start-time controls for the picker refinement
+- [x] Replace Client duration choices with 30, 45, 60, and Other using a 60-minute-plus scrollable duration picker
+- [x] Replace Client start-time chips with an iPhone-style scrollable time picker while preserving interval-capacity checks
+- [x] Validate bilingual Client picker labels, booking capacity behavior, automated tests, and production build

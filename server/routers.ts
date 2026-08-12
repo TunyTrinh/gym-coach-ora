@@ -18,7 +18,10 @@ const availabilityInput = z.object({
   note: z.string().trim().max(600).optional(),
 });
 
-const durationInput = z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120)]);
+const durationInput = z.number().int().min(30).max(240).refine(
+  (value) => value === 30 || value === 45 || (value >= 60 && value % 15 === 0),
+  "Choose 30, 45, or a 15-minute duration from 60 to 240 minutes.",
+);
 
 function localDateTime(date: string, time: string) {
   const [year, month, day] = date.split("-").map(Number);

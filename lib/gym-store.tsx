@@ -34,7 +34,7 @@ type GymContextValue = {
   upcomingBookings: Booking[];
   historyBookings: Booking[];
   bookSlot: (slotId: string) => Promise<MutationResult>;
-  bookAvailability: (windowId: string, startAt: string, durationMinutes: 30 | 45 | 60 | 90 | 120) => Promise<MutationResult>;
+  bookAvailability: (windowId: string, startAt: string, durationMinutes: number) => Promise<MutationResult>;
   createAvailability: (input: AvailabilityCreateInput) => Promise<MutationResult>;
   setAvailabilityStatus: (shiftId: string, status: "Available" | "Blocked") => Promise<MutationResult>;
   releaseCancelledShift: (shiftId: string, release: "reopen" | "block") => Promise<MutationResult>;
@@ -153,8 +153,10 @@ export function GymProvider({ children }: PropsWithChildren) {
   );
 
   const bookAvailability = useCallback(
-    async (windowId: string, startAtIso: string, durationMinutes: 30 | 45 | 60 | 90 | 120): Promise<MutationResult> => {
+    async (windowId: string, startAtIso: string, durationMinutes: number): Promise<MutationResult> => {
       if (snapshot.member.role !== "client") return { success: false, error: "Only clients can book a coach session." };
+      const supportedDuration = durationMinutes === 30 || durationMinutes === 45 || (durationMinutes >= 60 && durationMinutes <= 240 && durationMinutes % 15 === 0);
+      if (!supportedDuration) return { success: false, error: "Choose 30, 45, or a 15-minute duration from 60 to 240 minutes." };
       const availability = snapshot.availabilityShifts.find((item) => item.id === windowId);
       if (!availability || availability.status !== "Available") return { success: false, error: "This coach availability is no longer open." };
       const startAt = new Date(startAtIso);
