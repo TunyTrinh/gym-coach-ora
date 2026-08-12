@@ -22,6 +22,20 @@
       "when": 1786518674949,
       "tag": "0002_fresh_robbie_robertson",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1786520327667,
+      "tag": "0003_cool_zuras",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1786521219869,
+      "tag": "0004_short_sleeper",
+      "breakpoints": true
     }
   ]
 }
