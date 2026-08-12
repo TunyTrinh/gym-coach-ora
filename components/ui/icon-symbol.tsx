@@ -12,6 +12,7 @@ const MAPPING = {
   "house.fill": "home",
   "calendar": "calendar-today",
   "calendar.badge.plus": "event-available",
+  "chart.line.uptrend.xyaxis": "show-chart",
   "clock": "schedule",
   "bell.fill": "notifications-none",
   "bell.badge.fill": "notifications",

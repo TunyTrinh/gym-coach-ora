@@ -4,6 +4,8 @@ import Svg, { Defs, LinearGradient, Rect, Stop } from "react-native-svg";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
 import { useColors } from "@/hooks/use-colors";
+import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { haptic } from "@/lib/haptics";
 
 const SPECTRUM_COLORS = ["#e53f87", "#ed5f68", "#d87870", "#9660bd", "#5266e6"];
 
@@ -21,6 +23,7 @@ function SpectrumFill({ opacity = 1 }: { opacity?: number }) {
 }
 
 export function SpectrumCard({ children, style, onPress, accessibilityLabel, intensity = "full" }: PressableProps & { children: ReactNode; style?: StyleProp<ViewStyle>; accessibilityLabel?: string; intensity?: "full" | "muted" }) {
+  const reducedMotion = useReducedMotion();
   const content = (
     <View style={[styles.spectrumCard, style]}>
       <SpectrumFill opacity={intensity === "full" ? 1 : 0.68} />
@@ -29,7 +32,7 @@ export function SpectrumCard({ children, style, onPress, accessibilityLabel, int
     </View>
   );
   if (!onPress) return content;
-  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={({ pressed }) => pressed && styles.pressed}>{content}</Pressable>;
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={({ pressed }) => pressed && (reducedMotion ? styles.pressed : styles.cardPressed)}>{content}</Pressable>;
 }
 
 export function ScreenHeader({ title, subtitle, onPress, icon = "bell.fill", badge, label = "GYMFLOW" }: { title: string; subtitle?: string; onPress?: () => void; icon?: any; badge?: number; label?: string }) {
@@ -56,9 +59,10 @@ export function SectionTitle({ title, action, onAction, eyebrow }: { title: stri
 
 export function SurfaceCard({ children, style, onPress, accessibilityLabel }: PressableProps & { children: ReactNode; style?: StyleProp<ViewStyle>; accessibilityLabel?: string }) {
   const colors = useColors();
+  const reducedMotion = useReducedMotion();
   const content = <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border }, style]}>{children}</View>;
   if (!onPress) return content;
-  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={({ pressed }) => pressed && styles.pressed}>{content}</Pressable>;
+  return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={({ pressed }) => pressed && (reducedMotion ? styles.pressed : styles.cardPressed)}>{content}</Pressable>;
 }
 
 export function StatusBadge({ label, tone = "neutral" }: { label: string; tone?: "success" | "warning" | "error" | "neutral" | "accent" }) {
@@ -72,7 +76,9 @@ export function Avatar({ initials, accent, size = 44 }: { initials: string; acce
 }
 
 export function PrimaryButton({ title, onPress, icon, disabled = false }: { title: string; onPress: () => void; icon?: any; disabled?: boolean }) {
-  return <Pressable onPress={onPress} disabled={disabled} accessibilityRole="button" accessibilityLabel={title} style={({ pressed }) => [styles.primaryButton, disabled && styles.disabledButton, pressed && !disabled && styles.buttonPressed]}>
+  const reducedMotion = useReducedMotion();
+  const handlePress = () => { haptic.light(); onPress(); };
+  return <Pressable onPress={handlePress} disabled={disabled} accessibilityRole="button" accessibilityLabel={title} style={({ pressed }) => [styles.primaryButton, disabled && styles.disabledButton, pressed && !disabled && (reducedMotion ? styles.pressed : styles.buttonPressed)]}>
     {!disabled ? <SpectrumFill /> : null}
     <View style={styles.buttonContent}>{icon ? <IconSymbol name={icon} size={18} color="#ffffff" /> : null}<Text style={styles.primaryButtonText}>{title}</Text></View>
   </Pressable>;
@@ -112,6 +118,7 @@ const styles = StyleSheet.create({
   sectionAction: { fontSize: 13, fontWeight: "800" },
   card: { borderRadius: 22, borderWidth: 1, padding: 17 },
   pressed: { opacity: 0.72 },
+  cardPressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
   buttonPressed: { transform: [{ scale: 0.98 }], opacity: 0.92 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999 },
   statusText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.15 },

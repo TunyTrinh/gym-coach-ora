@@ -24,3 +24,10 @@
 - [x] Add production Docker Compose, reverse proxy, environment template, and automated database backup assets
 - [x] Harden the PWA manifest, install guidance, offline fallback, and automatic update workflow
 - [x] Validate the self-hosted deployment package and document one-machine operation and recovery steps
+- [x] Audit current member screens, navigation, booking states, and content density for unnecessary complexity
+- [x] Document the member-first information architecture, progressive disclosure rules, and motion approach in `design.md`
+- [x] Simplify the primary navigation to Home, Schedule, Book, Progress, and Profile while retaining secondary features through progressive disclosure
+- [x] Refine the member-first Home dashboard, three-step booking flow, and compact weekly schedule overview
+- [x] Simplify Health Progress with latest-versus-previous comparisons, metric selection, and separate detailed history
+- [x] Add accessible feedback states and reduced-motion-aware micro-interactions without delaying actions
+- [x] Validate member routes and preserved login-to-progress data flow through type checks, linting, automated business-rule tests, and a successful production PWA export build
