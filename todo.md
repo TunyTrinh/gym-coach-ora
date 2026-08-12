@@ -137,3 +137,6 @@
 - [x] Revalidate Client booking time boundaries, bilingual error feedback, and save a verified checkpoint
 - [x] Fix the Client wheel’s invalid default time and independent hour, minute, and AM/PM scroll state
 - [x] Match the supplied three-column highlighted-row layout and revalidate availability-boundary booking behavior
+- [x] Fix Client hour-column state updates so every hour remains selectable
+- [x] Implement mandatory centered snap behavior for Client hour, minute, and AM/PM touch scrolling
+- [x] Verify Client wheel selection and exact availability-boundary booking behavior, then save a checkpoint

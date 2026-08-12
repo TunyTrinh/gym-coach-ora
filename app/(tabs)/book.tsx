@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native";
+import { Alert, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native";
 
 import AvailabilityScreen from "@/app/availability";
 import { Avatar, GhostButton, PrimaryButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
@@ -285,16 +285,31 @@ function PickerHeader({ title, t, onClose, onSave }: { title: string; t: Transla
 function WheelColumn<T>({ options, selectedIndex, onChange, colors, renderLabel, columnStyle, rowStyle, valueStyle, emphasizeSelected = false }: { options: readonly T[]; selectedIndex: number; onChange: (index: number) => void; colors: ReturnType<typeof useColors>; renderLabel?: (value: T) => string; columnStyle?: StyleProp<ViewStyle>; rowStyle?: StyleProp<ViewStyle>; valueStyle?: StyleProp<TextStyle>; emphasizeSelected?: boolean }) {
   const ref = useRef<FlatList<T>>(null);
   const isDragging = useRef(false);
+  const lastOffset = useRef(0);
+  const webSettleTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (isDragging.current) return;
     const frame = requestAnimationFrame(() => ref.current?.scrollToOffset({ offset: Math.max(0, selectedIndex) * wheelRowHeight, animated: false }));
     return () => cancelAnimationFrame(frame);
   }, [selectedIndex]);
-  const finish = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+  useEffect(() => () => { if (webSettleTimer.current) clearTimeout(webSettleTimer.current); }, []);
+  const settleAtOffset = (offset: number) => {
+    const index = Math.max(0, Math.min(options.length - 1, Math.round(offset / wheelRowHeight)));
     isDragging.current = false;
-    onChange(Math.max(0, Math.min(options.length - 1, Math.round(event.nativeEvent.contentOffset.y / wheelRowHeight))));
+    ref.current?.scrollToOffset({ offset: index * wheelRowHeight, animated: true });
+    onChange(index);
   };
-  return <FlatList ref={ref} data={[...options]} keyExtractor={(_, index) => String(index)} style={[styles.wheelColumn, columnStyle]} contentContainerStyle={styles.wheelList} showsVerticalScrollIndicator={false} snapToInterval={wheelRowHeight} snapToAlignment="center" disableIntervalMomentum decelerationRate="fast" onScrollBeginDrag={() => { isDragging.current = true; }} onMomentumScrollEnd={finish} getItemLayout={(_, index) => ({ length: wheelRowHeight, offset: wheelRowHeight * index, index })} renderItem={({ item, index }) => <View style={[styles.wheelRow, rowStyle]}><Text numberOfLines={1} ellipsizeMode="clip" style={[styles.wheelValue, valueStyle, { color: index === selectedIndex ? "#ff82b7" : colors.muted, opacity: index === selectedIndex ? 1 : 0.42 }, emphasizeSelected && index === selectedIndex ? styles.wheelValueSelected : null]}>{renderLabel ? renderLabel(item) : String(item)}</Text></View>} />;
+  const finish = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    settleAtOffset(event.nativeEvent.contentOffset.y);
+  };
+  const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    if (Platform.OS !== "web") return;
+    isDragging.current = true;
+    lastOffset.current = event.nativeEvent.contentOffset.y;
+    if (webSettleTimer.current) clearTimeout(webSettleTimer.current);
+    webSettleTimer.current = setTimeout(() => settleAtOffset(lastOffset.current), 90);
+  };
+  return <FlatList ref={ref} data={[...options]} keyExtractor={(_, index) => String(index)} style={[styles.wheelColumn, columnStyle]} contentContainerStyle={styles.wheelList} showsVerticalScrollIndicator={false} snapToInterval={wheelRowHeight} snapToAlignment="center" disableIntervalMomentum decelerationRate="fast" onScrollBeginDrag={() => { isDragging.current = true; }} onScroll={handleScroll} scrollEventThrottle={16} onMomentumScrollEnd={Platform.OS === "web" ? undefined : finish} onScrollEndDrag={Platform.OS === "web" ? () => { if (webSettleTimer.current) clearTimeout(webSettleTimer.current); webSettleTimer.current = setTimeout(() => settleAtOffset(lastOffset.current), 40); } : undefined} getItemLayout={(_, index) => ({ length: wheelRowHeight, offset: wheelRowHeight * index, index })} renderItem={({ item, index }) => <View style={[styles.wheelRow, rowStyle]}><Text numberOfLines={1} ellipsizeMode="clip" style={[styles.wheelValue, valueStyle, { color: index === selectedIndex ? "#ff82b7" : colors.muted, opacity: index === selectedIndex ? 1 : 0.42 }, emphasizeSelected && index === selectedIndex ? styles.wheelValueSelected : null]}>{renderLabel ? renderLabel(item) : String(item)}</Text></View>} />;
 }
 
 function DurationWheel({ value, onChange, colors, t }: { value: number; onChange: (value: number) => void; colors: ReturnType<typeof useColors>; t: Translation }) {
