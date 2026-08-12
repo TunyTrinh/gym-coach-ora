@@ -85,7 +85,7 @@
 - [x] Upgrade Coach availability time selection to an iPhone-style wheel with hour, minute, and AM/PM columns
 - [x] Validate the wheel picker behavior and save a verified checkpoint
 - [x] Diagnose and fix dev-server bundling failure and re-establish a responsive preview
-- [ ] Diagnose and fix recurring dev-server shutdown causing preview to stop responding
+- [x] Diagnose and fix recurring dev-server shutdown causing preview to stop responding
 - [x] Diagnose and harden Expo Go native-bundle request path to prevent sandbox process crash during device testing
 - [x] Investigate and resolve recurring server stoppage after temporary running state
 - [x] Clean up duplicate browser/preview processes and verify stable memory usage
@@ -95,3 +95,4 @@
 - [x] Verify and restore the secure public PWA route for phone access without Expo Go or localhost
 - [x] Fix Metro exiting after initial bundle so secure preview access remains available
 - [x] Restart and verify the Coachora development server after the latest interruption
+- [x] Perform a controlled development-environment recovery and verify stable Coachora preview services
