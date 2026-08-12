@@ -16,9 +16,6 @@ import { getBookingSlot, getCoach, type AvailabilityShift, type GymSnapshot } fr
 
 const quickDurations = [30, 45, 60] as const;
 const customDurations = Array.from({ length: 13 }, (_, index) => 60 + index * 15);
-const wheelHours = Array.from({ length: 12 }, (_, index) => String(index + 1));
-const wheelMinutes = ["00", "15", "30", "45"];
-const wheelPeriods = ["AM", "PM"];
 const wheelRowHeight = 44;
 
 type TimeOption = { start: Date; end: Date; remaining: number };
@@ -224,7 +221,7 @@ export default function BookScreen() {
 
       <BookingReview visible={showReview} window={selectedWindow} option={selectedOption} duration={duration} colors={colors} language={language} t={t} busy={busy} onClose={() => setShowReview(false)} onBook={handleBook} />
       <DurationPicker visible={showDurationPicker} value={durationDraft} colors={colors} t={t} onChange={setDurationDraft} onClose={() => setShowDurationPicker(false)} onSave={saveCustomDuration} />
-      <StartTimePicker visible={showTimePicker} value={timeDraft} colors={colors} t={t} error={timeError} onChange={setTimeDraft} onClose={() => setShowTimePicker(false)} onSave={saveStartTime} />
+      <StartTimePicker visible={showTimePicker} value={timeDraft} options={timeOptions} colors={colors} language={language} t={t} error={timeError} onChange={setTimeDraft} onClose={() => setShowTimePicker(false)} onSave={saveStartTime} />
     </ScreenContainer>
   );
 }
@@ -249,43 +246,23 @@ function DurationPicker({ visible, value, colors, t, onChange, onClose, onSave }
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.pickerBackdrop}><View style={[styles.pickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><PickerHeader title={t("chooseCustomDuration")} t={t} onClose={onClose} onSave={onSave} /><Text style={[styles.pickerHint, { color: colors.muted }]}>{t("customDurationHint")}</Text><DurationWheel value={value} onChange={onChange} colors={colors} t={t} /></View></View></Modal>;
 }
 
-function StartTimePicker({ visible, value, colors, t, error, onChange, onClose, onSave }: { visible: boolean; value: string; colors: ReturnType<typeof useColors>; t: Translation; error: boolean; onChange: (value: string) => void; onClose: () => void; onSave: () => void }) {
-  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.pickerBackdrop}><View style={[styles.pickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><PickerHeader title={t("chooseStartTime")} t={t} onClose={onClose} onSave={onSave} /><ClockWheel value={value} onChange={onChange} colors={colors} />{error ? <Text style={styles.timeWarning}>{t("noTimesForDuration")}</Text> : null}</View></View></Modal>;
+function StartTimePicker({ visible, value, options, colors, language, t, error, onChange, onClose, onSave }: { visible: boolean; value: string; options: TimeOption[]; colors: ReturnType<typeof useColors>; language: "en" | "vi"; t: Translation; error: boolean; onChange: (value: string) => void; onClose: () => void; onSave: () => void }) {
+  const selectedIndex = Math.max(0, options.findIndex((option) => clockValue(option.start) === value));
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.pickerBackdrop}><View style={[styles.pickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><PickerHeader title={t("chooseStartTime")} t={t} onClose={onClose} onSave={onSave} />{options.length ? <View style={styles.durationWheel}><View pointerEvents="none" style={[styles.wheelFrame, { borderColor: colors.border }]} /><WheelColumn options={options} selectedIndex={selectedIndex} onChange={(index) => onChange(clockValue(options[index].start))} colors={colors} renderLabel={(option) => formatTimeLocalized(option.start, language)} /></View> : null}{error ? <Text style={styles.timeWarning}>{t("noTimesForDuration")}</Text> : null}</View></View></Modal>;
 }
 
 function PickerHeader({ title, t, onClose, onSave }: { title: string; t: Translation; onClose: () => void; onSave: () => void }) {
   return <View style={styles.pickerHeader}><Pressable onPress={onClose} style={styles.pickerAction}><Text style={styles.pickerActionText}>{t("cancel")}</Text></Pressable><Text style={styles.pickerTitle}>{title}</Text><Pressable onPress={onSave} style={[styles.pickerAction, styles.pickerSave]}><Text style={styles.pickerActionText}>{t("save")}</Text></Pressable></View>;
 }
 
-function timeParts(value: string) {
-  const [rawHours, rawMinutes] = value.split(":").map(Number);
-  const safeHours = Number.isFinite(rawHours) ? rawHours : 9;
-  const safeMinutes = Number.isFinite(rawMinutes) ? rawMinutes : 0;
-  return { hour: String(safeHours % 12 || 12), minute: String(safeMinutes).padStart(2, "0"), period: safeHours >= 12 ? "PM" : "AM" };
-}
-
-function fromParts(hour: string, minute: string, period: string) {
-  const hour24 = (Number(hour) % 12) + (period === "PM" ? 12 : 0);
-  return `${String(hour24).padStart(2, "0")}:${minute}`;
-}
-
-function WheelColumn<T extends string | number>({ options, selectedIndex, onChange, colors, renderLabel }: { options: readonly T[]; selectedIndex: number; onChange: (index: number) => void; colors: ReturnType<typeof useColors>; renderLabel?: (value: T) => string }) {
+function WheelColumn<T>({ options, selectedIndex, onChange, colors, renderLabel }: { options: readonly T[]; selectedIndex: number; onChange: (index: number) => void; colors: ReturnType<typeof useColors>; renderLabel?: (value: T) => string }) {
   const ref = useRef<FlatList<T>>(null);
   useEffect(() => {
     const frame = requestAnimationFrame(() => ref.current?.scrollToOffset({ offset: Math.max(0, selectedIndex) * wheelRowHeight, animated: false }));
     return () => cancelAnimationFrame(frame);
   }, [selectedIndex]);
   const finish = (event: NativeSyntheticEvent<NativeScrollEvent>) => onChange(Math.max(0, Math.min(options.length - 1, Math.round(event.nativeEvent.contentOffset.y / wheelRowHeight))));
-  return <FlatList ref={ref} data={[...options]} keyExtractor={(item) => String(item)} style={styles.wheelColumn} contentContainerStyle={styles.wheelList} showsVerticalScrollIndicator={false} snapToInterval={wheelRowHeight} decelerationRate="fast" onMomentumScrollEnd={finish} onScrollEndDrag={finish} getItemLayout={(_, index) => ({ length: wheelRowHeight, offset: wheelRowHeight * index, index })} renderItem={({ item, index }) => <View style={styles.wheelRow}><Text style={[styles.wheelValue, { color: index === selectedIndex ? "#ff82b7" : colors.muted, opacity: index === selectedIndex ? 1 : 0.42 }]}>{renderLabel ? renderLabel(item) : String(item)}</Text></View>} />;
-}
-
-function ClockWheel({ value, onChange, colors }: { value: string; onChange: (value: string) => void; colors: ReturnType<typeof useColors> }) {
-  const parts = timeParts(value);
-  const update = (field: "hour" | "minute" | "period", next: string) => {
-    const nextParts = { ...parts, [field]: next };
-    onChange(fromParts(nextParts.hour, nextParts.minute, nextParts.period));
-  };
-  return <View style={styles.wheelPicker}><View pointerEvents="none" style={[styles.wheelFrame, { borderColor: colors.border }]} /><View style={styles.wheelColumns}><WheelColumn options={wheelHours} selectedIndex={wheelHours.indexOf(parts.hour)} onChange={(index) => update("hour", wheelHours[index])} colors={colors} /><Text style={[styles.wheelSeparator, { color: colors.muted }]}>:</Text><WheelColumn options={wheelMinutes} selectedIndex={wheelMinutes.indexOf(parts.minute)} onChange={(index) => update("minute", wheelMinutes[index])} colors={colors} /><WheelColumn options={wheelPeriods} selectedIndex={wheelPeriods.indexOf(parts.period)} onChange={(index) => update("period", wheelPeriods[index])} colors={colors} /></View></View>;
+  return <FlatList ref={ref} data={[...options]} keyExtractor={(_, index) => String(index)} style={styles.wheelColumn} contentContainerStyle={styles.wheelList} showsVerticalScrollIndicator={false} snapToInterval={wheelRowHeight} decelerationRate="fast" onMomentumScrollEnd={finish} onScrollEndDrag={finish} getItemLayout={(_, index) => ({ length: wheelRowHeight, offset: wheelRowHeight * index, index })} renderItem={({ item, index }) => <View style={styles.wheelRow}><Text style={[styles.wheelValue, { color: index === selectedIndex ? "#ff82b7" : colors.muted, opacity: index === selectedIndex ? 1 : 0.42 }]}>{renderLabel ? renderLabel(item) : String(item)}</Text></View>} />;
 }
 
 function DurationWheel({ value, onChange, colors, t }: { value: number; onChange: (value: number) => void; colors: ReturnType<typeof useColors>; t: Translation }) {

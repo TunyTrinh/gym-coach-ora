@@ -117,3 +117,6 @@
 - [x] Replace Client duration choices with 30, 45, 60, and Other using a 60-minute-plus scrollable duration picker
 - [x] Replace Client start-time chips with an iPhone-style scrollable time picker while preserving interval-capacity checks
 - [x] Validate bilingual Client picker labels, booking capacity behavior, automated tests, and production build
+
+- [x] Audit and correct Client time-wheel options so every selectable start time fits the Coach window and selected duration
+- [x] Validate 15-minute Client start-time options against Coach availability boundaries and overlapping capacity
