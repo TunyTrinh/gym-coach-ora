@@ -17,6 +17,9 @@ import { getBookingSlot, getCoach, type AvailabilityShift, type GymSnapshot } fr
 const quickDurations = [30, 45, 60] as const;
 const customDurations = Array.from({ length: 13 }, (_, index) => 60 + index * 15);
 const wheelRowHeight = 44;
+const clientWheelHours = Array.from({ length: 12 }, (_, index) => String(index + 1));
+const clientWheelMinutes = ["00", "15", "30", "45"];
+const clientWheelPeriods = ["AM", "PM"];
 
 type TimeOption = { start: Date; end: Date; remaining: number; availabilityShiftId: string };
 type Translation = ReturnType<typeof useLanguage>["t"];
@@ -229,7 +232,7 @@ export default function BookScreen() {
 
       <BookingReview visible={showReview} window={selectedBookingWindow} option={selectedOption} duration={duration} colors={colors} language={language} t={t} busy={busy} onClose={() => setShowReview(false)} onBook={handleBook} />
       <DurationPicker visible={showDurationPicker} value={durationDraft} colors={colors} t={t} onChange={setDurationDraft} onClose={() => setShowDurationPicker(false)} onSave={saveCustomDuration} />
-      <StartTimePicker visible={showTimePicker} value={timeDraft} options={timeOptions} colors={colors} language={language} t={t} error={timeError} onChange={setTimeDraft} onClose={() => setShowTimePicker(false)} onSave={saveStartTime} />
+      <StartTimePicker visible={showTimePicker} value={timeDraft} colors={colors} t={t} error={timeError} onChange={setTimeDraft} onClose={() => setShowTimePicker(false)} onSave={saveStartTime} />
     </ScreenContainer>
   );
 }
@@ -254,9 +257,25 @@ function DurationPicker({ visible, value, colors, t, onChange, onClose, onSave }
   return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.pickerBackdrop}><View style={[styles.pickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><PickerHeader title={t("chooseCustomDuration")} t={t} onClose={onClose} onSave={onSave} /><Text style={[styles.pickerHint, { color: colors.muted }]}>{t("customDurationHint")}</Text><DurationWheel value={value} onChange={onChange} colors={colors} t={t} /></View></View></Modal>;
 }
 
-function StartTimePicker({ visible, value, options, colors, language, t, error, onChange, onClose, onSave }: { visible: boolean; value: string; options: TimeOption[]; colors: ReturnType<typeof useColors>; language: "en" | "vi"; t: Translation; error: boolean; onChange: (value: string) => void; onClose: () => void; onSave: () => void }) {
-  const selectedIndex = Math.max(0, options.findIndex((option) => clockValue(option.start) === value));
-  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.pickerBackdrop}><View style={[styles.pickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><PickerHeader title={t("chooseStartTime")} t={t} onClose={onClose} onSave={onSave} />{options.length ? <View style={styles.startTimeWheel}><View pointerEvents="none" style={[styles.wheelFrame, { borderColor: colors.border }]} /><WheelColumn options={options} selectedIndex={selectedIndex} onChange={(index) => onChange(clockValue(options[index].start))} colors={colors} renderLabel={(option) => formatTimeLocalized(option.start, language)} columnStyle={styles.startTimeColumn} rowStyle={styles.startTimeRow} valueStyle={styles.startTimeValue} emphasizeSelected /></View> : null}{error ? <Text style={styles.timeWarning}>{t("noTimesForDuration")}</Text> : null}</View></View></Modal>;
+function clockParts(value: string) {
+  const [rawHour, rawMinute] = value.split(":").map(Number);
+  const hour = Number.isFinite(rawHour) ? rawHour : 9;
+  const minute = Number.isFinite(rawMinute) ? rawMinute : 0;
+  return { hour: String(hour % 12 || 12), minute: String(minute).padStart(2, "0"), period: hour >= 12 ? "PM" : "AM" };
+}
+
+function clockFromParts(hour: string, minute: string, period: string) {
+  const hour24 = (Number(hour) % 12) + (period === "PM" ? 12 : 0);
+  return `${String(hour24).padStart(2, "0")}:${minute}`;
+}
+
+function StartTimePicker({ visible, value, colors, t, error, onChange, onClose, onSave }: { visible: boolean; value: string; colors: ReturnType<typeof useColors>; t: Translation; error: boolean; onChange: (value: string) => void; onClose: () => void; onSave: () => void }) {
+  const parts = clockParts(value);
+  const update = (field: "hour" | "minute" | "period", next: string) => {
+    const all = { ...parts, [field]: next };
+    onChange(clockFromParts(all.hour, all.minute, all.period));
+  };
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.pickerBackdrop}><View style={[styles.pickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><PickerHeader title={t("chooseStartTime")} t={t} onClose={onClose} onSave={onSave} /><View style={styles.wheelPicker}><View pointerEvents="none" style={[styles.wheelFrame, { borderColor: colors.border }]} /><View style={styles.wheelColumns}><WheelColumn options={clientWheelHours} selectedIndex={clientWheelHours.indexOf(parts.hour)} onChange={(index) => update("hour", clientWheelHours[index])} colors={colors} emphasizeSelected /><Text style={[styles.wheelSeparator, { color: colors.muted }]}>:</Text><WheelColumn options={clientWheelMinutes} selectedIndex={clientWheelMinutes.indexOf(parts.minute)} onChange={(index) => update("minute", clientWheelMinutes[index])} colors={colors} emphasizeSelected /><WheelColumn options={clientWheelPeriods} selectedIndex={clientWheelPeriods.indexOf(parts.period)} onChange={(index) => update("period", clientWheelPeriods[index])} colors={colors} emphasizeSelected /></View></View>{error ? <Text style={styles.timeWarning}>{t("selectedTimeOutsideAvailability")}</Text> : null}</View></View></Modal>;
 }
 
 function PickerHeader({ title, t, onClose, onSave }: { title: string; t: Translation; onClose: () => void; onSave: () => void }) {

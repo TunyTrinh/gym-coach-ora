@@ -132,3 +132,6 @@
 - [x] Add same-date multi-window boundary and capacity regression coverage for Client booking
 - [x] Strengthen the selected Client time-wheel value with a bold, slightly larger center treatment
 - [x] Validate multi-window Client time selection, centered wheel styling, and production readiness
+- [x] Replace the Client availability-derived time list with Coach-style hour, minute, and AM/PM wheels
+- [x] Validate the selected Client start time plus duration against all Coach windows and show a localized inline error when it does not fit
+- [x] Revalidate Client booking time boundaries, bilingual error feedback, and save a verified checkpoint
