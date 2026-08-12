@@ -140,3 +140,5 @@
 - [x] Fix Client hour-column state updates so every hour remains selectable
 - [x] Implement mandatory centered snap behavior for Client hour, minute, and AM/PM touch scrolling
 - [x] Verify Client wheel selection and exact availability-boundary booking behavior, then save a checkpoint
+- [x] Apply the corrected Client-style hour, minute, and AM/PM wheel behavior to Coach availability selection
+- [x] Verify Coach wheel snapping, time validation, and save a verified checkpoint
