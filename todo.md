@@ -123,3 +123,7 @@
 
 - [x] Refine the Client start-time wheel to display availability-derived time labels on one left-aligned line
 - [x] Validate the compact Client time-wheel styling and save the refinement checkpoint
+
+- [x] Restore centered single-line labels in the Client start-time wheel
+- [x] Correct Client start-time filtering so each selected duration ends at or before Coach availability end time
+- [x] Add exact-boundary regression coverage and validate the Client start-time correction

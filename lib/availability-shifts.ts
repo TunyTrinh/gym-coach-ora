@@ -28,6 +28,12 @@ export function intervalsOverlap(leftStart: string, leftEnd: string, rightStart:
   return new Date(leftStart).getTime() < new Date(rightEnd).getTime() && new Date(leftEnd).getTime() > new Date(rightStart).getTime();
 }
 
+/** A session may touch an availability boundary, but may never start before or end after it. */
+export function intervalFitsAvailability(sessionStart: string, sessionEnd: string, availableStart: string, availableEnd: string) {
+  return new Date(sessionStart).getTime() >= new Date(availableStart).getTime()
+    && new Date(sessionEnd).getTime() <= new Date(availableEnd).getTime();
+}
+
 export function shiftDisplayStatus(shift: AvailabilityShift, now = new Date()): AvailabilityShiftStatus {
   if (shift.status === "Available" && new Date(shift.end).getTime() <= now.getTime()) return "Expired";
   return shift.status;

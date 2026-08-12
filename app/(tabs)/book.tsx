@@ -6,7 +6,7 @@ import { Avatar, GhostButton, PrimaryButton, ScreenHeader, SpectrumCard, StatusB
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
-import { intervalsOverlap } from "@/lib/availability-shifts";
+import { intervalFitsAvailability, intervalsOverlap } from "@/lib/availability-shifts";
 import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
@@ -28,8 +28,9 @@ function buildStartTimes(window: AvailabilityShift, duration: number, now: Date,
   first.setMinutes(Math.ceil(first.getMinutes() / 15) * 15, 0, 0);
   const options: TimeOption[] = [];
 
-  for (let cursor = new Date(first); cursor.getTime() + duration * 60_000 <= end.getTime(); cursor = new Date(cursor.getTime() + 15 * 60_000)) {
+  for (let cursor = new Date(first); cursor.getTime() <= end.getTime(); cursor = new Date(cursor.getTime() + 15 * 60_000)) {
     const optionEnd = new Date(cursor.getTime() + duration * 60_000);
+    if (!intervalFitsAvailability(cursor.toISOString(), optionEnd.toISOString(), start.toISOString(), end.toISOString())) continue;
     if (cursor.getTime() <= now.getTime()) continue;
     const overlapCount = snapshot.bookings.filter((booking) => {
       if (!['Confirmed', 'Pending'].includes(booking.status)) return false;
@@ -338,9 +339,9 @@ const styles = StyleSheet.create({
   startTimeColumn: { width: "100%" },
   wheelList: { paddingVertical: wheelRowHeight * 2 },
   wheelRow: { height: wheelRowHeight, alignItems: "center", justifyContent: "center" },
-  startTimeRow: { alignItems: "flex-start", paddingHorizontal: 0 },
+  startTimeRow: { alignItems: "center", paddingHorizontal: 0 },
   wheelValue: { fontSize: 19, fontWeight: "800" },
-  startTimeValue: { width: "100%", textAlign: "left", includeFontPadding: false },
+  startTimeValue: { width: "100%", textAlign: "center", includeFontPadding: false },
   wheelSeparator: { fontSize: 18, fontWeight: "900" },
   pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
 });
