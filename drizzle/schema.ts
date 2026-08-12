@@ -106,7 +106,10 @@ export const bookings = mysqlTable("bookings", {
   memberNotes: text("memberNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  availabilityStatusSlotIndex: index("bookings_availability_status_slot_idx").on(table.availabilityShiftId, table.status, table.timeSlotId),
+  memberStatusSlotIndex: index("bookings_member_status_slot_idx").on(table.memberUserId, table.status, table.timeSlotId),
+}));
 
 export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),

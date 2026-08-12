@@ -3,6 +3,7 @@ import express from "express";
 import { createServer } from "http";
 import net from "net";
 import path from "path";
+import { randomUUID } from "crypto";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
@@ -33,9 +34,26 @@ async function startServer() {
   const server = createServer(app);
   const isProduction = process.env.NODE_ENV === "production";
   const staticDir = path.resolve(process.env.STATIC_DIR ?? path.join(process.cwd(), "web"));
+  const bodyLimit = process.env.REQUEST_BODY_LIMIT ?? "1mb";
 
   // Caddy terminates TLS on the public host; trust its forwarded protocol for secure cookies.
   app.set("trust proxy", 1);
+  app.disable("x-powered-by");
+
+  // These headers also protect the direct application port during development and internal deployments.
+  app.use((req, res, next) => {
+    const suppliedRequestId = req.header("x-request-id");
+    const requestId = suppliedRequestId && /^[A-Za-z0-9._-]{8,128}$/.test(suppliedRequestId)
+      ? suppliedRequestId
+      : randomUUID();
+    res.locals.requestId = requestId;
+    res.setHeader("X-Request-ID", requestId);
+    res.setHeader("X-Content-Type-Options", "nosniff");
+    res.setHeader("X-Frame-Options", "DENY");
+    res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+    res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    next();
+  });
 
   // Preview remains cross-origin. Production serves one same-origin PWA and API.
   app.use((req, res, next) => {
@@ -65,8 +83,9 @@ async function startServer() {
     next();
   });
 
-  app.use(express.json({ limit: "50mb" }));
-  app.use(express.urlencoded({ limit: "50mb", extended: true }));
+  // Current API mutations are metadata-only. Keep a conservative limit rather than accepting 50 MB by default.
+  app.use(express.json({ limit: bodyLimit, strict: true }));
+  app.use(express.urlencoded({ limit: bodyLimit, extended: false }));
 
   registerStorageProxy(app);
   registerOAuthRoutes(app);
@@ -113,6 +132,24 @@ async function startServer() {
   server.listen(port, () => {
     console.log(`[api] server listening on port ${port}`);
   });
+
+  let shuttingDown = false;
+  const shutdown = (signal: string) => {
+    if (shuttingDown) return;
+    shuttingDown = true;
+    console.log(`[api] received ${signal}; closing HTTP server`);
+    const forceExit = setTimeout(() => process.exit(1), 10_000);
+    server.close((error) => {
+      clearTimeout(forceExit);
+      if (error) {
+        console.error("[api] shutdown error", error);
+        process.exit(1);
+      }
+      process.exit(0);
+    });
+  };
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
 }
 
 startServer().catch(console.error);

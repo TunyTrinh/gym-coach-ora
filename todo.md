@@ -142,3 +142,8 @@
 - [x] Verify Client wheel selection and exact availability-boundary booking behavior, then save a checkpoint
 - [x] Apply the corrected Client-style hour, minute, and AM/PM wheel behavior to Coach availability selection
 - [x] Verify Coach wheel snapping, time validation, and save a verified checkpoint
+- [x] Inventory Coachora architecture, data flows, dependencies, migrations, and automated test coverage
+- [x] Audit booking correctness, capacity concurrency, permissions, frontend/backend consistency, localization, PWA, and resource usage
+- [x] Apply safe backward-compatible security, stability, and maintainability improvements found by the audit
+- [x] Run functional, regression, static, security-oriented, and bounded load validation with measured outcomes
+- [x] Produce an evidence-based production audit and optimization report with traffic findings and remaining risks

@@ -7,6 +7,7 @@ import { bookGymSlot, cancelGymBooking, getGymSnapshot, markGymAttendance } from
 import { getDb } from "./db";
 import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, notifications, serviceTypes, timeSlots, users } from "../drizzle/schema";
 import { and, eq, gt, gte, inArray, lt, sql } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
 
 const availabilityInput = z.object({
   coachId: z.number().int().positive().optional(),
@@ -228,17 +229,19 @@ export const appRouter = router({
         if (!startAt || !endAt || endAt <= startAt) throw new Error("Choose an end time after the start time.");
         const now = new Date();
         if (startAt.getTime() < now.getTime() + 30 * 60_000) throw new Error("Today’s availability must start at least 30 minutes from now.");
-        const conflicts = await db.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(
-          eq(availabilityShifts.coachId, coachId),
-          lt(availabilityShifts.startAt, endAt),
-          gt(availabilityShifts.endAt, startAt),
-          inArray(availabilityShifts.status, ["available", "booked", "blocked"]),
-        )).limit(1);
-        if (conflicts.length) throw new Error("This availability overlaps an existing availability window or blocked period.");
         const defaultService = await db.select({ id: serviceTypes.id }).from(serviceTypes).where(eq(serviceTypes.active, true)).limit(1);
         if (!defaultService[0]) throw new Error("No active coaching service is available.");
-        const windowId = `availability-${Date.now().toString(36)}-${coachId}`;
+        const windowId = `availability-${randomUUID()}`;
         await db.transaction(async (tx: any) => {
+          // Serializes new windows for the same Coach, preventing overlapping publications from racing.
+          await tx.execute(sql`SELECT id FROM coaches WHERE id = ${coachId} FOR UPDATE`);
+          const conflicts = await tx.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(
+            eq(availabilityShifts.coachId, coachId),
+            lt(availabilityShifts.startAt, endAt),
+            gt(availabilityShifts.endAt, startAt),
+            inArray(availabilityShifts.status, ["available", "booked", "blocked"]),
+          )).limit(1);
+          if (conflicts.length) throw new Error("This availability overlaps an existing availability window or blocked period.");
           await tx.insert(availabilityShifts).values({ externalId: windowId, gymId: 1, coachId, serviceTypeId: defaultService[0].id, startAt, endAt, maximumCapacity: input.maximumCapacity, location: input.location, note: input.note, status: "available", createdBy: ctx.user.id });
           await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "CREATE_AVAILABILITY", details: `Created continuous availability window ${windowId} for coach ${coachId}.` });
         });
@@ -268,13 +271,19 @@ export const appRouter = router({
           const shift = await tx.select().from(availabilityShifts).where(eq(availabilityShifts.externalId, input.windowId)).limit(1);
           if (!shift[0]) throw new Error("Availability window not found.");
           await tx.execute(sql`SELECT id FROM availabilityShifts WHERE id = ${shift[0].id} FOR UPDATE`);
+          // A Client record lock also serializes bookings across different Coach windows for the same Client.
+          await tx.execute(sql`SELECT id FROM users WHERE id = ${ctx.user.id} FOR UPDATE`);
           const startAt = new Date(input.startAt);
           const endAt = ensureBookableInterval(shift[0], startAt, input.durationMinutes);
+          const existingClientOverlap = await tx.select({ id: bookings.id }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(
+            eq(bookings.memberUserId, ctx.user.id), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endAt), gt(timeSlots.endAt, startAt),
+          )).limit(1);
+          if (existingClientOverlap.length) throw new Error("This session overlaps with one of your existing bookings.");
           const overlappingBookings = await tx.select({ id: bookings.id }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(
             eq(bookings.availabilityShiftId, shift[0].id), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endAt), gt(timeSlots.endAt, startAt),
           ));
           if (overlappingBookings.length >= shift[0].maximumCapacity) throw new Error("That time has reached the coach’s maximum client capacity. Choose another time.");
-          const bookingExternalId = `booking-${input.windowId}-${Date.now().toString(36)}`;
+          const bookingExternalId = `booking-${randomUUID()}`;
           const slotExternalId = `booking-slot-${bookingExternalId}`;
           await tx.insert(timeSlots).values({ externalId: slotExternalId, gymId: shift[0].gymId, coachId: shift[0].coachId, serviceTypeId: shift[0].serviceTypeId, startAt, endAt, maximumCapacity: shift[0].maximumCapacity, bookedCount: 1, status: "Full", room: shift[0].location });
           const slot = await tx.select({ id: timeSlots.id }).from(timeSlots).where(eq(timeSlots.externalId, slotExternalId)).limit(1);
