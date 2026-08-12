@@ -14,3 +14,8 @@
 - [x] Upgrade the booking scheduler to initialize from the device's current local date and time, expose a Today action, and de-emphasize elapsed time slots
 - [x] Preserve current booking, cancellation, attendance, notification, and role-aware workflows through the redesign
 - [x] Add focused tests for time-aware scheduler helper behavior and verify redesigned mobile UI at portrait breakpoints
+- [x] Audit the existing booking store and schedule UI for unified overview and health progress extension points
+- [x] Add a consolidated schedule overview with calendar navigation, booked-day signals, and a selected-day session summary
+- [x] Add local health measurement records for weight, body fat, chest, waist, hips, arms, and thighs
+- [x] Add measurement comparisons, dated history, and a simple accessible progress chart
+- [x] Test schedule and health-progress state behavior and verify the new mobile screens compile cleanly

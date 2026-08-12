@@ -69,6 +69,23 @@ export interface MemberProfile {
   initials: string;
 }
 
+export const HEALTH_MEASUREMENT_KEYS = ["weightKg", "bodyFatPercentage", "chestCm", "waistCm", "hipsCm", "armsCm", "thighsCm"] as const;
+export type HealthMeasurementKey = (typeof HEALTH_MEASUREMENT_KEYS)[number];
+
+export interface HealthMeasurementRecord {
+  id: string;
+  recordedAt: string;
+  weightKg?: number;
+  bodyFatPercentage?: number;
+  chestCm?: number;
+  waistCm?: number;
+  hipsCm?: number;
+  armsCm?: number;
+  thighsCm?: number;
+}
+
+export type HealthMeasurementInput = Omit<HealthMeasurementRecord, "id">;
+
 export interface NotificationItem {
   id: string;
   type: NotificationType;
@@ -95,6 +112,7 @@ export interface GymSnapshot {
   slots: TimeSlot[];
   bookings: Booking[];
   member: MemberProfile;
+  measurements: HealthMeasurementRecord[];
   notifications: NotificationItem[];
   announcements: Announcement[];
 }
@@ -222,6 +240,11 @@ export function seedGymData(now = new Date()): GymSnapshot {
       role: "member",
       initials: "AM",
     },
+    measurements: [
+      { id: "measurement-1", recordedAt: iso(atDay(now, -56, 9, 0)), weightKg: 78.4, bodyFatPercentage: 22.8, chestCm: 101, waistCm: 88, hipsCm: 102, armsCm: 33, thighsCm: 60 },
+      { id: "measurement-2", recordedAt: iso(atDay(now, -28, 9, 0)), weightKg: 77.2, bodyFatPercentage: 21.9, chestCm: 101.5, waistCm: 86.5, hipsCm: 101, armsCm: 33.4, thighsCm: 59.5 },
+      { id: "measurement-3", recordedAt: iso(atDay(now, -2, 9, 0)), weightKg: 76.6, bodyFatPercentage: 21.1, chestCm: 102, waistCm: 85, hipsCm: 100.5, armsCm: 33.8, thighsCm: 59 },
+    ],
     notifications: [
       { id: "note-1", type: "reminder", title: "Your session is tomorrow", message: "Strength Training with Maya Chen starts at 6:30 PM in Studio A.", createdAt: iso(addMinutes(now, -30)), read: false, relatedBookingId: booking.id, priority: "Important" },
       { id: "note-2", type: "announcement", title: "New recovery zone", message: "The recovery zone is now open on the mezzanine level after 5 PM.", createdAt: iso(addMinutes(now, -180)), read: false, priority: "Normal" },

@@ -65,6 +65,7 @@ export default function RootLayout() {
               <Stack.Screen name="(tabs)" />
               <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
               <Stack.Screen name="coach" options={{ presentation: "modal" }} />
+              <Stack.Screen name="progress" options={{ presentation: "modal" }} />
               <Stack.Screen name="oauth/callback" />
             </Stack>
             <StatusBar style="light" />

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 
 import { GhostButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
@@ -20,6 +21,7 @@ export default function HistoryScreen() {
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <ScreenHeader title="History" subtitle="Proof that the work adds up." label="YOUR PROGRESS" />
       <SpectrumCard style={styles.summaryCard} intensity="muted"><Text style={styles.summaryEyebrow}>ATTENDANCE SUMMARY</Text><Text style={styles.summaryTitle}>Keep the momentum.</Text><View style={styles.summaryStats}><SummaryMetric value={String(completedCount)} label="Completed" /><SummaryMetric value={`${checkInRate}%`} label="Attendance" /><SummaryMetric value={String(Math.max(0, completedCount))} label="Check-ins" /></View></SpectrumCard>
+      <Pressable onPress={() => router.push("/progress")} accessibilityRole="button" style={({ pressed }) => [styles.healthEntry, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><View><Text style={styles.healthEyebrow}>HEALTH PROGRESS</Text><Text style={[styles.healthTitle, { color: colors.foreground }]}>Measurements & trends</Text><Text style={[styles.healthCopy, { color: colors.muted }]}>Compare your latest body measurements over time.</Text></View><Text style={styles.healthArrow}>→</Text></Pressable>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}><HistoryFilter label="All activity" active={filter === "all"} onPress={() => setFilter("all")} /><HistoryFilter label="Completed" active={filter === "Completed"} onPress={() => setFilter("Completed")} /><HistoryFilter label="Cancelled" active={filter === "Cancelled"} onPress={() => setFilter("Cancelled")} /><HistoryFilter label="No-show" active={filter === "No-show"} onPress={() => setFilter("No-show")} /></ScrollView>
       <View style={styles.list}>{filtered.length === 0 ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No activity here yet</Text><Text style={[styles.emptyText, { color: colors.muted }]}>Your completed and cancelled sessions will show up as you use GymFlow.</Text></SurfaceCard> : filtered.map((booking) => {
         const slot = getBookingSlot(snapshot, booking);
@@ -49,6 +51,7 @@ const styles = StyleSheet.create({
   summaryStats: { flexDirection: "row", justifyContent: "space-between", marginTop: 22 },
   summaryValue: { color: "#ffffff", fontSize: 25, fontWeight: "800" },
   summaryLabel: { color: "rgba(255,255,255,0.72)", fontSize: 11, fontWeight: "700", marginTop: 2 },
+  healthEntry: { minHeight: 98, borderWidth: 1, borderRadius: 20, padding: 17, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, healthEyebrow: { color: "#ff82b7", fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, healthTitle: { fontSize: 16, fontWeight: "800", marginTop: 4 }, healthCopy: { fontSize: 12, marginTop: 4 }, healthArrow: { color: "#ff82b7", fontSize: 24, fontWeight: "700" },
   filters: { gap: 8, paddingRight: 18 },
   filter: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9 },
   list: { gap: 11 },

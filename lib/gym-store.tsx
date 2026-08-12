@@ -5,6 +5,7 @@ import {
   type Booking,
   type BookingStatus,
   type GymSnapshot,
+  type HealthMeasurementInput,
   type NotificationItem,
   type Role,
   type TimeSlot,
@@ -33,6 +34,7 @@ type GymContextValue = {
   cancelBooking: (bookingId: string, reason?: string) => Promise<MutationResult>;
   checkInBooking: (bookingId: string) => Promise<MutationResult>;
   markAttendance: (bookingId: string, status: Extract<BookingStatus, "Completed" | "No-show">) => Promise<MutationResult>;
+  saveMeasurement: (measurement: HealthMeasurementInput) => Promise<MutationResult>;
   markNotificationRead: (notificationId: string) => void;
   markAllNotificationsRead: () => void;
   updateRole: (role: Role) => void;
@@ -48,7 +50,10 @@ export function GymProvider({ children }: PropsWithChildren) {
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) => {
-        if (raw) setSnapshot(JSON.parse(raw) as GymSnapshot);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Partial<GymSnapshot>;
+          setSnapshot((current) => ({ ...current, ...parsed, measurements: Array.isArray(parsed.measurements) ? parsed.measurements : [] }));
+        }
       })
       .catch(() => undefined)
       .finally(() => setHydrated(true));
@@ -170,6 +175,19 @@ export function GymProvider({ children }: PropsWithChildren) {
     return { success: true, message: status === "Completed" ? "Member marked completed." : "Member marked no-show." };
   }, [snapshot]);
 
+  const saveMeasurement = useCallback(async (measurement: HealthMeasurementInput): Promise<MutationResult> => {
+    const recordedAt = new Date(measurement.recordedAt);
+    if (Number.isNaN(recordedAt.getTime())) return { success: false, error: "Choose a valid measurement date." };
+    const hasValue = Object.entries(measurement).some(([key, value]) => key !== "recordedAt" && typeof value === "number" && Number.isFinite(value) && value > 0);
+    if (!hasValue) return { success: false, error: "Add at least one positive measurement." };
+    const record = { ...measurement, id: `measurement-${Date.now()}` };
+    setSnapshot((current) => ({
+      ...current,
+      measurements: [record, ...current.measurements].sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()),
+    }));
+    return { success: true, message: "Measurement saved to your private progress history." };
+  }, []);
+
   const markNotificationRead = useCallback((notificationId: string) => {
     setSnapshot((current) => ({ ...current, notifications: current.notifications.map((item) => item.id === notificationId ? { ...item, read: true } : item) }));
   }, []);
@@ -186,7 +204,7 @@ export function GymProvider({ children }: PropsWithChildren) {
     setSnapshot(seedGymData());
   }, []);
 
-  const value = useMemo(() => ({ snapshot, hydrated, unreadCount: snapshot.notifications.filter((item) => !item.read).length, upcomingBookings, historyBookings, bookSlot, cancelBooking, checkInBooking, markAttendance, markNotificationRead, markAllNotificationsRead, updateRole, resetDemoData }), [snapshot, hydrated, upcomingBookings, historyBookings, bookSlot, cancelBooking, checkInBooking, markNotificationRead, markAllNotificationsRead, updateRole, resetDemoData]);
+  const value = useMemo(() => ({ snapshot, hydrated, unreadCount: snapshot.notifications.filter((item) => !item.read).length, upcomingBookings, historyBookings, bookSlot, cancelBooking, checkInBooking, markAttendance, saveMeasurement, markNotificationRead, markAllNotificationsRead, updateRole, resetDemoData }), [snapshot, hydrated, upcomingBookings, historyBookings, bookSlot, cancelBooking, checkInBooking, markAttendance, saveMeasurement, markNotificationRead, markAllNotificationsRead, updateRole, resetDemoData]);
 
   return <GymContext.Provider value={value}>{children}</GymContext.Provider>;
 }

@@ -12,8 +12,9 @@ The app remains optimized for portrait 9:16 use. Tabs, confirmation actions, can
 |---|---|---|
 | Home | Next booking, attendance progress, gym announcements, membership | Dark dashboard with a Spectrum next-session card and a quiet ambient glow behind key actions. |
 | Book | Service and coach filters, date rail, real-time availability, confirmation sheet | Time-aware scheduler starts on the device’s current local day, exposes a clear **Today** control, and removes elapsed slots from booking. |
-| My Schedule | Confirmed sessions, check-in window, cancellation action | Agenda-style cards use focused time typography and semantic status badges. |
-| History | Attendance records and activity summary | High-contrast filters and quiet, compact historical cards. |
+| My Schedule | Month calendar, booked-day indicators, selected-day sessions, check-in and cancellation controls | A compact Spectrum calendar lets members scan multiple bookings at once, jump to Today, and see session details in a single selected-day summary. |
+| Health Progress | Dated measurement entries, current/previous comparison, deltas, and trend chart | Private, local-first data is displayed through a calm dark measurement dashboard with a focused metric picker and pink-to-violet progress line. |
+| History | Attendance records, activity summary, and Health Progress entry point | High-contrast filters and quiet, compact historical cards. |
 | Profile | Membership, preferences, PWA install guidance, role preview | Elevated settings surfaces with a compact Spectrum membership treatment. |
 | Notifications | Booking reminders, announcements, membership messages | Unread notifications receive a subtle violet-to-blue edge state, retaining existing deep links. |
 | Coach / Admin | Upcoming coach sessions, attendees, attendance controls | Spectrum staff summary card with semantic attendance actions and protected role behavior. |
@@ -29,6 +30,8 @@ The scheduler uses the **device’s local time** as its current clock. It derive
 | Book a session | Open Book → filter service or coach → select a locally dated day or tap Today → choose an upcoming open slot → review the Spectrum confirmation sheet → confirm booking → receive existing schedule and notification updates. |
 | Check in | Open My Schedule near the session start → use Check in when the existing 30-minute window permits it → receive the current success message and stored attendance timestamp. |
 | Staff attendance | Switch to the existing coach/admin preview → open Coach view → mark attendee Completed or No-show → retain current booking state behavior. |
+| Review the month | Open My Schedule → use previous/next month or Today → tap a day with a booking signal → review all sessions for the selected day → use the existing check-in or cancellation action where available. |
+| Record progress | Open Health Progress from History → select Add measurement → enter the fields available from weight, body fat, chest, waist, hips, arms, and thighs → save with the device-local date → compare current and prior values or change the chart metric. |
 
 ## Color and Surface Tokens
 
