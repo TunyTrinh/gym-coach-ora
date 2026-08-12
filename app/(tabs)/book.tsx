@@ -18,7 +18,7 @@ const quickDurations = [30, 45, 60] as const;
 const customDurations = Array.from({ length: 13 }, (_, index) => 60 + index * 15);
 const wheelRowHeight = 44;
 
-type TimeOption = { start: Date; end: Date; remaining: number };
+type TimeOption = { start: Date; end: Date; remaining: number; availabilityShiftId: string };
 type Translation = ReturnType<typeof useLanguage>["t"];
 
 function buildStartTimes(window: AvailabilityShift, duration: number, now: Date, snapshot: GymSnapshot): TimeOption[] {
@@ -38,7 +38,7 @@ function buildStartTimes(window: AvailabilityShift, duration: number, now: Date,
       return slot?.availabilityShiftId === window.id && intervalsOverlap(cursor.toISOString(), optionEnd.toISOString(), slot.start, slot.end);
     }).length;
     const remaining = Math.max(0, window.maximumCapacity - overlapCount);
-    if (remaining > 0) options.push({ start: cursor, end: optionEnd, remaining });
+    if (remaining > 0) options.push({ start: cursor, end: optionEnd, remaining, availabilityShiftId: window.id });
   }
   return options;
 }
@@ -81,11 +81,18 @@ export default function BookScreen() {
     [now, selectedDate, snapshot.availabilityShifts],
   );
   const selectedWindow = windows.find((window) => window.id === selectedWindowId) ?? null;
+  const selectedCoachWindows = useMemo(
+    () => selectedWindow ? windows.filter((window) => window.coachId === selectedWindow.coachId) : [],
+    [selectedWindow, windows],
+  );
   const timeOptions = useMemo(
-    () => selectedWindow ? buildStartTimes(selectedWindow, duration, now, snapshot) : [],
-    [duration, now, selectedWindow, snapshot],
+    () => selectedCoachWindows.flatMap((window) => buildStartTimes(window, duration, now, snapshot)),
+    [duration, now, selectedCoachWindows, snapshot],
   );
   const selectedOption = timeOptions.find((option) => option.start.getTime() === selectedStart?.getTime()) ?? null;
+  const selectedBookingWindow = selectedOption
+    ? selectedCoachWindows.find((window) => window.id === selectedOption.availabilityShiftId) ?? selectedWindow
+    : selectedWindow;
 
   useEffect(() => {
     setSelectedWindowId(null);
@@ -135,9 +142,9 @@ export default function BookScreen() {
   };
 
   const handleBook = async () => {
-    if (!selectedWindow || !selectedOption) return;
+    if (!selectedBookingWindow || !selectedOption) return;
     setBusy(true);
-    const result = await bookAvailability(selectedWindow.id, selectedOption.start.toISOString(), duration);
+    const result = await bookAvailability(selectedBookingWindow.id, selectedOption.start.toISOString(), duration);
     setBusy(false);
     if (result.success) {
       haptic.success();
@@ -220,7 +227,7 @@ export default function BookScreen() {
         </View> : null}
       </ScrollView>
 
-      <BookingReview visible={showReview} window={selectedWindow} option={selectedOption} duration={duration} colors={colors} language={language} t={t} busy={busy} onClose={() => setShowReview(false)} onBook={handleBook} />
+      <BookingReview visible={showReview} window={selectedBookingWindow} option={selectedOption} duration={duration} colors={colors} language={language} t={t} busy={busy} onClose={() => setShowReview(false)} onBook={handleBook} />
       <DurationPicker visible={showDurationPicker} value={durationDraft} colors={colors} t={t} onChange={setDurationDraft} onClose={() => setShowDurationPicker(false)} onSave={saveCustomDuration} />
       <StartTimePicker visible={showTimePicker} value={timeDraft} options={timeOptions} colors={colors} language={language} t={t} error={timeError} onChange={setTimeDraft} onClose={() => setShowTimePicker(false)} onSave={saveStartTime} />
     </ScreenContainer>
@@ -249,21 +256,21 @@ function DurationPicker({ visible, value, colors, t, onChange, onClose, onSave }
 
 function StartTimePicker({ visible, value, options, colors, language, t, error, onChange, onClose, onSave }: { visible: boolean; value: string; options: TimeOption[]; colors: ReturnType<typeof useColors>; language: "en" | "vi"; t: Translation; error: boolean; onChange: (value: string) => void; onClose: () => void; onSave: () => void }) {
   const selectedIndex = Math.max(0, options.findIndex((option) => clockValue(option.start) === value));
-  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.pickerBackdrop}><View style={[styles.pickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><PickerHeader title={t("chooseStartTime")} t={t} onClose={onClose} onSave={onSave} />{options.length ? <View style={styles.startTimeWheel}><View pointerEvents="none" style={[styles.wheelFrame, { borderColor: colors.border }]} /><WheelColumn options={options} selectedIndex={selectedIndex} onChange={(index) => onChange(clockValue(options[index].start))} colors={colors} renderLabel={(option) => formatTimeLocalized(option.start, language)} columnStyle={styles.startTimeColumn} rowStyle={styles.startTimeRow} valueStyle={styles.startTimeValue} /></View> : null}{error ? <Text style={styles.timeWarning}>{t("noTimesForDuration")}</Text> : null}</View></View></Modal>;
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.pickerBackdrop}><View style={[styles.pickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><PickerHeader title={t("chooseStartTime")} t={t} onClose={onClose} onSave={onSave} />{options.length ? <View style={styles.startTimeWheel}><View pointerEvents="none" style={[styles.wheelFrame, { borderColor: colors.border }]} /><WheelColumn options={options} selectedIndex={selectedIndex} onChange={(index) => onChange(clockValue(options[index].start))} colors={colors} renderLabel={(option) => formatTimeLocalized(option.start, language)} columnStyle={styles.startTimeColumn} rowStyle={styles.startTimeRow} valueStyle={styles.startTimeValue} emphasizeSelected /></View> : null}{error ? <Text style={styles.timeWarning}>{t("noTimesForDuration")}</Text> : null}</View></View></Modal>;
 }
 
 function PickerHeader({ title, t, onClose, onSave }: { title: string; t: Translation; onClose: () => void; onSave: () => void }) {
   return <View style={styles.pickerHeader}><Pressable onPress={onClose} style={styles.pickerAction}><Text style={styles.pickerActionText}>{t("cancel")}</Text></Pressable><Text style={styles.pickerTitle}>{title}</Text><Pressable onPress={onSave} style={[styles.pickerAction, styles.pickerSave]}><Text style={styles.pickerActionText}>{t("save")}</Text></Pressable></View>;
 }
 
-function WheelColumn<T>({ options, selectedIndex, onChange, colors, renderLabel, columnStyle, rowStyle, valueStyle }: { options: readonly T[]; selectedIndex: number; onChange: (index: number) => void; colors: ReturnType<typeof useColors>; renderLabel?: (value: T) => string; columnStyle?: StyleProp<ViewStyle>; rowStyle?: StyleProp<ViewStyle>; valueStyle?: StyleProp<TextStyle> }) {
+function WheelColumn<T>({ options, selectedIndex, onChange, colors, renderLabel, columnStyle, rowStyle, valueStyle, emphasizeSelected = false }: { options: readonly T[]; selectedIndex: number; onChange: (index: number) => void; colors: ReturnType<typeof useColors>; renderLabel?: (value: T) => string; columnStyle?: StyleProp<ViewStyle>; rowStyle?: StyleProp<ViewStyle>; valueStyle?: StyleProp<TextStyle>; emphasizeSelected?: boolean }) {
   const ref = useRef<FlatList<T>>(null);
   useEffect(() => {
     const frame = requestAnimationFrame(() => ref.current?.scrollToOffset({ offset: Math.max(0, selectedIndex) * wheelRowHeight, animated: false }));
     return () => cancelAnimationFrame(frame);
   }, [selectedIndex]);
   const finish = (event: NativeSyntheticEvent<NativeScrollEvent>) => onChange(Math.max(0, Math.min(options.length - 1, Math.round(event.nativeEvent.contentOffset.y / wheelRowHeight))));
-  return <FlatList ref={ref} data={[...options]} keyExtractor={(_, index) => String(index)} style={[styles.wheelColumn, columnStyle]} contentContainerStyle={styles.wheelList} showsVerticalScrollIndicator={false} snapToInterval={wheelRowHeight} decelerationRate="fast" onMomentumScrollEnd={finish} onScrollEndDrag={finish} getItemLayout={(_, index) => ({ length: wheelRowHeight, offset: wheelRowHeight * index, index })} renderItem={({ item, index }) => <View style={[styles.wheelRow, rowStyle]}><Text numberOfLines={1} ellipsizeMode="clip" style={[styles.wheelValue, valueStyle, { color: index === selectedIndex ? "#ff82b7" : colors.muted, opacity: index === selectedIndex ? 1 : 0.42 }]}>{renderLabel ? renderLabel(item) : String(item)}</Text></View>} />;
+  return <FlatList ref={ref} data={[...options]} keyExtractor={(_, index) => String(index)} style={[styles.wheelColumn, columnStyle]} contentContainerStyle={styles.wheelList} showsVerticalScrollIndicator={false} snapToInterval={wheelRowHeight} decelerationRate="fast" onMomentumScrollEnd={finish} onScrollEndDrag={finish} getItemLayout={(_, index) => ({ length: wheelRowHeight, offset: wheelRowHeight * index, index })} renderItem={({ item, index }) => <View style={[styles.wheelRow, rowStyle]}><Text numberOfLines={1} ellipsizeMode="clip" style={[styles.wheelValue, valueStyle, { color: index === selectedIndex ? "#ff82b7" : colors.muted, opacity: index === selectedIndex ? 1 : 0.42 }, emphasizeSelected && index === selectedIndex ? styles.wheelValueSelected : null]}>{renderLabel ? renderLabel(item) : String(item)}</Text></View>} />;
 }
 
 function DurationWheel({ value, onChange, colors, t }: { value: number; onChange: (value: number) => void; colors: ReturnType<typeof useColors>; t: Translation }) {
@@ -342,6 +349,7 @@ const styles = StyleSheet.create({
   startTimeRow: { alignItems: "center", paddingHorizontal: 0 },
   wheelValue: { fontSize: 19, fontWeight: "800" },
   startTimeValue: { width: "100%", textAlign: "center", includeFontPadding: false },
+  wheelValueSelected: { fontSize: 22, fontWeight: "900", transform: [{ scale: 1.04 }] },
   wheelSeparator: { fontSize: 18, fontWeight: "900" },
   pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
 });

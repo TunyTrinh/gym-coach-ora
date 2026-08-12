@@ -127,3 +127,8 @@
 - [x] Restore centered single-line labels in the Client start-time wheel
 - [x] Correct Client start-time filtering so each selected duration ends at or before Coach availability end time
 - [x] Add exact-boundary regression coverage and validate the Client start-time correction
+
+- [x] Audit and correct Client start-time options across every Coach availability window on the selected date
+- [x] Add same-date multi-window boundary and capacity regression coverage for Client booking
+- [x] Strengthen the selected Client time-wheel value with a bold, slightly larger center treatment
+- [x] Validate multi-window Client time selection, centered wheel styling, and production readiness
