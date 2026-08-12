@@ -6,7 +6,9 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
-import { formatShortDate, formatTime, getBookingSlot, getCoach, getService } from "@/shared/gym";
+import { useLanguage } from "@/lib/language-provider";
+import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
+import { getBookingSlot, getCoach, getService } from "@/shared/gym";
 
 import { useAuth } from "@/hooks/use-auth";
 
@@ -15,6 +17,7 @@ export default function HomeScreen() {
   const { user } = useAuth();
   const role = user?.role || "client";
   const { snapshot, upcomingBookings, unreadCount } = useGym();
+  const { language, t } = useLanguage();
   const nextBooking = upcomingBookings[0];
   const nextSlot = nextBooking ? getBookingSlot(snapshot, nextBooking) : undefined;
   const nextService = nextSlot ? getService(snapshot, nextSlot.serviceTypeId) : undefined;
@@ -23,42 +26,42 @@ export default function HomeScreen() {
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <ScreenHeader title={`Hi, ${firstName}`} subtitle={role === "coach" ? "Coach Dashboard" : role === "admin" ? "Admin Hub" : "Your next healthy move starts here."} onPress={() => router.push("/notifications")} badge={unreadCount} label={role === "coach" ? "COACH PORTAL" : role === "admin" ? "ADMIN PORTAL" : "GYMFLOW"} />
-      <OfflineBanner label="Your schedule stays ready offline" />
+      <ScreenHeader title={`${t("welcomeBack")}, ${firstName}`} subtitle={role === "coach" ? t("dashboard") : role === "admin" ? t("adminHub") : t("findYourTime")} onPress={() => router.push("/notifications")} badge={unreadCount} label={role === "coach" ? t("coachLabel") : role === "admin" ? t("admin") : "GYMFLOW"} />
+      <OfflineBanner label={t("offlineSync")} />
 
       <>
-        {role === "coach" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/availability")} accessibilityLabel="Manage coach availability">
+        {role === "coach" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/availability")} accessibilityLabel={t("openCoachAvailability")}>
           <View style={styles.heroTopRow}>
-            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>COACH DASHBOARD</Text><Text style={styles.heroTitle}>Today&apos;s Sessions</Text></View>
-            <StatusBadge label="Active" tone="success" />
+            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{t("dashboard").toUpperCase()}</Text><Text style={styles.heroTitle}>{t("upcomingSession")}</Text></View>
+            <StatusBadge label={t("active")} tone="success" />
           </View>
-          <Text style={styles.heroDate}>Create, block, and manage bookable coaching shifts.</Text>
-          <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⌘</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>Availability</Text><Text style={styles.heroMetaMuted}>Publish coaching time in minutes</Text></View><Text style={styles.heroArrow}>→</Text></View>
+          <Text style={styles.heroDate}>{t("manageAvailabilityBody")}</Text>
+          <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⌘</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>{t("availability")}</Text><Text style={styles.heroMetaMuted}>{t("availabilitySubtitle")}</Text></View><Text style={styles.heroArrow}>→</Text></View>
         </SpectrumCard>}
 
-        {role === "admin" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/schedule")} accessibilityLabel="System overview">
+        {role === "admin" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/schedule")} accessibilityLabel={t("adminHub")}>
           <View style={styles.heroTopRow}>
-            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>ADMIN OVERVIEW</Text><Text style={styles.heroTitle}>Gym Operations</Text></View>
-            <StatusBadge label="System OK" tone="success" />
+            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{t("adminHub").toUpperCase()}</Text><Text style={styles.heroTitle}>{t("staffSchedule")}</Text></View>
+            <StatusBadge label={t("active")} tone="success" />
           </View>
-          <Text style={styles.heroDate}>Monitor bookings, coaches, and system health.</Text>
-          <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⚙</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>Global Settings</Text><Text style={styles.heroMetaMuted}>Manage roles and permissions</Text></View><Text style={styles.heroArrow}>→</Text></View>
+          <Text style={styles.heroDate}>{t("adminAvailabilityBody")}</Text>
+          <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⚙</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>{t("bookings")}</Text><Text style={styles.heroMetaMuted}>{t("manageCoachTime")}</Text></View><Text style={styles.heroArrow}>→</Text></View>
         </SpectrumCard>}
 
         {role === "client" && <SpectrumCard style={styles.heroCard}>
           <View style={styles.heroTopRow}>
-            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{nextBooking ? "NEXT SESSION" : "YOUR NEXT MOVE"}</Text><Text style={styles.heroTitle}>{nextService?.name ?? "Ready when you are"}</Text></View>
-            <StatusBadge label={nextBooking?.status ?? "Open"} tone={nextBooking ? "success" : "accent"} />
+            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{nextBooking ? t("nextSession") : t("findYourTime").toUpperCase()}</Text><Text style={styles.heroTitle}>{nextService?.name ?? t("noSessionYet")}</Text></View>
+            <StatusBadge label={nextBooking ? t("booked") : t("available")} tone={nextBooking ? "success" : "accent"} />
           </View>
           {nextSlot ? <>
-            <Text style={styles.heroDate}>{formatShortDate(nextSlot.start)} · {formatTime(nextSlot.start)}</Text>
-            <View style={styles.heroMetaRow}>{nextCoach ? <Avatar initials={nextCoach.initials} accent={nextCoach.accent} size={36} /> : <View style={styles.metaIcon}><Text style={styles.metaIconText}>⌁</Text></View>}<View style={styles.heroCopy}><Text style={styles.heroMeta}>{nextCoach?.fullName ?? "Open gym access"}</Text><Text style={styles.heroMetaMuted}>{nextSlot.room} · {snapshot.gyms[0]?.name}</Text></View><Text style={styles.heroArrow}>→</Text></View>
-          </> : <Text style={styles.heroEmpty}>Choose a time that fits your day. Live availability is always shown in your local time.</Text>}
+            <Text style={styles.heroDate}>{formatDateLocalized(nextSlot.start, language)} · {formatTimeLocalized(nextSlot.start, language)}</Text>
+            <View style={styles.heroMetaRow}>{nextCoach ? <Avatar initials={nextCoach.initials} accent={nextCoach.accent} size={36} /> : <View style={styles.metaIcon}><Text style={styles.metaIconText}>⌁</Text></View>}<View style={styles.heroCopy}><Text style={styles.heroMeta}>{nextCoach?.fullName ?? t("openGymAccess")}</Text><Text style={styles.heroMetaMuted}>{nextSlot.room} · {snapshot.gyms[0]?.name}</Text></View><Text style={styles.heroArrow}>→</Text></View>
+          </> : <Text style={styles.heroEmpty}>{t("bookSessionSubtitle")}</Text>}
         </SpectrumCard>}
       </>
 
-      {role === "client" ? <Pressable onPress={() => { haptic.light(); router.push("/book"); }} style={({ pressed }) => [styles.primaryAction, pressed && (reducedMotion ? styles.primaryReducedPressed : styles.primaryPressed)]} accessibilityRole="button" accessibilityLabel="Book a session">
-        <View><Text style={styles.primaryEyebrow}>FIND YOUR TIME</Text><Text style={styles.primaryTitle}>Book a session</Text><Text style={styles.primaryCopy}>Choose a coach and time in a few taps</Text></View><View style={styles.primaryArrow}><Text style={styles.primaryArrowText}>+</Text></View>
+      {role === "client" ? <Pressable onPress={() => { haptic.light(); router.push("/book"); }} style={({ pressed }) => [styles.primaryAction, pressed && (reducedMotion ? styles.primaryReducedPressed : styles.primaryPressed)]} accessibilityRole="button" accessibilityLabel={t("bookSessionTitle")}>
+        <View><Text style={styles.primaryEyebrow}>{t("findYourTime").toUpperCase()}</Text><Text style={styles.primaryTitle}>{t("bookSessionTitle")}</Text><Text style={styles.primaryCopy}>{t("bookSessionSubtitle")}</Text></View><View style={styles.primaryArrow}><Text style={styles.primaryArrowText}>+</Text></View>
       </Pressable> : null}
     </ScrollView>
   </ScreenContainer>;

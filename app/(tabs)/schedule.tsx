@@ -8,14 +8,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { addMonths, buildMonthGrid, isSameLocalDay, localDayKey, startOfLocalDay, startOfMonth } from "@/lib/calendar";
 import { useGym } from "@/lib/gym-store";
-import { formatShortDate, formatTime, getBookingSlot, getCoach, getService } from "@/shared/gym";
+import { useLanguage } from "@/lib/language-provider";
+import { formatDateLocalized, formatTimeLocalized, localeFor } from "@/lib/i18n";
+import { getBookingSlot, getCoach, getService } from "@/shared/gym";
 
-const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const weekDayReference = new Date(2024, 0, 7);
 
 export default function ScheduleScreen() {
   const colors = useColors();
   const { user } = useAuth();
   const { snapshot, upcomingBookings, cancelBooking, checkInBooking } = useGym();
+  const { language, t } = useLanguage();
   const role = user?.role ?? snapshot.member.role;
   const [now, setNow] = useState(() => new Date());
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
@@ -38,24 +41,25 @@ export default function ScheduleScreen() {
     return result;
   }, [snapshot, upcomingBookings]);
   const selectedBookings = bookingsByDay.get(localDayKey(selectedDate)) ?? [];
-  const monthTitle = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(visibleMonth);
+  const monthTitle = new Intl.DateTimeFormat(localeFor(language), { month: "long", year: "numeric" }).format(visibleMonth);
   const selectedTitle = isSameLocalDay(selectedDate, now)
-    ? "Today"
-    : new Intl.DateTimeFormat("en-US", { weekday: "long", month: "long", day: "numeric" }).format(selectedDate);
+    ? t("today")
+    : formatDateLocalized(selectedDate, language, { weekday: "long", month: "long", day: "numeric" });
+  const weekDays = Array.from({ length: 7 }, (_, index) => new Intl.DateTimeFormat(localeFor(language), { weekday: "short" }).format(new Date(weekDayReference.getTime() + index * 86_400_000)));
 
   const handleCancel = (bookingId: string) => {
-    Alert.alert("Cancel this booking?", "Your spot will be released immediately. Free cancellation applies before the session cutoff.", [
-      { text: "Keep booking", style: "cancel" },
-      { text: "Cancel booking", style: "destructive", onPress: async () => {
+    Alert.alert(t("cancelBookingPrompt"), t("cancelBookingBody"), [
+      { text: t("keepBooking"), style: "cancel" },
+      { text: t("cancelBooking"), style: "destructive", onPress: async () => {
         const result = await cancelBooking(bookingId, "Plans changed");
-        Alert.alert(result.success ? "Booking cancelled" : "Couldn’t cancel", result.success ? result.message : result.error);
+        Alert.alert(result.success ? t("bookingCancelled") : t("couldNotCancel"), result.success ? result.message : result.error);
       } },
     ]);
   };
 
   const handleCheckIn = async (bookingId: string) => {
     const result = await checkInBooking(bookingId);
-    Alert.alert(result.success ? "Checked in" : "Check-in unavailable", result.success ? result.message : result.error);
+    Alert.alert(result.success ? t("checkedInAlert") : t("checkInUnavailable"), result.success ? result.message : result.error);
   };
 
   const resetToToday = () => {
@@ -110,10 +114,18 @@ export default function ScheduleScreen() {
         const coach = getCoach(snapshot, slot.coachId);
         const minutesUntil = Math.round((new Date(slot.start).getTime() - now.getTime()) / 60_000);
         const checkInOpen = minutesUntil <= 30 && minutesUntil >= -30;
-        return <SurfaceCard key={booking.id} style={styles.bookingCard}><View style={styles.bookingTop}><View><Text style={[styles.bookingTime, { color: colors.foreground }]}>{formatTime(slot.start)} <Text style={[styles.bookingDuration, { color: colors.muted }]}>· {service?.durationMinutes} min</Text></Text><Text style={[styles.bookingDate, { color: "#ff82b7" }]}>{formatShortDate(slot.start).toUpperCase()}</Text></View><StatusBadge label={booking.checkInTime ? "Checked in" : booking.status} tone={booking.checkInTime ? "success" : "accent"} /></View><View style={[styles.bookingRule, { backgroundColor: colors.border }]} /><View style={styles.bookingMain}>{coach ? <Avatar initials={coach.initials} accent={coach.accent} size={40} /> : <View style={styles.openIcon}><Text style={styles.openIconText}>⌁</Text></View>}<View style={styles.bookingCopy}><Text style={[styles.bookingService, { color: colors.foreground }]}>{service?.name}</Text><Text style={[styles.bookingCoach, { color: colors.muted }]}>{coach?.fullName ?? "Self-guided access"}</Text><Text style={[styles.bookingLocation, { color: colors.muted }]}>{slot.room} · Northstar Downtown</Text></View></View><View style={styles.actionRow}>{checkInOpen && !booking.checkInTime ? <View style={styles.actionFill}><PrimaryButton title="Check in" onPress={() => handleCheckIn(booking.id)} icon="checkmark.circle.fill" /></View> : <View style={styles.windowNote}><Text style={[styles.windowText, { color: colors.muted }]}>{booking.checkInTime ? "Check-in recorded" : `Check-in opens ${Math.max(1, minutesUntil - 30)} min before`}</Text></View>}<Pressable onPress={() => handleCancel(booking.id)} accessibilityRole="button" accessibilityLabel="Cancel booking" style={({ pressed }) => [styles.cancelButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.cancelText, { color: colors.error }]}>Cancel</Text></Pressable></View></SurfaceCard>;
+        return <SurfaceCard key={booking.id} style={styles.bookingCard}><View style={styles.bookingTop}><View><Text style={[styles.bookingTime, { color: colors.foreground }]}>{formatTimeLocalized(slot.start, language)} <Text style={[styles.bookingDuration, { color: colors.muted }]}>· {service?.durationMinutes} {t("minutes")}</Text></Text><Text style={[styles.bookingDate, { color: "#ff82b7" }]}>{formatDateLocalized(slot.start, language, { weekday: "short", month: "short", day: "numeric" }).toUpperCase()}</Text></View><StatusBadge label={booking.checkInTime ? t("checkedIn") : statusLabel(booking.status, t)} tone={booking.checkInTime ? "success" : "accent"} /></View><View style={[styles.bookingRule, { backgroundColor: colors.border }]} /><View style={styles.bookingMain}>{coach ? <Avatar initials={coach.initials} accent={coach.accent} size={40} /> : <View style={styles.openIcon}><Text style={styles.openIconText}>⌁</Text></View>}<View style={styles.bookingCopy}><Text style={[styles.bookingService, { color: colors.foreground }]}>{service?.name}</Text><Text style={[styles.bookingCoach, { color: colors.muted }]}>{coach?.fullName ?? t("selfGuidedAccess")}</Text><Text style={[styles.bookingLocation, { color: colors.muted }]}>{slot.room} · Northstar Downtown</Text></View></View><View style={styles.actionRow}>{checkInOpen && !booking.checkInTime ? <View style={styles.actionFill}><PrimaryButton title={t("checkIn")} onPress={() => handleCheckIn(booking.id)} icon="checkmark.circle.fill" /></View> : <View style={styles.windowNote}><Text style={[styles.windowText, { color: colors.muted }]}>{booking.checkInTime ? t("checkInRecorded") : `${t("checkInOpens")} ${Math.max(1, minutesUntil - 30)} ${t("minutes")} `}</Text></View>}<Pressable onPress={() => handleCancel(booking.id)} accessibilityRole="button" accessibilityLabel={t("cancelBooking")} style={({ pressed }) => [styles.cancelButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.cancelText, { color: colors.error }]}>{t("cancel")}</Text></Pressable></View></SurfaceCard>;
       })}
     </ScrollView>
   </ScreenContainer>;
+}
+
+function statusLabel(status: string, t: (key: any) => string) {
+  if (status === "Completed") return t("completed");
+  if (status === "Cancelled") return t("cancelled");
+  if (status === "No-show") return t("noShow");
+  if (status === "Booked") return t("booked");
+  return status;
 }
 
 const styles = StyleSheet.create({

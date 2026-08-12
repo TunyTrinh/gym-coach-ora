@@ -6,11 +6,14 @@ import { GhostButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } fro
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useGym } from "@/lib/gym-store";
-import { formatDateLabel, formatShortDate, getBookingSlot, getCoach, getService } from "@/shared/gym";
+import { useLanguage } from "@/lib/language-provider";
+import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
+import { getBookingSlot, getCoach, getService } from "@/shared/gym";
 
 export default function HistoryScreen() {
   const colors = useColors();
   const { snapshot, historyBookings } = useGym();
+  const { language, t } = useLanguage();
   const [filter, setFilter] = useState<"all" | "Completed" | "Cancelled" | "No-show">("all");
   const filtered = useMemo(() => historyBookings.filter((booking) => filter === "all" || booking.status === filter), [filter, historyBookings]);
   const completedCount = historyBookings.filter((booking) => booking.status === "Completed").length;
@@ -19,24 +22,31 @@ export default function HistoryScreen() {
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <ScreenHeader title="History" subtitle="Proof that the work adds up." label="YOUR PROGRESS" />
-      <SpectrumCard style={styles.summaryCard} intensity="muted"><Text style={styles.summaryEyebrow}>ATTENDANCE SUMMARY</Text><Text style={styles.summaryTitle}>Keep the momentum.</Text><View style={styles.summaryStats}><SummaryMetric value={String(completedCount)} label="Completed" /><SummaryMetric value={`${checkInRate}%`} label="Attendance" /><SummaryMetric value={String(Math.max(0, completedCount))} label="Check-ins" /></View></SpectrumCard>
-      <Pressable onPress={() => router.push("/progress")} accessibilityRole="button" style={({ pressed }) => [styles.healthEntry, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><View><Text style={styles.healthEyebrow}>HEALTH PROGRESS</Text><Text style={[styles.healthTitle, { color: colors.foreground }]}>Measurements & trends</Text><Text style={[styles.healthCopy, { color: colors.muted }]}>Compare your latest body measurements over time.</Text></View><Text style={styles.healthArrow}>→</Text></Pressable>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}><HistoryFilter label="All activity" active={filter === "all"} onPress={() => setFilter("all")} /><HistoryFilter label="Completed" active={filter === "Completed"} onPress={() => setFilter("Completed")} /><HistoryFilter label="Cancelled" active={filter === "Cancelled"} onPress={() => setFilter("Cancelled")} /><HistoryFilter label="No-show" active={filter === "No-show"} onPress={() => setFilter("No-show")} /></ScrollView>
-      <View style={styles.list}>{filtered.length === 0 ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No activity here yet</Text><Text style={[styles.emptyText, { color: colors.muted }]}>Your completed and cancelled sessions will show up as you use GymFlow.</Text></SurfaceCard> : filtered.map((booking) => {
+      <ScreenHeader title={t("historyTitle")} subtitle={t("historySubtitle")} label={t("yourProgress")} />
+      <SpectrumCard style={styles.summaryCard} intensity="muted"><Text style={styles.summaryEyebrow}>{t("attendanceSummary")}</Text><Text style={styles.summaryTitle}>{t("keepMomentum")}</Text><View style={styles.summaryStats}><SummaryMetric value={String(completedCount)} label={t("completed")} /><SummaryMetric value={`${checkInRate}%`} label={t("attendance")} /><SummaryMetric value={String(Math.max(0, completedCount))} label={t("checkIns")} /></View></SpectrumCard>
+      <Pressable onPress={() => router.push("/progress")} accessibilityRole="button" style={({ pressed }) => [styles.healthEntry, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><View><Text style={styles.healthEyebrow}>{t("healthProgressCard")}</Text><Text style={[styles.healthTitle, { color: colors.foreground }]}>{t("measurementsAndTrends")}</Text><Text style={[styles.healthCopy, { color: colors.muted }]}>{t("compareMeasurements")}</Text></View><Text style={styles.healthArrow}>→</Text></Pressable>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}><HistoryFilter label={t("allActivity")} active={filter === "all"} onPress={() => setFilter("all")} /><HistoryFilter label={t("completed")} active={filter === "Completed"} onPress={() => setFilter("Completed")} /><HistoryFilter label={t("cancelled")} active={filter === "Cancelled"} onPress={() => setFilter("Cancelled")} /><HistoryFilter label={t("noShow")} active={filter === "No-show"} onPress={() => setFilter("No-show")} /></ScrollView>
+      <View style={styles.list}>{filtered.length === 0 ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noActivityYet")}</Text><Text style={[styles.emptyText, { color: colors.muted }]}>{t("historyEmpty")}</Text></SurfaceCard> : filtered.map((booking) => {
         const slot = getBookingSlot(snapshot, booking);
         if (!slot) return null;
         const service = getService(snapshot, slot.serviceTypeId);
         const coach = getCoach(snapshot, slot.coachId);
         const tone = booking.status === "Completed" ? "success" : booking.status === "Cancelled" ? "neutral" : "error";
-        return <SurfaceCard key={booking.id} style={styles.historyCard}><View style={styles.historyTop}><View><Text style={[styles.historyDate, { color: colors.foreground }]}>{formatShortDate(slot.start)}</Text><Text style={[styles.historyTime, { color: colors.muted }]}>{formatDateLabel(slot.start)} · {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(slot.start))}</Text></View><StatusBadge label={booking.status} tone={tone} /></View><View style={[styles.historyRule, { backgroundColor: colors.border }]} /><Text style={[styles.historyService, { color: colors.foreground }]}>{service?.name}</Text><Text style={[styles.historyMeta, { color: colors.muted }]}>{coach?.fullName ?? "Open Gym"} · {slot.room}</Text>{booking.checkInTime ? <Text style={[styles.checkInText, { color: colors.success }]}>Checked in at {new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(booking.checkInTime))}</Text> : booking.cancellationReason ? <Text style={[styles.checkInText, { color: colors.muted }]}>Reason: {booking.cancellationReason}</Text> : null}</SurfaceCard>;
+        return <SurfaceCard key={booking.id} style={styles.historyCard}><View style={styles.historyTop}><View><Text style={[styles.historyDate, { color: colors.foreground }]}>{formatDateLocalized(slot.start, language, { month: "short", day: "numeric", year: "numeric" })}</Text><Text style={[styles.historyTime, { color: colors.muted }]}>{formatDateLocalized(slot.start, language, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeLocalized(slot.start, language)}</Text></View><StatusBadge label={statusLabel(booking.status, t)} tone={tone} /></View><View style={[styles.historyRule, { backgroundColor: colors.border }]} /><Text style={[styles.historyService, { color: colors.foreground }]}>{service?.name}</Text><Text style={[styles.historyMeta, { color: colors.muted }]}>{coach?.fullName ?? t("openGym")} · {slot.room}</Text>{booking.checkInTime ? <Text style={[styles.checkInText, { color: colors.success }]}>{t("checkedInAt")} {formatTimeLocalized(booking.checkInTime, language)}</Text> : booking.cancellationReason ? <Text style={[styles.checkInText, { color: colors.muted }]}>{t("reason")}: {booking.cancellationReason}</Text> : null}</SurfaceCard>;
       })}</View>
-      <GhostButton title="Export attendance" onPress={() => undefined} icon="arrow.right" />
+      <GhostButton title={t("exportAttendance")} onPress={() => undefined} icon="arrow.right" />
     </ScrollView>
   </ScreenContainer>;
 }
 
 function SummaryMetric({ value, label }: { value: string; label: string }) { return <View><Text style={styles.summaryValue}>{value}</Text><Text style={styles.summaryLabel}>{label}</Text></View>; }
+
+function statusLabel(status: string, t: (key: any) => string) {
+  if (status === "Completed") return t("completed");
+  if (status === "Cancelled") return t("cancelled");
+  if (status === "No-show") return t("noShow");
+  return status;
+}
 
 function HistoryFilter({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   const colors = useColors();

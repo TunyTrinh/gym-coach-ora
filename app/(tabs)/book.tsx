@@ -8,13 +8,16 @@ import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { haptic } from "@/lib/haptics";
 import { useGym } from "@/lib/gym-store";
+import { useLanguage } from "@/lib/language-provider";
+import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
 import { createLocalDateRail, formatLocalClock, isSameLocalDay, isUpcomingAtLocalTime } from "@/lib/scheduler";
-import { formatShortDate, formatTime, getCoach, getService, type TimeSlot } from "@/shared/gym";
+import { getCoach, getService, type TimeSlot } from "@/shared/gym";
 
 export default function BookScreen() {
   const colors = useColors();
   const { user } = useAuth();
   const { snapshot, bookSlot } = useGym();
+  const { language, t } = useLanguage();
   const role = user?.role ?? snapshot.member.role;
   const [now, setNow] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(0);
@@ -60,18 +63,18 @@ export default function BookScreen() {
     setBusy(false);
     setSelectedSlot(null);
     if (result.success) haptic.success(); else haptic.error();
-    Alert.alert(result.success ? "You’re booked" : "Couldn’t book that session", result.success ? result.message : result.error);
+    Alert.alert(result.success ? t("youreBooked") : t("couldntBook"), result.success ? result.message : result.error);
   };
 
   if (role !== "client") {
     return (
       <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
         <View style={styles.restricted}>
-          <ScreenHeader title="Staff tools" subtitle="Client booking is hidden in staff mode." label={role === "admin" ? "ADMIN" : "COACH"} />
+          <ScreenHeader title={t("staffTools")} subtitle={t("clientBookingHidden")} label={role === "admin" ? t("admin") : t("coachLabel")} />
           <SurfaceCard style={styles.restrictedCard}>
-            <Text style={[styles.restrictedTitle, { color: colors.foreground }]}>Manage availability</Text>
-            <Text style={[styles.restrictedCopy, { color: colors.muted }]}>Publish or manage coach time from the staff workspace.</Text>
-            <PrimaryButton title="Open availability" onPress={() => router.replace("/availability")} />
+            <Text style={[styles.restrictedTitle, { color: colors.foreground }]}>{t("manageAvailability")}</Text>
+            <Text style={[styles.restrictedCopy, { color: colors.muted }]}>{t("manageAvailabilityBody")}</Text>
+            <PrimaryButton title={t("openCoachAvailability")} onPress={() => router.replace("/availability")} />
           </SurfaceCard>
         </View>
       </ScreenContainer>
@@ -87,18 +90,18 @@ export default function BookScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={(
           <View style={styles.headerContent}>
-            <ScreenHeader title="Book a session" subtitle="Choose a day, then choose a time." label="BOOK" />
+            <ScreenHeader title={t("bookSessionTitle")} subtitle={t("bookSessionSubtitle")} label={t("book").toUpperCase()} />
             <SpectrumCard style={styles.clockCard} intensity="muted">
-              <Text style={styles.clockEyebrow}>YOUR LOCAL TIME</Text>
+              <Text style={styles.clockEyebrow}>{t("yourLocalTime")}</Text>
               <View style={styles.clockRow}>
                 <View>
-                  <Text style={styles.clockTitle}>{isToday ? "Today" : formatShortDate(selectedDate.toISOString())}</Text>
-                  <Text style={styles.clockMeta}>{formatLocalClock(now)} · past times are hidden</Text>
+                  <Text style={styles.clockTitle}>{isToday ? t("today") : formatDateLocalized(selectedDate.toISOString(), language)}</Text>
+                  <Text style={styles.clockMeta}>{formatLocalClock(now)} · {t("pastTimesHidden").toLowerCase()}</Text>
                 </View>
-                {!isToday ? <Pressable onPress={resetToToday} style={({ pressed }) => [styles.todayButton, pressed && styles.pressed]} accessibilityRole="button"><Text style={styles.todayText}>Today</Text></Pressable> : <StatusBadge label="Live" tone="success" />}
+                {!isToday ? <Pressable onPress={resetToToday} style={({ pressed }) => [styles.todayButton, pressed && styles.pressed]} accessibilityRole="button"><Text style={styles.todayText}>{t("today")}</Text></Pressable> : <StatusBadge label="Live" tone="success" />}
               </View>
             </SpectrumCard>
-            <Text style={[styles.stepLabel, { color: colors.muted }]}>1. CHOOSE A DAY</Text>
+            <Text style={[styles.stepLabel, { color: colors.muted }]}>1. {t("chooseDay")}</Text>
             <FlatList
               horizontal
               data={days}
@@ -110,8 +113,8 @@ export default function BookScreen() {
                 const today = isSameLocalDay(day, now);
                 const hasCoachAvailability = availableDayKeys.has(day.toDateString());
                 return (
-                  <Pressable onPress={() => setSelectedDay(index)} style={({ pressed }) => [styles.dateCard, { backgroundColor: active ? "#2b1f2a" : colors.surface, borderColor: active ? "#f04488" : colors.border }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={`Choose ${day.toDateString()}${hasCoachAvailability ? ", coach time available" : ""}`}>
-                    <Text style={[styles.dateWeekday, { color: active ? "#ff82b7" : colors.muted }]}>{today ? "TODAY" : new Intl.DateTimeFormat("en-US", { weekday: "short" }).format(day).toUpperCase()}</Text>
+                  <Pressable onPress={() => setSelectedDay(index)} style={({ pressed }) => [styles.dateCard, { backgroundColor: active ? "#2b1f2a" : colors.surface, borderColor: active ? "#f04488" : colors.border }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={`${t("choose")} ${formatDateLocalized(day.toISOString(), language)}${hasCoachAvailability ? `, ${t("available")}` : ""}`}>
+                    <Text style={[styles.dateWeekday, { color: active ? "#ff82b7" : colors.muted }]}>{today ? t("today").toUpperCase() : new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en-US", { weekday: "short" }).format(day).toUpperCase()}</Text>
                     <Text style={[styles.dateNumber, { color: colors.foreground }]}>{day.getDate()}</Text>
                     {today || hasCoachAvailability ? <View style={[styles.dateDot, hasCoachAvailability && !today ? styles.availabilityDot : null]} /> : null}
                   </Pressable>
@@ -119,41 +122,41 @@ export default function BookScreen() {
               }}
             />
             <View style={styles.timeHeading}>
-              <Text style={[styles.stepLabel, { color: colors.muted }]}>2. CHOOSE A TIME</Text>
-              <Text style={[styles.timeCount, { color: colors.muted }]}>{slots.length} available</Text>
+              <Text style={[styles.stepLabel, { color: colors.muted }]}>2. {t("chooseTime")}</Text>
+              <Text style={[styles.timeCount, { color: colors.muted }]}>{slots.length} {t("availableCount")}</Text>
             </View>
           </View>
         )}
-        ListEmptyComponent={<SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{isToday ? "No more sessions today" : "Nothing available yet"}</Text><Text style={[styles.emptyMessage, { color: colors.muted }]}>{isToday ? "Choose another day to find a coach or open gym time." : "Choose another day to see available coach times."}</Text><GhostButton title="Browse another day" onPress={() => setSelectedDay(Math.min(selectedDay + 1, days.length - 1))} /></SurfaceCard>}
+        ListEmptyComponent={<SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{isToday ? t("noMoreSessionsToday") : t("nothingAvailableYet")}</Text><Text style={[styles.emptyMessage, { color: colors.muted }]}>{isToday ? t("chooseAnotherDay") : t("noSlotsAvailable")}</Text><GhostButton title={t("browseAnotherDay")} onPress={() => setSelectedDay(Math.min(selectedDay + 1, days.length - 1))} /></SurfaceCard>}
         ItemSeparatorComponent={() => <View style={styles.itemSeparator} />}
-        renderItem={({ item: slot }) => <SlotCard slot={slot} colors={colors} snapshot={snapshot} onPress={() => setSelectedSlot(slot)} />}
+        renderItem={({ item: slot }) => <SlotCard slot={slot} colors={colors} snapshot={snapshot} language={language} t={t} onPress={() => setSelectedSlot(slot)} />}
       />
-      <BookingSheet selectedSlot={selectedSlot} colors={colors} snapshot={snapshot} busy={busy} onClose={() => setSelectedSlot(null)} onBook={handleBook} />
+      <BookingSheet selectedSlot={selectedSlot} colors={colors} snapshot={snapshot} language={language} t={t} busy={busy} onClose={() => setSelectedSlot(null)} onBook={handleBook} />
     </ScreenContainer>
   );
 }
 
-function SlotCard({ slot, colors, snapshot, onPress }: { slot: TimeSlot; colors: ReturnType<typeof useColors>; snapshot: ReturnType<typeof useGym>["snapshot"]; onPress: () => void }) {
+function SlotCard({ slot, colors, snapshot, language, t, onPress }: { slot: TimeSlot; colors: ReturnType<typeof useColors>; snapshot: ReturnType<typeof useGym>["snapshot"]; language: "en" | "vi"; t: (key: any, params?: Record<string, string | number>) => string; onPress: () => void }) {
   const service = getService(snapshot, slot.serviceTypeId);
   const coach = getCoach(snapshot, slot.coachId);
   const remaining = slot.maximumCapacity - slot.bookedCount;
   return (
-    <SurfaceCard style={styles.slotCard} onPress={onPress} accessibilityLabel={`Choose ${service?.name ?? "session"} with ${coach?.fullName ?? "Open gym"} at ${formatTime(slot.start)}`}>
+    <SurfaceCard style={styles.slotCard} onPress={onPress} accessibilityLabel={t("sessionWithCoach", { service: service?.name ?? t("sessionDefault"), coach: coach?.fullName ?? t("openGym"), time: formatTimeLocalized(slot.start, language) })}>
       <View style={styles.slotTop}>
-        <View><Text style={[styles.slotTime, { color: colors.foreground }]}>{formatTime(slot.start)}</Text><Text style={[styles.slotEnd, { color: colors.muted }]}>{service?.durationMinutes} min · {slot.room}</Text></View>
-        <StatusBadge label={`${remaining} left`} tone={remaining <= 2 ? "warning" : "success"} />
+        <View><Text style={[styles.slotTime, { color: colors.foreground }]}>{formatTimeLocalized(slot.start, language)}</Text><Text style={[styles.slotEnd, { color: colors.muted }]}>{service?.durationMinutes} {t("minutes")} · {slot.room}</Text></View>
+        <StatusBadge label={`${remaining} ${t("left")}`} tone={remaining <= 2 ? "warning" : "success"} />
       </View>
       <View style={[styles.slotRule, { backgroundColor: colors.border }]} />
       <View style={styles.slotBottom}>
         {coach ? <Avatar initials={coach.initials} accent={coach.accent} size={36} /> : <View style={styles.openGymIcon}><Text style={styles.openGymText}>⌁</Text></View>}
-        <View style={styles.slotCopy}><Text style={[styles.slotService, { color: colors.foreground }]}>{service?.name ?? "Open gym"}</Text><Text style={[styles.slotCoach, { color: colors.muted }]}>{coach?.fullName ?? "Self-guided access"}</Text></View>
+        <View style={styles.slotCopy}><Text style={[styles.slotService, { color: colors.foreground }]}>{service?.name ?? t("openGym")}</Text><Text style={[styles.slotCoach, { color: colors.muted }]}>{coach?.fullName ?? t("selfGuidedAccess")}</Text></View>
         <Text style={styles.slotArrow}>→</Text>
       </View>
     </SurfaceCard>
   );
 }
 
-function BookingSheet({ selectedSlot, colors, snapshot, busy, onClose, onBook }: { selectedSlot: TimeSlot | null; colors: ReturnType<typeof useColors>; snapshot: ReturnType<typeof useGym>["snapshot"]; busy: boolean; onClose: () => void; onBook: () => void }) {
+function BookingSheet({ selectedSlot, colors, snapshot, language, t, busy, onClose, onBook }: { selectedSlot: TimeSlot | null; colors: ReturnType<typeof useColors>; snapshot: ReturnType<typeof useGym>["snapshot"]; language: "en" | "vi"; t: (key: any, params?: Record<string, string | number>) => string; busy: boolean; onClose: () => void; onBook: () => void }) {
   const service = selectedSlot ? getService(snapshot, selectedSlot.serviceTypeId) : undefined;
   const coach = selectedSlot ? getCoach(snapshot, selectedSlot.coachId) : undefined;
   return (
@@ -161,15 +164,15 @@ function BookingSheet({ selectedSlot, colors, snapshot, busy, onClose, onBook }:
       <View style={styles.modalBackdrop}>
         <View style={[styles.sheet, { backgroundColor: "#151518", borderColor: colors.border }]}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetEyebrow}>FINAL STEP</Text>
-          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Confirm your session</Text>
+          <Text style={styles.sheetEyebrow}>{t("finalStep")}</Text>
+          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t("confirmYourSession")}</Text>
           {selectedSlot ? <>
-            <Text style={[styles.sheetService, { color: colors.foreground }]}>{service?.name ?? "Session"}</Text>
-            <Text style={[styles.sheetDate, { color: colors.foreground }]}>{formatShortDate(selectedSlot.start)} · {formatTime(selectedSlot.start)}–{formatTime(selectedSlot.end)}</Text>
-            <Text style={[styles.sheetMeta, { color: colors.muted }]}>{coach?.fullName ?? "Open gym access"} · {selectedSlot.room}</Text>
+            <Text style={[styles.sheetService, { color: colors.foreground }]}>{service?.name ?? t("sessionDefault")}</Text>
+            <Text style={[styles.sheetDate, { color: colors.foreground }]}>{formatDateLocalized(selectedSlot.start, language)} · {formatTimeLocalized(selectedSlot.start, language)}–{formatTimeLocalized(selectedSlot.end, language)}</Text>
+            <Text style={[styles.sheetMeta, { color: colors.muted }]}>{coach?.fullName ?? t("openGymAccess")} · {selectedSlot.room}</Text>
           </> : null}
-          <Text style={[styles.policyText, { color: colors.muted }]}>You can cancel before the session cutoff. Your spot is reserved after you confirm.</Text>
-          <View style={styles.sheetActions}><GhostButton title="Back" onPress={onClose} /><View style={styles.confirmWrap}><PrimaryButton title={busy ? "Booking…" : "Confirm booking"} onPress={onBook} disabled={busy} /></View></View>
+          <Text style={[styles.policyText, { color: colors.muted }]}>{t("bookingPolicy")}</Text>
+          <View style={styles.sheetActions}><GhostButton title={t("back")} onPress={onClose} /><View style={styles.confirmWrap}><PrimaryButton title={busy ? t("publishing") : t("confirmBookingTitle")} onPress={onBook} disabled={busy} /></View></View>
         </View>
       </View>
     </Modal>

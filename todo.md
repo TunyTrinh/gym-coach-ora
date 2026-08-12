@@ -53,3 +53,10 @@
 - [ ] Simplify secondary schedule, profile, progress, history, notifications, and admin surfaces
 - [ ] Fix TypeScript and Docker production build failures and add usability/role regression coverage
 - [ ] Validate mobile and web layouts and save a simplification checkpoint
+
+- [ ] Add persistent English and Vietnamese language preference under Profile → More options → Language
+- [ ] Apply language changes immediately across the complete interface without translating user-created content
+- [ ] Localize dates, times, forms, notifications, errors, and role-specific staff screens
+- [ ] Verify Vietnamese layout fit on mobile and preserve role boundaries
+- [ ] Add language and localization regression tests and revalidate production build/export
+- [ ] Save a verified language-feature checkpoint

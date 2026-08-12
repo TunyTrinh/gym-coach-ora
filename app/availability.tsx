@@ -9,7 +9,9 @@ import { useColors } from "@/hooks/use-colors";
 import { generateAvailabilityIntervals } from "@/lib/availability-shifts";
 import { haptic } from "@/lib/haptics";
 import { useGym } from "@/lib/gym-store";
-import { formatShortDate, formatTime, getCoach, getService, type AvailabilityCreateInput, type AvailabilityShift } from "@/shared/gym";
+import { useLanguage } from "@/lib/language-provider";
+import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
+import { getCoach, getService, type AvailabilityCreateInput, type AvailabilityShift } from "@/shared/gym";
 
 function localDayString(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -25,6 +27,7 @@ export default function AvailabilityScreen() {
   const colors = useColors();
   const { user } = useAuth();
   const { snapshot, createAvailability, setAvailabilityStatus, releaseCancelledShift } = useGym();
+  const { language, t } = useLanguage();
   const role = user?.role ?? snapshot.member.role;
   const isAdmin = role === "admin";
   const isCoach = role === "coach";
@@ -42,7 +45,7 @@ export default function AvailabilityScreen() {
     const result = await setAvailabilityStatus(shift.id, status);
     setBusy(false);
     if (result.success) haptic.success(); else haptic.error();
-    Alert.alert(result.success ? "Shift updated" : "Couldn’t update shift", result.success ? result.message ?? "Your availability was updated." : result.error);
+    Alert.alert(result.success ? t("shiftUpdated") : t("couldNotUpdateShift"), result.success ? result.message ?? t("availabilityUpdated") : result.error);
   };
 
   const handleRelease = async (shift: AvailabilityShift, release: "reopen" | "block") => {
@@ -50,18 +53,18 @@ export default function AvailabilityScreen() {
     const result = await releaseCancelledShift(shift.id, release);
     setBusy(false);
     if (result.success) haptic.success(); else haptic.error();
-    Alert.alert(result.success ? "Shift updated" : "Couldn’t update shift", result.success ? result.message ?? "Your availability was updated." : result.error);
+    Alert.alert(result.success ? t("shiftUpdated") : t("couldNotUpdateShift"), result.success ? result.message ?? t("availabilityUpdated") : result.error);
   };
 
   if (!isCoach && !isAdmin) {
     return (
       <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
         <View style={styles.restricted}>
-          <ScreenHeader title="Availability" subtitle="Coach workspace" label="RESTRICTED" />
+          <ScreenHeader title={t("availability")} subtitle={t("coachWorkspace")} label={t("restricted")} />
           <SurfaceCard style={styles.restrictedCard}>
-            <Text style={[styles.restrictedTitle, { color: colors.foreground }]}>Coach access required</Text>
-            <Text style={[styles.restrictedCopy, { color: colors.muted }]}>This area is for coaches. You can book an available coach time from Book.</Text>
-            <PrimaryButton title="Browse sessions" onPress={() => router.replace("/(tabs)/book")} />
+            <Text style={[styles.restrictedTitle, { color: colors.foreground }]}>{t("coachAccessRequired")}</Text>
+            <Text style={[styles.restrictedCopy, { color: colors.muted }]}>{t("coachAccessBody")}</Text>
+            <PrimaryButton title={t("browseSessions")} onPress={() => router.replace("/(tabs)/book")} />
           </SurfaceCard>
         </View>
       </ScreenContainer>
@@ -77,35 +80,35 @@ export default function AvailabilityScreen() {
         showsVerticalScrollIndicator={false}
         ListHeaderComponent={(
           <View style={styles.header}>
-            <ScreenHeader title="Availability" subtitle="Publish the times you are free to coach." label={isAdmin ? "ADMIN" : "COACH"} />
-            {isAdmin ? <View style={styles.adminPicker}><Text style={[styles.fieldLabel, { color: colors.muted }]}>COACH</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.coachRail}>{snapshot.coaches.map((coach) => <Pressable key={coach.id} onPress={() => setSelectedCoachId(coach.id)} style={({ pressed }) => [styles.coachPill, { backgroundColor: selectedCoachId === coach.id ? "#2b1f2a" : colors.surface, borderColor: selectedCoachId === coach.id ? "#f04488" : colors.border }, pressed && styles.pressed]} accessibilityRole="button"><Text style={[styles.coachPillText, { color: selectedCoachId === coach.id ? "#ff82b7" : colors.muted }]}>{coach.fullName}</Text></Pressable>)}</ScrollView></View> : null}
-            <PrimaryButton title="Add availability" onPress={() => setShowCreate(true)} />
-            <Text style={[styles.sectionLabel, { color: colors.muted }]}>UPCOMING SHIFTS</Text>
+            <ScreenHeader title={t("availability")} subtitle={t("availabilitySubtitle")} label={isAdmin ? t("admin") : t("coachLabel")} />
+            {isAdmin ? <View style={styles.adminPicker}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("selectCoach")}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.coachRail}>{snapshot.coaches.map((coach) => <Pressable key={coach.id} onPress={() => setSelectedCoachId(coach.id)} style={({ pressed }) => [styles.coachPill, { backgroundColor: selectedCoachId === coach.id ? "#2b1f2a" : colors.surface, borderColor: selectedCoachId === coach.id ? "#f04488" : colors.border }, pressed && styles.pressed]} accessibilityRole="button"><Text style={[styles.coachPillText, { color: selectedCoachId === coach.id ? "#ff82b7" : colors.muted }]}>{coach.fullName}</Text></Pressable>)}</ScrollView></View> : null}
+            <PrimaryButton title={t("addAvailability")} onPress={() => setShowCreate(true)} />
+            <Text style={[styles.sectionLabel, { color: colors.muted }]}>{t("upcomingShifts")}</Text>
           </View>
         )}
-        ListEmptyComponent={<SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>No shifts yet</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>Add a future time when members can book you.</Text><PrimaryButton title="Add availability" onPress={() => setShowCreate(true)} /></SurfaceCard>}
+        ListEmptyComponent={<SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noShiftsYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("addFutureTime")}</Text><PrimaryButton title={t("addAvailability")} onPress={() => setShowCreate(true)} /></SurfaceCard>}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        renderItem={({ item }) => <ShiftCard shift={item} colors={colors} snapshot={snapshot} busy={busy} onBlock={() => handleStatus(item, "Blocked")} onReopen={() => handleStatus(item, "Available")} onRelease={(release) => handleRelease(item, release)} />}
+        renderItem={({ item }) => <ShiftCard shift={item} colors={colors} snapshot={snapshot} language={language} t={t} busy={busy} onBlock={() => handleStatus(item, "Blocked")} onReopen={() => handleStatus(item, "Available")} onRelease={(release) => handleRelease(item, release)} />}
       />
-      <CreateShiftSheet visible={showCreate} coachId={selectedCoachId} snapshot={snapshot} busy={busy} onClose={() => setShowCreate(false)} onCreate={async (input) => { setBusy(true); const result = await createAvailability(input); setBusy(false); if (result.success) { haptic.success(); setShowCreate(false); Alert.alert("Availability published", result.message ?? "Members can now book this time."); } else { haptic.error(); Alert.alert("Couldn’t publish availability", result.error); } }} />
+      <CreateShiftSheet visible={showCreate} coachId={selectedCoachId} snapshot={snapshot} language={language} t={t} busy={busy} onClose={() => setShowCreate(false)} onCreate={async (input) => { setBusy(true); const result = await createAvailability(input); setBusy(false); if (result.success) { haptic.success(); setShowCreate(false); Alert.alert(t("availabilityPublished"), result.message ?? t("membersCanBook")); } else { haptic.error(); Alert.alert(t("couldNotPublish"), result.error); } }} />
     </ScreenContainer>
   );
 }
 
-function ShiftCard({ shift, colors, snapshot, busy, onBlock, onReopen, onRelease }: { shift: AvailabilityShift; colors: ReturnType<typeof useColors>; snapshot: ReturnType<typeof useGym>["snapshot"]; busy: boolean; onBlock: () => void; onReopen: () => void; onRelease: (release: "reopen" | "block") => void }) {
+function ShiftCard({ shift, colors, snapshot, language, t, busy, onBlock, onReopen, onRelease }: { shift: AvailabilityShift; colors: ReturnType<typeof useColors>; snapshot: ReturnType<typeof useGym>["snapshot"]; language: "en" | "vi"; t: (key: any) => string; busy: boolean; onBlock: () => void; onReopen: () => void; onRelease: (release: "reopen" | "block") => void }) {
   const coach = getCoach(snapshot, shift.coachId);
   const service = getService(snapshot, shift.serviceTypeId);
-  const action = shift.status === "Available" ? <GhostButton title={busy ? "Updating…" : "Block time"} onPress={() => { if (!busy) onBlock(); }} /> : shift.status === "Blocked" ? <GhostButton title={busy ? "Updating…" : "Make available"} onPress={() => { if (!busy) onReopen(); }} /> : null;
+  const action = shift.status === "Available" ? <GhostButton title={busy ? t("updating") : t("blockTime")} onPress={() => { if (!busy) onBlock(); }} /> : shift.status === "Blocked" ? <GhostButton title={busy ? t("updating") : t("makeAvailable")} onPress={() => { if (!busy) onReopen(); }} /> : null;
   return (
     <SurfaceCard style={styles.shiftCard}>
-      <View style={styles.shiftTop}><View style={styles.shiftCopy}><Text style={[styles.shiftDate, { color: colors.foreground }]}>{formatShortDate(shift.start)}</Text><Text style={[styles.shiftTime, { color: colors.foreground }]}>{formatTime(shift.start)}–{formatTime(shift.end)}</Text></View><StatusBadge label={shift.status} tone={shift.status === "Available" ? "success" : shift.status === "Booked" ? "accent" : shift.status === "Blocked" ? "warning" : "neutral"} /></View>
+      <View style={styles.shiftTop}><View style={styles.shiftCopy}><Text style={[styles.shiftDate, { color: colors.foreground }]}>{formatDateLocalized(shift.start, language, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</Text><Text style={[styles.shiftTime, { color: colors.foreground }]}>{formatTimeLocalized(shift.start, language)}–{formatTimeLocalized(shift.end, language)}</Text></View><StatusBadge label={statusLabel(shift.status, t)} tone={shift.status === "Available" ? "success" : shift.status === "Booked" ? "accent" : shift.status === "Blocked" ? "warning" : "neutral"} /></View>
       <Text style={[styles.shiftMeta, { color: colors.muted }]}>{service?.name ?? "Coaching"}{coach ? ` · ${coach.fullName}` : ""} · {shift.location}</Text>
-      {shift.status === "Cancelled" ? <View style={styles.releaseRow}><Text style={[styles.releaseCopy, { color: colors.muted }]}>The member cancelled. Choose what happens next.</Text><View style={styles.releaseActions}><GhostButton title="Keep blocked" onPress={() => { if (!busy) onRelease("block"); }} /><PrimaryButton title="Make available" onPress={() => onRelease("reopen")} disabled={busy} /></View></View> : action ? <View style={styles.cardAction}>{action}</View> : null}
+      {shift.status === "Cancelled" ? <View style={styles.releaseRow}><Text style={[styles.releaseCopy, { color: colors.muted }]}>{t("cancelledMemberChoice")}</Text><View style={styles.releaseActions}><GhostButton title={t("keepBlocked")} onPress={() => { if (!busy) onRelease("block"); }} /><PrimaryButton title={t("makeAvailable")} onPress={() => onRelease("reopen")} disabled={busy} /></View></View> : action ? <View style={styles.cardAction}>{action}</View> : null}
     </SurfaceCard>
   );
 }
 
-function CreateShiftSheet({ visible, coachId, snapshot, busy, onClose, onCreate }: { visible: boolean; coachId: string; snapshot: ReturnType<typeof useGym>["snapshot"]; busy: boolean; onClose: () => void; onCreate: (input: AvailabilityCreateInput) => Promise<void> }) {
+function CreateShiftSheet({ visible, coachId, snapshot, language, t, busy, onClose, onCreate }: { visible: boolean; coachId: string; snapshot: ReturnType<typeof useGym>["snapshot"]; language: "en" | "vi"; t: (key: any) => string; busy: boolean; onClose: () => void; onCreate: (input: AvailabilityCreateInput) => Promise<void> }) {
   const colors = useColors();
   const [today] = useState(() => new Date());
   const dates = useMemo(() => Array.from({ length: 7 }, (_, index) => addDays(today, index + 1)), [today]);
@@ -128,25 +131,33 @@ function CreateShiftSheet({ visible, coachId, snapshot, busy, onClose, onCreate 
       <View style={styles.modalBackdrop}>
         <ScrollView style={[styles.sheet, { backgroundColor: "#151518", borderColor: colors.border }]} contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}>
           <View style={styles.sheetHandle} />
-          <Text style={styles.sheetEyebrow}>PUBLISH FREE TIME</Text>
-          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>Add availability</Text>
-          <Text style={[styles.sheetCopy, { color: colors.muted }]}>Choose four things. Members will see the time after you publish it.</Text>
-          <Text style={[styles.fieldLabel, { color: colors.muted }]}>1. SERVICE</Text>
-          <View style={styles.serviceList}>{snapshot.services.map((item) => { const active = serviceTypeId === item.id; return <Pressable key={item.id} onPress={() => setServiceTypeId(item.id)} style={({ pressed }) => [styles.serviceCard, { borderColor: active ? "#f04488" : colors.border, backgroundColor: active ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]} accessibilityRole="radio" accessibilityState={{ selected: active }}><View style={styles.serviceInfo}><Text style={[styles.serviceName, { color: active ? "#ff82b7" : colors.foreground }]}>{item.name}</Text><Text style={[styles.serviceDescription, { color: colors.muted }]}>{item.durationMinutes} min · {item.description}</Text></View><Text style={[styles.serviceSelect, { color: active ? "#ff82b7" : colors.muted }]}>{active ? "Selected" : "Choose"}</Text></Pressable>; })}</View>
-          <Text style={[styles.fieldLabel, { color: colors.muted }]}>2. DATE</Text>
-          <FlatList horizontal data={dates} keyExtractor={(item) => item.toISOString()} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateRail} renderItem={({ item }) => <Pressable onPress={() => setDate(localDayString(item))} style={({ pressed }) => [styles.datePill, { borderColor: date === localDayString(item) ? "#f04488" : colors.border, backgroundColor: date === localDayString(item) ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]} accessibilityRole="button"><Text style={[styles.datePillText, { color: date === localDayString(item) ? "#ff82b7" : colors.muted }]}>{new Intl.DateTimeFormat("en-US", { weekday: "short", day: "numeric" }).format(item)}</Text></Pressable>} />
-          <Text style={[styles.fieldLabel, { color: colors.muted }]}>3. STARTS</Text>
-          <TextInput value={startTime} onChangeText={setStartTime} placeholder="09:00" placeholderTextColor={colors.muted} style={[styles.fullInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityLabel="Start time" />
-          <Text style={[styles.fieldLabel, { color: colors.muted }]}>4. ENDS</Text>
-          <TextInput value={endTime} onChangeText={setEndTime} placeholder="12:00" placeholderTextColor={colors.muted} style={[styles.fullInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityLabel="End time" />
-          <Pressable onPress={() => setShowMore((value) => !value)} style={({ pressed }) => [styles.moreRow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]} accessibilityRole="button" accessibilityState={{ expanded: showMore }}><View><Text style={[styles.moreTitle, { color: colors.foreground }]}>More options</Text><Text style={[styles.moreCopy, { color: colors.muted }]}>{showMore ? "Hide location, repeat, and timing options" : "Location, repeat, break, duration, and note"}</Text></View><Text style={styles.moreToggle}>{showMore ? "Hide" : "Show"}</Text></Pressable>
-          {showMore ? <View style={styles.moreContent}><Field label="LOCATION" value={location} onChangeText={setLocation} /><View style={styles.timeRow}><NumberChoice label="DURATION" values={[30, 45, 60, 90]} selected={durationMinutes} onSelect={(value) => setDurationMinutes(value as 30 | 45 | 60 | 90)} /><NumberChoice label="BREAK" values={[0, 10, 15, 30]} selected={breakMinutes} onSelect={setBreakMinutes} /></View><Pressable onPress={() => setRepeatWeekly((value) => !value)} style={({ pressed }) => [styles.repeatRow, { borderColor: repeatWeekly ? "#f04488" : colors.border, backgroundColor: repeatWeekly ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]} accessibilityRole="switch" accessibilityState={{ checked: repeatWeekly }}><View><Text style={[styles.repeatTitle, { color: colors.foreground }]}>Repeat this day weekly</Text><Text style={[styles.repeatCopy, { color: colors.muted }]}>Creates the same time for four weeks.</Text></View><Text style={styles.moreToggle}>{repeatWeekly ? "On" : "Off"}</Text></Pressable><Field label="NOTE (OPTIONAL)" value={note} onChangeText={setNote} /></View> : null}
-          <View style={[styles.preview, { borderColor: colors.border, backgroundColor: colors.surface }]}><Text style={[styles.previewLabel, { color: colors.muted }]}>READY TO PUBLISH</Text><Text style={[styles.previewValue, { color: colors.foreground }]}>{preview.length} shift{preview.length === 1 ? "" : "s"} · {duration} minutes each</Text></View>
-          <View style={styles.sheetActions}><GhostButton title="Cancel" onPress={onClose} /><View style={styles.createAction}><PrimaryButton title={busy ? "Publishing…" : "Publish"} disabled={busy || !preview.length} onPress={() => onCreate({ coachId, serviceTypeId, startDate: date, endDate: repeatWeekly ? localDayString(addDays(new Date(`${date}T12:00:00`), 21)) : undefined, startTime, endTime, durationMinutes: duration, breakMinutes: showMore ? breakMinutes : 0, weekdays: repeatWeekly ? [new Date(`${date}T12:00:00`).getDay()] : undefined, location, note: note || undefined })} /></View></View>
+          <Text style={styles.sheetEyebrow}>{t("publishFreeTime")}</Text>
+          <Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t("addAvailability")}</Text>
+          <Text style={[styles.sheetCopy, { color: colors.muted }]}>{t("chooseFourThings")}</Text>
+          <Text style={[styles.fieldLabel, { color: colors.muted }]}>1. {t("service").toUpperCase()}</Text>
+          <View style={styles.serviceList}>{snapshot.services.map((item) => { const active = serviceTypeId === item.id; return <Pressable key={item.id} onPress={() => setServiceTypeId(item.id)} style={({ pressed }) => [styles.serviceCard, { borderColor: active ? "#f04488" : colors.border, backgroundColor: active ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]} accessibilityRole="radio" accessibilityState={{ selected: active }}><View style={styles.serviceInfo}><Text style={[styles.serviceName, { color: active ? "#ff82b7" : colors.foreground }]}>{item.name}</Text><Text style={[styles.serviceDescription, { color: colors.muted }]}>{item.durationMinutes} {t("minutes")} · {item.description}</Text></View><Text style={[styles.serviceSelect, { color: active ? "#ff82b7" : colors.muted }]}>{active ? t("selected") : t("choose")}</Text></Pressable>; })}</View>
+          <Text style={[styles.fieldLabel, { color: colors.muted }]}>2. {t("measurementDate").toUpperCase()}</Text>
+          <FlatList horizontal data={dates} keyExtractor={(item) => item.toISOString()} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateRail} renderItem={({ item }) => <Pressable onPress={() => setDate(localDayString(item))} style={({ pressed }) => [styles.datePill, { borderColor: date === localDayString(item) ? "#f04488" : colors.border, backgroundColor: date === localDayString(item) ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]} accessibilityRole="button"><Text style={[styles.datePillText, { color: date === localDayString(item) ? "#ff82b7" : colors.muted }]}>{formatDateLocalized(item, language, { weekday: "short", day: "numeric" })}</Text></Pressable>} />
+          <Text style={[styles.fieldLabel, { color: colors.muted }]}>3. {t("starts")}</Text>
+          <TextInput value={startTime} onChangeText={setStartTime} placeholder="09:00" placeholderTextColor={colors.muted} style={[styles.fullInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityLabel={t("starts")} />
+          <Text style={[styles.fieldLabel, { color: colors.muted }]}>4. {t("ends")}</Text>
+          <TextInput value={endTime} onChangeText={setEndTime} placeholder="12:00" placeholderTextColor={colors.muted} style={[styles.fullInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityLabel={t("ends")} />
+          <Pressable onPress={() => setShowMore((value) => !value)} style={({ pressed }) => [styles.moreRow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]} accessibilityRole="button" accessibilityState={{ expanded: showMore }}><View><Text style={[styles.moreTitle, { color: colors.foreground }]}>{t("moreOptions")}</Text><Text style={[styles.moreCopy, { color: colors.muted }]}>{showMore ? t("hideSchedulingOptions") : t("moreSchedulingOptions")}</Text></View><Text style={styles.moreToggle}>{showMore ? t("hide") : t("show")}</Text></Pressable>
+          {showMore ? <View style={styles.moreContent}><Field label="LOCATION" value={location} onChangeText={setLocation} /><View style={styles.timeRow}><NumberChoice label="DURATION" values={[30, 45, 60, 90]} selected={durationMinutes} onSelect={(value) => setDurationMinutes(value as 30 | 45 | 60 | 90)} /><NumberChoice label="BREAK" values={[0, 10, 15, 30]} selected={breakMinutes} onSelect={setBreakMinutes} /></View><Pressable onPress={() => setRepeatWeekly((value) => !value)} style={({ pressed }) => [styles.repeatRow, { borderColor: repeatWeekly ? "#f04488" : colors.border, backgroundColor: repeatWeekly ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]} accessibilityRole="switch" accessibilityState={{ checked: repeatWeekly }}><View><Text style={[styles.repeatTitle, { color: colors.foreground }]}>{t("repeatThisDay")}</Text><Text style={[styles.repeatCopy, { color: colors.muted }]}>{t("repeatFourWeeks")}</Text></View><Text style={styles.moreToggle}>{repeatWeekly ? t("on") : t("off")}</Text></Pressable><Field label="NOTE (OPTIONAL)" value={note} onChangeText={setNote} /></View> : null}
+          <View style={[styles.preview, { borderColor: colors.border, backgroundColor: colors.surface }]}><Text style={[styles.previewLabel, { color: colors.muted }]}>{t("readyToPublish")}</Text><Text style={[styles.previewValue, { color: colors.foreground }]}>{preview.length} {preview.length === 1 ? t("shift") : t("shifts")} · {duration} {t("minutes")} {t("each")}</Text></View>
+          <View style={styles.sheetActions}><GhostButton title={t("cancel")} onPress={onClose} /><View style={styles.createAction}><PrimaryButton title={busy ? t("publishing") : t("publish")} disabled={busy || !preview.length} onPress={() => onCreate({ coachId, serviceTypeId, startDate: date, endDate: repeatWeekly ? localDayString(addDays(new Date(`${date}T12:00:00`), 21)) : undefined, startTime, endTime, durationMinutes: duration, breakMinutes: showMore ? breakMinutes : 0, weekdays: repeatWeekly ? [new Date(`${date}T12:00:00`).getDay()] : undefined, location, note: note || undefined })} /></View></View>
         </ScrollView>
       </View>
     </Modal>
   );
+}
+
+function statusLabel(status: AvailabilityShift["status"], t: (key: any) => string) {
+  if (status === "Available") return t("available");
+  if (status === "Booked") return t("booked");
+  if (status === "Blocked") return t("blocked");
+  if (status === "Cancelled") return t("cancelled");
+  return status;
 }
 
 function Field({ label, value, onChangeText }: { label: string; value: string; onChangeText: (value: string) => void }) { const colors = useColors(); return <View style={styles.field}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{label}</Text><TextInput value={value} onChangeText={onChangeText} style={[styles.fullInput, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }]} placeholderTextColor={colors.muted} /></View>; }
