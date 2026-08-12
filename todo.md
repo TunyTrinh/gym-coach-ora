@@ -90,3 +90,4 @@
 - [x] Investigate and resolve recurring server stoppage after temporary running state
 - [x] Clean up duplicate browser/preview processes and verify stable memory usage
 - [x] Diagnose and fix Expo Go device connection crash causing VM server failure
+- [x] Fix localhost:8081 connection refused by providing the correct exposed preview URL
