@@ -94,3 +94,4 @@
 - [x] Configure Metro and Expo start for host binding so phone testing and preview access work correctly
 - [x] Verify and restore the secure public PWA route for phone access without Expo Go or localhost
 - [x] Fix Metro exiting after initial bundle so secure preview access remains available
+- [x] Restart and verify the Coachora development server after the latest interruption
