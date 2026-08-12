@@ -64,3 +64,7 @@
 - [ ] Centralize all translations in a robust type-safe i18n catalog covering auth, membership, notifications, installation help, navigation, booking, schedules, health, forms, and errors
 - [ ] Wire the centralized translation helper across all screens and shared UI primitives without translating user-created content
 - [ ] Verify Vietnamese layout fit and immediate persistence across mobile screens and production export
+- [ ] Centralize all translations in a robust type-safe i18n catalog covering auth, membership, notifications, installation help, navigation, booking, schedules, health, forms, and errors
+- [ ] Wire the centralized translation helper across all screens and shared UI primitives without translating user-created content
+- [ ] Verify Vietnamese layout fit and immediate persistence across mobile screens and production export
+- [ ] Rename app branding to "Coachora" and finish 100% Vietnamese localization for Schedule, Progress, and Profile tabs without mixed languages
