@@ -135,3 +135,5 @@
 - [x] Replace the Client availability-derived time list with Coach-style hour, minute, and AM/PM wheels
 - [x] Validate the selected Client start time plus duration against all Coach windows and show a localized inline error when it does not fit
 - [x] Revalidate Client booking time boundaries, bilingual error feedback, and save a verified checkpoint
+- [x] Fix the Client wheel’s invalid default time and independent hour, minute, and AM/PM scroll state
+- [x] Match the supplied three-column highlighted-row layout and revalidate availability-boundary booking behavior
