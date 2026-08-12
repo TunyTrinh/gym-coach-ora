@@ -1,0 +1,27 @@
+<svg width="1024" height="1024" viewBox="0 0 240 240" role="img" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="jewel" x1="10%" y1="0%" x2="90%" y2="100%">
+      <stop offset="0%" stop-color="#72243E"/>
+      <stop offset="45%" stop-color="#3C3489"/>
+      <stop offset="100%" stop-color="#0C447C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="30%" cy="20%" r="60%">
+      <stop offset="0%" stop-color="#EF9F27" stop-opacity="0.55"/>
+      <stop offset="100%" stop-color="#EF9F27" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="sheen" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.30"/>
+      <stop offset="45%" stop-color="#ffffff" stop-opacity="0.04"/>
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <clipPath id="squircle"><rect x="0" y="0" width="240" height="240" rx="54"/></clipPath>
+  </defs>
+  <rect x="0" y="0" width="240" height="240" rx="54" fill="url(#jewel)"/>
+  <g clip-path="url(#squircle)">
+    <rect x="0" y="0" width="240" height="240" fill="url(#glow)"/>
+    <rect x="0" y="0" width="240" height="140" fill="url(#sheen)"/>
+  </g>
+  <rect x="0.5" y="0.5" width="239" height="239" rx="53.5" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1"/>
+  <circle cx="120" cy="120" r="55" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" stroke-dasharray="278 67"/>
+  <circle cx="173" cy="120" r="7" fill="#ffffff"/>
+</svg>

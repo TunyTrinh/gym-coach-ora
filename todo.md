@@ -72,3 +72,5 @@
 - [x] Fix Home screen top safe-area spacing so Coachora branding and the welcome heading remain below the mobile status bar
 - [x] Re-run validation and visual verification for the safe-area fix
 
+- [x] Replace the outdated gym-style splash/loading logo with the supplied premium Coachora C logo across all Expo branding assets
+- [x] Verify the old logo is no longer referenced and re-run branding validation
