@@ -9,9 +9,13 @@ import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { formatShortDate, formatTime, getBookingSlot, getCoach, getService } from "@/shared/gym";
 
+import { useAuth } from "@/hooks/use-auth";
+
 export default function HomeScreen() {
   const colors = useColors();
   const reducedMotion = useReducedMotion();
+  const { user } = useAuth();
+  const role = user?.role || "user";
   const { snapshot, upcomingBookings, unreadCount } = useGym();
   const nextBooking = upcomingBookings[0];
   const nextSlot = nextBooking ? getBookingSlot(snapshot, nextBooking) : undefined;
@@ -23,19 +27,39 @@ export default function HomeScreen() {
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <ScreenHeader title={`Hi, ${firstName}`} subtitle="Your next healthy move starts here." onPress={() => router.push("/notifications")} badge={unreadCount} label="GYMFLOW" />
+      <ScreenHeader title={`Hi, ${firstName}`} subtitle={role === "coach" ? "Coach Dashboard" : role === "admin" ? "Admin Hub" : "Your next healthy move starts here."} onPress={() => router.push("/notifications")} badge={unreadCount} label={role === "coach" ? "COACH PORTAL" : role === "admin" ? "ADMIN PORTAL" : "GYMFLOW"} />
       <OfflineBanner label="Your schedule stays ready offline" />
 
-      <SpectrumCard style={styles.heroCard} onPress={() => router.push("/schedule")} accessibilityLabel="Open your next session">
-        <View style={styles.heroTopRow}>
-          <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{nextBooking ? "NEXT SESSION" : "YOUR NEXT MOVE"}</Text><Text style={styles.heroTitle}>{nextService?.name ?? "Ready when you are"}</Text></View>
-          <StatusBadge label={nextBooking?.status ?? "Open"} tone={nextBooking ? "success" : "accent"} />
-        </View>
-        {nextSlot ? <>
-          <Text style={styles.heroDate}>{formatShortDate(nextSlot.start)} · {formatTime(nextSlot.start)}</Text>
-          <View style={styles.heroMetaRow}>{nextCoach ? <Avatar initials={nextCoach.initials} accent={nextCoach.accent} size={36} /> : <View style={styles.metaIcon}><Text style={styles.metaIconText}>⌁</Text></View>}<View style={styles.heroCopy}><Text style={styles.heroMeta}>{nextCoach?.fullName ?? "Open gym access"}</Text><Text style={styles.heroMetaMuted}>{nextSlot.room} · {snapshot.gyms[0]?.name}</Text></View><Text style={styles.heroArrow}>→</Text></View>
-        </> : <Text style={styles.heroEmpty}>Choose a time that fits your day. Live availability is always shown in your local time.</Text>}
-      </SpectrumCard>
+      <>
+        {role === "coach" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/schedule")} accessibilityLabel="View today's sessions">
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>COACH DASHBOARD</Text><Text style={styles.heroTitle}>Today's Sessions</Text></View>
+            <StatusBadge label="Active" tone="success" />
+          </View>
+          <Text style={styles.heroDate}>Manage your client sessions and availability.</Text>
+          <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⌘</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>Client Management</Text><Text style={styles.heroMetaMuted}>View assigned health progress</Text></View><Text style={styles.heroArrow}>→</Text></View>
+        </SpectrumCard>}
+
+        {role === "admin" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/schedule")} accessibilityLabel="System overview">
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>ADMIN OVERVIEW</Text><Text style={styles.heroTitle}>Gym Operations</Text></View>
+            <StatusBadge label="System OK" tone="success" />
+          </View>
+          <Text style={styles.heroDate}>Monitor bookings, coaches, and system health.</Text>
+          <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⚙</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>Global Settings</Text><Text style={styles.heroMetaMuted}>Manage roles and permissions</Text></View><Text style={styles.heroArrow}>→</Text></View>
+        </SpectrumCard>}
+
+        {role === "user" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/schedule")} accessibilityLabel="Open your next session">
+          <View style={styles.heroTopRow}>
+            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{nextBooking ? "NEXT SESSION" : "YOUR NEXT MOVE"}</Text><Text style={styles.heroTitle}>{nextService?.name ?? "Ready when you are"}</Text></View>
+            <StatusBadge label={nextBooking?.status ?? "Open"} tone={nextBooking ? "success" : "accent"} />
+          </View>
+          {nextSlot ? <>
+            <Text style={styles.heroDate}>{formatShortDate(nextSlot.start)} · {formatTime(nextSlot.start)}</Text>
+            <View style={styles.heroMetaRow}>{nextCoach ? <Avatar initials={nextCoach.initials} accent={nextCoach.accent} size={36} /> : <View style={styles.metaIcon}><Text style={styles.metaIconText}>⌁</Text></View>}<View style={styles.heroCopy}><Text style={styles.heroMeta}>{nextCoach?.fullName ?? "Open gym access"}</Text><Text style={styles.heroMetaMuted}>{nextSlot.room} · {snapshot.gyms[0]?.name}</Text></View><Text style={styles.heroArrow}>→</Text></View>
+          </> : <Text style={styles.heroEmpty}>Choose a time that fits your day. Live availability is always shown in your local time.</Text>}
+        </SpectrumCard>}
+      </>
 
       <Pressable onPress={() => { haptic.light(); router.push("/book"); }} style={({ pressed }) => [styles.primaryAction, pressed && (reducedMotion ? styles.primaryReducedPressed : styles.primaryPressed)]} accessibilityRole="button" accessibilityLabel="Book a session">
         <View><Text style={styles.primaryEyebrow}>FIND YOUR TIME</Text><Text style={styles.primaryTitle}>Book a session</Text><Text style={styles.primaryCopy}>Browse upcoming coaching and gym slots</Text></View><View style={styles.primaryArrow}><Text style={styles.primaryArrowText}>+</Text></View>

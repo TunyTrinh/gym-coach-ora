@@ -6,7 +6,7 @@ export const users = mysqlTable("users", {
   name: text("name"),
   email: varchar("email", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
+  role: mysqlEnum("role", ["user", "coach", "admin"]).default("user").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
@@ -91,6 +91,51 @@ export const notifications = mysqlTable("notifications", {
   read: boolean("read").default(false).notNull(),
   relatedBookingId: int("relatedBookingId"),
   priority: mysqlEnum("priority", ["Normal", "Important", "Urgent"]).default("Normal").notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export const coachClients = mysqlTable("coachClients", {
+  id: int("id").autoincrement().primaryKey(),
+  coachId: int("coachId").notNull(),
+  clientUserId: int("clientUserId").notNull(),
+  isPrimary: boolean("isPrimary").default(true).notNull(),
+  assignedBy: int("assignedBy"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const coachNotes = mysqlTable("coachNotes", {
+  id: int("id").autoincrement().primaryKey(),
+  coachId: int("coachId").notNull(),
+  clientUserId: int("clientUserId").notNull(),
+  note: text("note").notNull(),
+  isPrivate: boolean("isPrivate").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const healthMeasurements = mysqlTable("healthMeasurements", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  weight: int("weight"), // stored as grams or float representation if needed, or keep float/number
+  bodyFat: int("bodyFat"),
+  chest: int("chest"),
+  waist: int("waist"),
+  hips: int("hips"),
+  arms: int("arms"),
+  thighs: int("thighs"),
+  recordedBy: int("recordedBy").notNull(),
+  measurementDate: timestamp("measurementDate").defaultNow().notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const auditLogs = mysqlTable("auditLogs", {
+  id: int("id").autoincrement().primaryKey(),
+  actorUserId: int("actorUserId").notNull(),
+  action: varchar("action", { length: 255 }).notNull(),
+  targetUserId: int("targetUserId"),
+  details: text("details"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
 });
 

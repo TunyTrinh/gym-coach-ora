@@ -34,3 +34,8 @@
 - [x] Diagnose and restore Learn Gym time-slot booking without weakening local-time, capacity, duplicate-booking, or cancellation safeguards
 - [x] Declare the NativeWind runtime dependency and validate the production server bundle plus PWA export; Docker is unavailable in this sandbox for a local container build
 - [x] Add focused regression coverage and revalidate booking behavior plus the production web build
+- [x] Implement secure role-based access control (RBAC) supporting Client, Coach, and Admin roles
+- [x] Add database tables for coach-client assignments, coach notes, health measurements, and audit logs
+- [x] Add backend tRPC procedures for role management, client assignment, and protected coach-client access
+- [x] Make tab navigation and home dashboard role-aware for Clients, Coaches, and Admins
+- [x] Pass all TypeScript checks, automated tests, production web export, and server build
