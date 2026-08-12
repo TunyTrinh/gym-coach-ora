@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native";
 
 import AvailabilityScreen from "@/app/availability";
 import { Avatar, GhostButton, PrimaryButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
@@ -248,21 +248,21 @@ function DurationPicker({ visible, value, colors, t, onChange, onClose, onSave }
 
 function StartTimePicker({ visible, value, options, colors, language, t, error, onChange, onClose, onSave }: { visible: boolean; value: string; options: TimeOption[]; colors: ReturnType<typeof useColors>; language: "en" | "vi"; t: Translation; error: boolean; onChange: (value: string) => void; onClose: () => void; onSave: () => void }) {
   const selectedIndex = Math.max(0, options.findIndex((option) => clockValue(option.start) === value));
-  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.pickerBackdrop}><View style={[styles.pickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><PickerHeader title={t("chooseStartTime")} t={t} onClose={onClose} onSave={onSave} />{options.length ? <View style={styles.durationWheel}><View pointerEvents="none" style={[styles.wheelFrame, { borderColor: colors.border }]} /><WheelColumn options={options} selectedIndex={selectedIndex} onChange={(index) => onChange(clockValue(options[index].start))} colors={colors} renderLabel={(option) => formatTimeLocalized(option.start, language)} /></View> : null}{error ? <Text style={styles.timeWarning}>{t("noTimesForDuration")}</Text> : null}</View></View></Modal>;
+  return <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}><View style={styles.pickerBackdrop}><View style={[styles.pickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><PickerHeader title={t("chooseStartTime")} t={t} onClose={onClose} onSave={onSave} />{options.length ? <View style={styles.startTimeWheel}><View pointerEvents="none" style={[styles.wheelFrame, { borderColor: colors.border }]} /><WheelColumn options={options} selectedIndex={selectedIndex} onChange={(index) => onChange(clockValue(options[index].start))} colors={colors} renderLabel={(option) => formatTimeLocalized(option.start, language)} columnStyle={styles.startTimeColumn} rowStyle={styles.startTimeRow} valueStyle={styles.startTimeValue} /></View> : null}{error ? <Text style={styles.timeWarning}>{t("noTimesForDuration")}</Text> : null}</View></View></Modal>;
 }
 
 function PickerHeader({ title, t, onClose, onSave }: { title: string; t: Translation; onClose: () => void; onSave: () => void }) {
   return <View style={styles.pickerHeader}><Pressable onPress={onClose} style={styles.pickerAction}><Text style={styles.pickerActionText}>{t("cancel")}</Text></Pressable><Text style={styles.pickerTitle}>{title}</Text><Pressable onPress={onSave} style={[styles.pickerAction, styles.pickerSave]}><Text style={styles.pickerActionText}>{t("save")}</Text></Pressable></View>;
 }
 
-function WheelColumn<T>({ options, selectedIndex, onChange, colors, renderLabel }: { options: readonly T[]; selectedIndex: number; onChange: (index: number) => void; colors: ReturnType<typeof useColors>; renderLabel?: (value: T) => string }) {
+function WheelColumn<T>({ options, selectedIndex, onChange, colors, renderLabel, columnStyle, rowStyle, valueStyle }: { options: readonly T[]; selectedIndex: number; onChange: (index: number) => void; colors: ReturnType<typeof useColors>; renderLabel?: (value: T) => string; columnStyle?: StyleProp<ViewStyle>; rowStyle?: StyleProp<ViewStyle>; valueStyle?: StyleProp<TextStyle> }) {
   const ref = useRef<FlatList<T>>(null);
   useEffect(() => {
     const frame = requestAnimationFrame(() => ref.current?.scrollToOffset({ offset: Math.max(0, selectedIndex) * wheelRowHeight, animated: false }));
     return () => cancelAnimationFrame(frame);
   }, [selectedIndex]);
   const finish = (event: NativeSyntheticEvent<NativeScrollEvent>) => onChange(Math.max(0, Math.min(options.length - 1, Math.round(event.nativeEvent.contentOffset.y / wheelRowHeight))));
-  return <FlatList ref={ref} data={[...options]} keyExtractor={(_, index) => String(index)} style={styles.wheelColumn} contentContainerStyle={styles.wheelList} showsVerticalScrollIndicator={false} snapToInterval={wheelRowHeight} decelerationRate="fast" onMomentumScrollEnd={finish} onScrollEndDrag={finish} getItemLayout={(_, index) => ({ length: wheelRowHeight, offset: wheelRowHeight * index, index })} renderItem={({ item, index }) => <View style={styles.wheelRow}><Text style={[styles.wheelValue, { color: index === selectedIndex ? "#ff82b7" : colors.muted, opacity: index === selectedIndex ? 1 : 0.42 }]}>{renderLabel ? renderLabel(item) : String(item)}</Text></View>} />;
+  return <FlatList ref={ref} data={[...options]} keyExtractor={(_, index) => String(index)} style={[styles.wheelColumn, columnStyle]} contentContainerStyle={styles.wheelList} showsVerticalScrollIndicator={false} snapToInterval={wheelRowHeight} decelerationRate="fast" onMomentumScrollEnd={finish} onScrollEndDrag={finish} getItemLayout={(_, index) => ({ length: wheelRowHeight, offset: wheelRowHeight * index, index })} renderItem={({ item, index }) => <View style={[styles.wheelRow, rowStyle]}><Text numberOfLines={1} ellipsizeMode="clip" style={[styles.wheelValue, valueStyle, { color: index === selectedIndex ? "#ff82b7" : colors.muted, opacity: index === selectedIndex ? 1 : 0.42 }]}>{renderLabel ? renderLabel(item) : String(item)}</Text></View>} />;
 }
 
 function DurationWheel({ value, onChange, colors, t }: { value: number; onChange: (value: number) => void; colors: ReturnType<typeof useColors>; t: Translation }) {
@@ -331,12 +331,16 @@ const styles = StyleSheet.create({
   timeWarning: { color: "#ff6b61", fontSize: 11, fontWeight: "700", lineHeight: 16, textAlign: "center" },
   wheelPicker: { height: wheelRowHeight * 5, justifyContent: "center" },
   durationWheel: { height: wheelRowHeight * 5, justifyContent: "center", alignItems: "center" },
+  startTimeWheel: { height: wheelRowHeight * 5, justifyContent: "center", alignItems: "stretch" },
   wheelFrame: { position: "absolute", left: 0, right: 0, top: wheelRowHeight * 2, height: wheelRowHeight, borderTopWidth: 1, borderBottomWidth: 1, backgroundColor: "rgba(255,255,255,0.07)" },
   wheelColumns: { flexDirection: "row", flex: 1, alignItems: "center", justifyContent: "center", gap: 7 },
   wheelColumn: { width: 82, height: wheelRowHeight * 5 },
+  startTimeColumn: { width: "100%" },
   wheelList: { paddingVertical: wheelRowHeight * 2 },
   wheelRow: { height: wheelRowHeight, alignItems: "center", justifyContent: "center" },
+  startTimeRow: { alignItems: "flex-start", paddingHorizontal: 0 },
   wheelValue: { fontSize: 19, fontWeight: "800" },
+  startTimeValue: { width: "100%", textAlign: "left", includeFontPadding: false },
   wheelSeparator: { fontSize: 18, fontWeight: "900" },
   pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
 });

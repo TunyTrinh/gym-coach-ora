@@ -120,3 +120,6 @@
 
 - [x] Audit and correct Client time-wheel options so every selectable start time fits the Coach window and selected duration
 - [x] Validate 15-minute Client start-time options against Coach availability boundaries and overlapping capacity
+
+- [x] Refine the Client start-time wheel to display availability-derived time labels on one left-aligned line
+- [x] Validate the compact Client time-wheel styling and save the refinement checkpoint
