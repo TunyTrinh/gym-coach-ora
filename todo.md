@@ -96,3 +96,13 @@
 - [x] Fix Metro exiting after initial bundle so secure preview access remains available
 - [x] Restart and verify the Coachora development server after the latest interruption
 - [x] Perform a controlled development-environment recovery and verify stable Coachora preview services
+
+- [x] Audit the existing availability, booking, schedule, notification, and localization architecture for continuous-window migration
+- [x] Replace fixed shift generation with persistent continuous coach availability windows
+- [x] Enforce server-side interval overlap capacity and full-window-fit validation for duration-based bookings
+- [x] Add client start-time, duration, calculated-end-time, and live remaining-capacity booking controls
+- [x] Simplify Coach Add Availability to date, start, end, concurrent capacity, location, and optional note
+- [x] Update Coach schedule with client time blocks, duration, status, booked count, and remaining capacity
+- [x] Synchronize booking, cancellation, and rescheduling notifications and data refreshes across Client and Coach views
+- [x] Localize all continuous-availability content, capacity feedback, schedule states, and notifications in English and Vietnamese
+- [x] Add regression coverage, mobile layout validation, and checkpoint for continuous availability windows

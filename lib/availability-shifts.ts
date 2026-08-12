@@ -1,6 +1,6 @@
 import type { AvailabilityCreateInput, AvailabilityShift, AvailabilityShiftStatus } from "../shared/gym";
 
-export type GeneratedShiftInterval = { start: string; end: string };
+export type AvailabilityWindowInterval = { start: string; end: string };
 
 const timePattern = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
@@ -16,30 +16,12 @@ function localDateKey(date: Date) {
   return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, "0"), String(date.getDate()).padStart(2, "0")].join("-");
 }
 
-export function generateAvailabilityIntervals(input: AvailabilityCreateInput): GeneratedShiftInterval[] {
-  const firstDay = localDateTime(input.startDate, "00:00");
-  const lastDay = localDateTime(input.endDate ?? input.startDate, "00:00");
+/** Creates one publishable continuous availability window; it deliberately does not divide it into sessions. */
+export function createAvailabilityWindow(input: AvailabilityCreateInput): AvailabilityWindowInterval | null {
   const startAt = localDateTime(input.startDate, input.startTime);
   const endAt = localDateTime(input.startDate, input.endTime);
-  if (!firstDay || !lastDay || !startAt || !endAt || endAt <= startAt || lastDay < firstDay) return [];
-
-  const selectedWeekdays = input.weekdays?.length ? new Set(input.weekdays) : undefined;
-  const breakMinutes = Math.max(0, input.breakMinutes ?? 0);
-  const intervals: GeneratedShiftInterval[] = [];
-  const cursor = new Date(firstDay);
-  while (cursor <= lastDay) {
-    if (!selectedWeekdays || selectedWeekdays.has(cursor.getDay())) {
-      const start = localDateTime(localDateKey(cursor), input.startTime)!;
-      const limit = localDateTime(localDateKey(cursor), input.endTime)!;
-      while (start.getTime() + input.durationMinutes * 60_000 <= limit.getTime()) {
-        const end = new Date(start.getTime() + input.durationMinutes * 60_000);
-        intervals.push({ start: start.toISOString(), end: end.toISOString() });
-        start.setMinutes(start.getMinutes() + input.durationMinutes + breakMinutes);
-      }
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-  return intervals;
+  if (!startAt || !endAt || endAt <= startAt) return null;
+  return { start: startAt.toISOString(), end: endAt.toISOString() };
 }
 
 export function intervalsOverlap(leftStart: string, leftEnd: string, rightStart: string, rightEnd: string) {

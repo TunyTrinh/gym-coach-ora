@@ -5,23 +5,35 @@ import { systemRouter } from "./_core/systemRouter";
 import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { bookGymSlot, cancelGymBooking, getGymSnapshot, markGymAttendance } from "./gym-store";
 import { getDb } from "./db";
-import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, notifications, timeSlots, users } from "../drizzle/schema";
-import { and, eq, gt, gte, inArray, lt } from "drizzle-orm";
-import { generateAvailabilityIntervals } from "../lib/availability-shifts";
+import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, notifications, serviceTypes, timeSlots, users } from "../drizzle/schema";
+import { and, eq, gt, gte, inArray, lt, sql } from "drizzle-orm";
 
 const availabilityInput = z.object({
   coachId: z.number().int().positive().optional(),
-  serviceTypeId: z.number().int().positive(),
   startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
   startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
-  durationMinutes: z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90)]),
-  breakMinutes: z.number().int().min(0).max(120).default(0),
-  weekdays: z.array(z.number().int().min(0).max(6)).max(7).optional(),
+  maximumCapacity: z.number().int().min(1).max(12),
   location: z.string().trim().min(1).max(128),
   note: z.string().trim().max(600).optional(),
 });
+
+const durationInput = z.union([z.literal(30), z.literal(45), z.literal(60), z.literal(90), z.literal(120)]);
+
+function localDateTime(date: string, time: string) {
+  const [year, month, day] = date.split("-").map(Number);
+  const [hour, minute] = time.split(":").map(Number);
+  const value = new Date(year, month - 1, day, hour, minute, 0, 0);
+  return Number.isNaN(value.getTime()) ? null : value;
+}
+
+function ensureBookableInterval(window: { startAt: Date; endAt: Date; status: string }, startAt: Date, durationMinutes: number) {
+  const endAt = new Date(startAt.getTime() + durationMinutes * 60_000);
+  if (window.status !== "available") throw new Error("This availability is not open for booking.");
+  if (startAt <= new Date()) throw new Error("Choose a future start time.");
+  if (startAt < window.startAt || endAt > window.endAt) throw new Error("Your complete session must fit inside the coach’s available time.");
+  return endAt;
+}
 
 async function managedCoachId(db: any, actor: { id: number; role: string }, requestedCoachId?: number) {
   if (actor.role === "admin") {
@@ -158,7 +170,7 @@ export const appRouter = router({
         const coachId = await managedCoachId(db, ctx.user, input?.coachId);
         const from = input?.from ? new Date(input.from) : new Date();
         const to = input?.to ? new Date(input.to) : new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
-        return db.select().from(availabilityShifts).where(and(eq(availabilityShifts.coachId, coachId), gte(availabilityShifts.startAt, from), lt(availabilityShifts.startAt, to)));
+        return db.select().from(availabilityShifts).where(and(eq(availabilityShifts.coachId, coachId), lt(availabilityShifts.startAt, to), gt(availabilityShifts.endAt, from)));
       }),
     bookable: protectedProcedure
       .input(z.object({ coachId: z.number().int().positive(), dateStart: z.string().datetime(), dateEnd: z.string().datetime() }))
@@ -174,13 +186,33 @@ export const appRouter = router({
           endAt: availabilityShifts.endAt,
           location: availabilityShifts.location,
           status: availabilityShifts.status,
+          maximumCapacity: availabilityShifts.maximumCapacity,
+          note: availabilityShifts.note,
         }).from(availabilityShifts).where(and(
           eq(availabilityShifts.coachId, input.coachId),
           eq(availabilityShifts.status, "available"),
-          gte(availabilityShifts.startAt, new Date(input.dateStart)),
           lt(availabilityShifts.startAt, new Date(input.dateEnd)),
-          gt(availabilityShifts.startAt, new Date()),
+          gt(availabilityShifts.endAt, new Date(input.dateStart)),
+          gt(availabilityShifts.endAt, new Date()),
         ));
+      }),
+    previewCapacity: protectedProcedure
+      .input(z.object({ windowId: z.string().min(1).max(64), startAt: z.string().datetime(), durationMinutes: durationInput }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "client") throw new Error("Member access is required to preview booking capacity.");
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        const window = await db.select().from(availabilityShifts).where(eq(availabilityShifts.externalId, input.windowId)).limit(1);
+        if (!window[0]) throw new Error("Availability window not found.");
+        const startAt = new Date(input.startAt);
+        const endAt = ensureBookableInterval(window[0], startAt, input.durationMinutes);
+        const overlaps = await db.select({ id: bookings.id }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(
+          eq(bookings.availabilityShiftId, window[0].id),
+          inArray(bookings.status, ["pending", "confirmed"]),
+          lt(timeSlots.startAt, endAt),
+          gt(timeSlots.endAt, startAt),
+        ));
+        return { endAt, bookedCount: overlaps.length, remainingCapacity: Math.max(0, window[0].maximumCapacity - overlaps.length), maximumCapacity: window[0].maximumCapacity };
       }),
     create: protectedProcedure
       .input(availabilityInput)
@@ -188,53 +220,26 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const coachId = await managedCoachId(db, ctx.user, input.coachId);
-        const recurrenceGroupId = `availability-${Date.now().toString(36)}-${coachId}`;
-        const intervals = generateAvailabilityIntervals({ ...input, coachId: String(coachId), recurrenceGroupId });
-        if (!intervals.length) throw new Error("Choose an end time after the start time with at least one complete shift.");
+        const startAt = localDateTime(input.startDate, input.startTime);
+        const endAt = localDateTime(input.startDate, input.endTime);
+        if (!startAt || !endAt || endAt <= startAt) throw new Error("Choose an end time after the start time.");
         const now = new Date();
-        if (intervals.some((interval) => new Date(interval.start) <= now)) throw new Error("Availability must be in the future.");
-        const firstStart = new Date(intervals[0].start);
-        const lastEnd = new Date(intervals[intervals.length - 1].end);
+        if (startAt <= now) throw new Error("Availability must be in the future.");
         const conflicts = await db.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(
           eq(availabilityShifts.coachId, coachId),
-          lt(availabilityShifts.startAt, lastEnd),
-          gt(availabilityShifts.endAt, firstStart),
+          lt(availabilityShifts.startAt, endAt),
+          gt(availabilityShifts.endAt, startAt),
           inArray(availabilityShifts.status, ["available", "booked", "blocked"]),
         )).limit(1);
-        if (conflicts.length) throw new Error("This availability overlaps an existing shift or blocked period.");
+        if (conflicts.length) throw new Error("This availability overlaps an existing availability window or blocked period.");
+        const defaultService = await db.select({ id: serviceTypes.id }).from(serviceTypes).where(eq(serviceTypes.active, true)).limit(1);
+        if (!defaultService[0]) throw new Error("No active coaching service is available.");
+        const windowId = `availability-${Date.now().toString(36)}-${coachId}`;
         await db.transaction(async (tx: any) => {
-          for (let index = 0; index < intervals.length; index += 1) {
-            const interval = intervals[index];
-            const shiftId = `${recurrenceGroupId}-${index + 1}`;
-            await tx.insert(availabilityShifts).values({
-              externalId: shiftId,
-              gymId: 1,
-              coachId,
-              serviceTypeId: input.serviceTypeId,
-              startAt: new Date(interval.start),
-              endAt: new Date(interval.end),
-              location: input.location,
-              note: input.note,
-              status: "available",
-              createdBy: ctx.user.id,
-              recurrenceGroupId,
-            });
-            await tx.insert(timeSlots).values({
-              externalId: `managed-slot-${shiftId}`,
-              gymId: 1,
-              coachId,
-              serviceTypeId: input.serviceTypeId,
-              startAt: new Date(interval.start),
-              endAt: new Date(interval.end),
-              maximumCapacity: 1,
-              bookedCount: 0,
-              status: "Open",
-              room: input.location,
-            });
-          }
-          await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "CREATE_AVAILABILITY", details: `Created ${intervals.length} managed availability shifts for coach ${coachId}.` });
+          await tx.insert(availabilityShifts).values({ externalId: windowId, gymId: 1, coachId, serviceTypeId: defaultService[0].id, startAt, endAt, maximumCapacity: input.maximumCapacity, location: input.location, note: input.note, status: "available", createdBy: ctx.user.id });
+          await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "CREATE_AVAILABILITY", details: `Created continuous availability window ${windowId} for coach ${coachId}.` });
         });
-        return { success: true as const, recurrenceGroupId, createdCount: intervals.length };
+        return { success: true as const, windowId, createdCount: 1 };
       }),
     setStatus: protectedProcedure
       .input(z.object({ shiftId: z.string().min(1).max(64), status: z.enum(["Blocked", "Available"]) }))
@@ -242,43 +247,43 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const shift = await canManageShift(db, ctx.user, input.shiftId);
-        if (new Date(shift.startAt) <= new Date() || shift.status === "booked" || shift.status === "completed") throw new Error("Only future unbooked shifts can be changed.");
+        if (new Date(shift.startAt) <= new Date() || shift.status === "completed") throw new Error("Only future availability windows can be changed.");
         const status = input.status === "Blocked" ? "blocked" : "available";
         await db.transaction(async (tx: any) => {
           await tx.update(availabilityShifts).set({ status, updatedBy: ctx.user.id }).where(eq(availabilityShifts.id, shift.id));
-          await tx.update(timeSlots).set({ status: input.status === "Blocked" ? "Blocked" : "Open" }).where(eq(timeSlots.externalId, `managed-slot-${shift.externalId}`));
           await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: `${input.status.toUpperCase()}_AVAILABILITY`, details: `Updated ${input.shiftId}.` });
         });
         return { success: true as const };
       }),
     book: protectedProcedure
-      .input(z.object({ shiftId: z.string().min(1).max(64) }))
+      .input(z.object({ windowId: z.string().min(1).max(64), startAt: z.string().datetime(), durationMinutes: durationInput }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "client") throw new Error("Only members can book a coach shift.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         return db.transaction(async (tx: any) => {
-          const updated = await tx.update(availabilityShifts).set({ status: "booked", memberUserId: ctx.user.id, updatedBy: ctx.user.id }).where(and(
-            eq(availabilityShifts.externalId, input.shiftId),
-            eq(availabilityShifts.status, "available"),
-            gt(availabilityShifts.startAt, new Date()),
+          const shift = await tx.select().from(availabilityShifts).where(eq(availabilityShifts.externalId, input.windowId)).limit(1);
+          if (!shift[0]) throw new Error("Availability window not found.");
+          await tx.execute(sql`SELECT id FROM availabilityShifts WHERE id = ${shift[0].id} FOR UPDATE`);
+          const startAt = new Date(input.startAt);
+          const endAt = ensureBookableInterval(shift[0], startAt, input.durationMinutes);
+          const overlappingBookings = await tx.select({ id: bookings.id }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(
+            eq(bookings.availabilityShiftId, shift[0].id), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endAt), gt(timeSlots.endAt, startAt),
           ));
-          if (!updated[0]?.affectedRows) throw new Error("That shift was just booked or is no longer available.");
-          const shift = await tx.select().from(availabilityShifts).where(eq(availabilityShifts.externalId, input.shiftId)).limit(1);
-          const slot = await tx.select({ id: timeSlots.id }).from(timeSlots).where(eq(timeSlots.externalId, `managed-slot-${input.shiftId}`)).limit(1);
-          if (!shift[0] || !slot[0]) throw new Error("The managed booking slot is unavailable.");
-          const bookingExternalId = `booking-${input.shiftId}-${Date.now().toString(36)}`;
-          await tx.insert(bookings).values({ externalId: bookingExternalId, memberUserId: ctx.user.id, timeSlotId: slot[0].id, availabilityShiftId: shift[0].id, status: "Confirmed" });
+          if (overlappingBookings.length >= shift[0].maximumCapacity) throw new Error("That time has reached the coach’s maximum client capacity. Choose another time.");
+          const bookingExternalId = `booking-${input.windowId}-${Date.now().toString(36)}`;
+          const slotExternalId = `booking-slot-${bookingExternalId}`;
+          await tx.insert(timeSlots).values({ externalId: slotExternalId, gymId: shift[0].gymId, coachId: shift[0].coachId, serviceTypeId: shift[0].serviceTypeId, startAt, endAt, maximumCapacity: shift[0].maximumCapacity, bookedCount: 1, status: "Full", room: shift[0].location });
+          const slot = await tx.select({ id: timeSlots.id }).from(timeSlots).where(eq(timeSlots.externalId, slotExternalId)).limit(1);
+          await tx.insert(bookings).values({ externalId: bookingExternalId, memberUserId: ctx.user.id, timeSlotId: slot[0].id, availabilityShiftId: shift[0].id, status: "confirmed" });
           const booking = await tx.select({ id: bookings.id }).from(bookings).where(eq(bookings.externalId, bookingExternalId)).limit(1);
-          await tx.update(availabilityShifts).set({ bookingId: booking[0].id }).where(eq(availabilityShifts.id, shift[0].id));
-          await tx.update(timeSlots).set({ bookedCount: 1, status: "Full" }).where(eq(timeSlots.id, slot[0].id));
           const coach = await tx.select({ userId: coaches.userId }).from(coaches).where(eq(coaches.id, shift[0].coachId)).limit(1);
           await tx.insert(notifications).values([
-            { userId: ctx.user.id, type: "confirmation", title: "Coach shift booked", message: "Your coach shift is confirmed and has been added to your schedule.", relatedBookingId: booking[0].id },
-            ...(coach[0] ? [{ userId: coach[0].userId, type: "confirmation" as const, title: "New client booking", message: "A client booked one of your available shifts.", relatedBookingId: booking[0].id }] : []),
+            { userId: ctx.user.id, type: "confirmation", title: "Coach session booked", message: "Your session is confirmed and has been added to your schedule.", relatedBookingId: booking[0].id },
+            ...(coach[0]?.userId ? [{ userId: coach[0].userId, type: "confirmation" as const, title: "New client booking", message: "A client booked time in your availability window.", relatedBookingId: booking[0].id }] : []),
           ]);
-          await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "BOOK_AVAILABILITY", details: `Booked ${input.shiftId}.` });
-          return { success: true as const, bookingId: bookingExternalId };
+          await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "BOOK_AVAILABILITY", details: `Booked ${input.windowId} from ${startAt.toISOString()} to ${endAt.toISOString()}.` });
+          return { success: true as const, bookingId: bookingExternalId, startAt, endAt, remainingCapacity: shift[0].maximumCapacity - overlappingBookings.length - 1 };
         });
       }),
     cancel: protectedProcedure
@@ -286,18 +291,19 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
-        const record = await db.select({ booking: bookings, shift: availabilityShifts }).from(bookings).innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).where(eq(bookings.externalId, input.bookingId)).limit(1);
+        const record = await db.select({ booking: bookings, shift: availabilityShifts, clientName: users.name }).from(bookings).innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).innerJoin(users, eq(bookings.memberUserId, users.id)).where(eq(bookings.externalId, input.bookingId)).limit(1);
         if (!record[0]) throw new Error("Managed booking not found.");
         const canCancel = record[0].booking.memberUserId === ctx.user.id || ctx.user.role === "admin" || (ctx.user.role === "coach" && (await managedCoachId(db, ctx.user)) === record[0].shift.coachId);
         if (!canCancel) throw new Error("You cannot cancel this booking.");
         if (record[0].booking.status !== "confirmed") throw new Error("This booking cannot be cancelled.");
         await db.transaction(async (tx: any) => {
-          await tx.update(bookings).set({ status: "Cancelled", cancellationTime: new Date(), cancellationReason: input.reason }).where(eq(bookings.id, record[0].booking.id));
-          await tx.update(availabilityShifts).set({ status: "cancelled", updatedBy: ctx.user.id }).where(eq(availabilityShifts.id, record[0].shift.id));
-          await tx.update(timeSlots).set({ status: "Cancelled", bookedCount: 0 }).where(eq(timeSlots.externalId, `managed-slot-${record[0].shift.externalId}`));
-          await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "CANCEL_AVAILABILITY_BOOKING", details: `Cancelled ${input.bookingId}; coach release decision required.` });
+          await tx.update(bookings).set({ status: "cancelled", cancellationTime: new Date(), cancellationReason: input.reason }).where(eq(bookings.id, record[0].booking.id));
+          await tx.update(timeSlots).set({ status: "Cancelled", bookedCount: 0 }).where(eq(timeSlots.id, record[0].booking.timeSlotId));
+          const coach = await tx.select({ userId: coaches.userId }).from(coaches).where(eq(coaches.id, record[0].shift.coachId)).limit(1);
+          if (coach[0]?.userId) await tx.insert(notifications).values({ userId: coach[0].userId, type: "cancellation", title: "Client session cancelled", message: `${record[0].clientName ?? "A client"} cancelled a session in your availability window.`, relatedBookingId: record[0].booking.id });
+          await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "CANCEL_AVAILABILITY_BOOKING", details: `Cancelled ${input.bookingId}; the availability window remains open.` });
         });
-        return { success: true as const, releaseRequired: true as const, shiftId: record[0].shift.externalId };
+        return { success: true as const, releaseRequired: false as const, shiftId: record[0].shift.externalId };
       }),
     releaseAfterCancellation: protectedProcedure
       .input(z.object({ shiftId: z.string().min(1).max(64), release: z.enum(["reopen", "block"]) }))

@@ -37,7 +37,7 @@ export interface TimeSlot {
   id: string;
   gymId: string;
   coachId?: string;
-  /** Present only when a coach-created availability shift produced this bookable slot. */
+  /** Present when this booked session belongs to a coach availability window. */
   availabilityShiftId?: string;
   serviceTypeId: string;
   start: string;
@@ -55,6 +55,8 @@ export interface AvailabilityShift {
   serviceTypeId: string;
   start: string;
   end: string;
+  /** Concurrent client capacity for any overlapping interval inside this window. */
+  maximumCapacity: number;
   location: string;
   note?: string;
   status: AvailabilityShiftStatus;
@@ -67,25 +69,26 @@ export interface AvailabilityShift {
 
 export interface AvailabilityCreateInput {
   coachId: string | number;
-  serviceTypeId: string | number;
+  /** Retained for service metadata; coach publication no longer asks for it. */
+  serviceTypeId?: string | number;
   startDate: string;
-  endDate?: string;
   startTime: string;
   endTime: string;
-  durationMinutes: 30 | 45 | 60 | 90;
-  breakMinutes?: number;
-  weekdays?: number[];
+  maximumCapacity: number;
   location: string;
   note?: string;
-  recurrenceGroupId?: string;
 }
 
 export interface Booking {
   id: string;
   memberId: string;
+  /** Display name captured when a session is booked so a coach schedule can identify the client. */
+  memberName?: string;
   timeSlotId: string;
   status: BookingStatus;
   bookingTime: string;
+  /** Selected by the client for bookings made inside a continuous availability window. */
+  durationMinutes?: 30 | 45 | 60 | 90 | 120;
   cancellationTime?: string;
   cancellationReason?: string;
   checkInTime?: string;
@@ -130,6 +133,7 @@ export interface NotificationItem {
   read: boolean;
   relatedBookingId?: string;
   priority?: "Normal" | "Important" | "Urgent";
+  audience?: "client" | "coach" | "all";
 }
 
 export interface Announcement {
@@ -231,27 +235,10 @@ export function seedGymData(now = new Date()): GymSnapshot {
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 2);
   const coachAvailabilityBlueprints = [
-    { day: 1, hour: 15, coachId: "coach-maya", serviceTypeId: "service-strength", room: "Gym floor 2", note: "Gym floor 2" },
-    { day: 2, hour: 11, coachId: "coach-jordan", serviceTypeId: "service-strength", room: "Studio B", note: "Online coaching available" },
-    { day: 3, hour: 14, coachId: "coach-maya", serviceTypeId: "service-strength", room: "Studio A", note: "Form-focused session" },
+    { day: 1, startHour: 8, endHour: 21, coachId: "coach-maya", serviceTypeId: "service-strength", room: "Gym floor 2", note: "Strength and mobility sessions", maximumCapacity: 3 },
+    { day: 2, startHour: 9, endHour: 18, coachId: "coach-jordan", serviceTypeId: "service-strength", room: "Studio B", note: "Online coaching is available", maximumCapacity: 2 },
+    { day: 3, startHour: 10, endHour: 20, coachId: "coach-maya", serviceTypeId: "service-strength", room: "Studio A", note: "Form-focused sessions", maximumCapacity: 3 },
   ];
-  coachAvailabilityBlueprints.forEach((blueprint, index) => {
-    const start = atDay(now, blueprint.day + 1, blueprint.hour, 0);
-    const service = services.find((item) => item.id === blueprint.serviceTypeId)!;
-    slots.push({
-      id: `availability-slot-${index + 1}`,
-      availabilityShiftId: `availability-seed-${index + 1}`,
-      gymId: gym.id,
-      coachId: blueprint.coachId,
-      serviceTypeId: blueprint.serviceTypeId,
-      start: iso(start),
-      end: iso(addMinutes(start, service.durationMinutes)),
-      maximumCapacity: 1,
-      bookedCount: 0,
-      status: "Open",
-      room: blueprint.room,
-    });
-  });
 
   const historySlot: TimeSlot = {
     id: "slot-history-1",
@@ -280,14 +267,16 @@ export function seedGymData(now = new Date()): GymSnapshot {
   slots.push(historySlot, secondHistorySlot);
 
   const availabilityShifts: AvailabilityShift[] = coachAvailabilityBlueprints.map((blueprint, index) => {
-    const slot = slots.find((item) => item.availabilityShiftId === `availability-seed-${index + 1}`)!;
+    const start = atDay(now, blueprint.day + 1, blueprint.startHour, 0);
+    const end = atDay(now, blueprint.day + 1, blueprint.endHour, 0);
     return {
       id: `availability-seed-${index + 1}`,
       gymId: gym.id,
       coachId: blueprint.coachId,
       serviceTypeId: blueprint.serviceTypeId,
-      start: slot.start,
-      end: slot.end,
+      start: iso(start),
+      end: iso(end),
+      maximumCapacity: blueprint.maximumCapacity,
       location: blueprint.room,
       note: blueprint.note,
       status: "Available",

@@ -75,6 +75,7 @@ export const availabilityShifts = mysqlTable("availabilityShifts", {
   serviceTypeId: int("serviceTypeId").notNull(),
   startAt: timestamp("startAt").notNull(),
   endAt: timestamp("endAt").notNull(),
+  maximumCapacity: int("maximumCapacity").default(1).notNull(),
   location: varchar("location", { length: 128 }).notNull(),
   note: text("note"),
   status: mysqlEnum("status", ["available", "booked", "blocked", "completed", "cancelled", "expired"]).default("available").notNull(),
@@ -105,9 +106,7 @@ export const bookings = mysqlTable("bookings", {
   memberNotes: text("memberNotes"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-}, (table) => ({
-  availabilityShiftUnique: uniqueIndex("bookings_availability_shift_unique").on(table.availabilityShiftId),
-}));
+});
 
 export const notifications = mysqlTable("notifications", {
   id: int("id").autoincrement().primaryKey(),
