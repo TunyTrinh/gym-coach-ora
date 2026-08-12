@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { router } from "expo-router";
 
 import { Avatar, Divider, GhostButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
@@ -13,11 +13,19 @@ export default function ProfileScreen() {
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
   const isStaff = snapshot.member.role === "coach" || snapshot.member.role === "admin";
+  const continueWithGoogle = () => {
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.location.assign("/api/auth/google");
+      return;
+    }
+    Alert.alert("Google sign-in", "Open GymFlow in your mobile browser to complete Google sign-in for the installed web app.");
+  };
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <ScreenHeader title="Profile" subtitle="Membership and preferences, in one place." label="ACCOUNT" />
       <SurfaceCard style={styles.profileCard}><Avatar initials={snapshot.member.initials} accent="#bba4ff" size={68} /><View style={styles.profileCopy}><Text style={[styles.profileName, { color: colors.foreground }]}>{snapshot.member.fullName}</Text><Text style={[styles.profileEmail, { color: colors.muted }]}>{snapshot.member.email}</Text><StatusBadge label={snapshot.member.role === "member" ? "Member" : snapshot.member.role === "coach" ? "Coach" : "Gym Admin"} tone="accent" /></View><Pressable accessibilityRole="button" accessibilityLabel="Edit profile" onPress={() => Alert.alert("Profile editing", "Name and contact updates will be available once your gym connects its member profile endpoint.")}><Text style={[styles.editText, { color: "#ff82b7" }]}>Edit</Text></Pressable></SurfaceCard>
+      <SurfaceCard style={styles.signInCard}><View style={styles.signInCopy}><Text style={[styles.signInTitle, { color: colors.foreground }]}>Google account</Text><Text style={[styles.signInBody, { color: colors.muted }]}>Use your gym’s Google sign-in when GymFlow is hosted on your own domain.</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Continue with Google" onPress={continueWithGoogle} style={({ pressed }) => [styles.signInButton, pressed && styles.pressed]}><Text style={styles.signInButtonText}>Continue</Text></Pressable></SurfaceCard>
       <Text style={[styles.sectionLabel, { color: colors.muted }]}>MEMBERSHIP</Text>
       <SpectrumCard style={styles.membershipCard} intensity="muted"><View style={styles.membershipTop}><View style={{ flex: 1 }}><Text style={styles.planName}>{snapshot.member.membershipPlan}</Text><Text style={styles.planMeta}>Active through {new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(snapshot.member.membershipEndDate))}</Text></View><StatusBadge label="Active" tone="success" /></View><View style={styles.progressTrack}><View style={styles.progressFill} /></View><Text style={styles.planFootnote}>42 days remaining · Unlimited bookings</Text></SpectrumCard>
       <Text style={[styles.sectionLabel, { color: colors.muted }]}>NOTIFICATIONS</Text>
@@ -45,6 +53,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 10, paddingBottom: 40, gap: 12 },
   profileCard: { flexDirection: "row", alignItems: "center", gap: 12, marginTop: 5 },
   profileCopy: { flex: 1, gap: 5 }, profileName: { fontSize: 18, fontWeight: "800" }, profileEmail: { fontSize: 12 }, editText: { fontSize: 12, fontWeight: "800" },
+  signInCard: { flexDirection: "row", alignItems: "center", gap: 12 }, signInCopy: { flex: 1, gap: 3 }, signInTitle: { fontSize: 13, fontWeight: "800" }, signInBody: { fontSize: 11, lineHeight: 16 }, signInButton: { borderRadius: 14, paddingHorizontal: 13, paddingVertical: 10, backgroundColor: "#2b1f2a", borderWidth: 1, borderColor: "#f04488" }, signInButtonText: { color: "#ff82b7", fontSize: 12, fontWeight: "800" },
   sectionLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4, marginTop: 12, marginLeft: 2 },
   membershipCard: { minHeight: 152 }, membershipTop: { flexDirection: "row", alignItems: "center", gap: 10 }, planName: { color: "#ffffff", fontSize: 17, fontWeight: "800" }, planMeta: { color: "rgba(255,255,255,0.76)", fontSize: 12, marginTop: 4 }, progressTrack: { height: 7, borderRadius: 4, overflow: "hidden", backgroundColor: "rgba(13,13,15,0.28)", marginTop: 18 }, progressFill: { height: 7, width: "74%", borderRadius: 4, backgroundColor: "#ffffff" }, planFootnote: { color: "rgba(255,255,255,0.76)", fontSize: 11, fontWeight: "700", marginTop: 10 },
   settingsCard: { gap: 4 }, preferenceRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14, paddingVertical: 4 }, preferenceCopy: { flex: 1, gap: 3 }, preferenceLabel: { fontSize: 14, fontWeight: "800" }, preferenceDetail: { fontSize: 11, lineHeight: 17 },

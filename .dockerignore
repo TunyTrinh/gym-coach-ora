@@ -1,0 +1,10 @@
+node_modules
+.expo
+.git
+.manus-logs
+dist
+web
+backups
+.env
+.env.*
+!/.env.selfhost.example

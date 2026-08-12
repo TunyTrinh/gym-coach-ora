@@ -1,5 +1,6 @@
 const CACHE_NAME = "gymflow-spectrum-v2";
-const APP_SHELL = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"];
+const CACHE_NAME = "gymflow-shell-__BUILD_ID__";
+const APP_SHELL = ["/", "/offline.html", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)));
@@ -17,6 +18,8 @@ self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const requestUrl = new URL(event.request.url);
   if (requestUrl.origin !== self.location.origin) return;
+  // Booking, notifications, identity, and body measurements remain network-only.
+  if (requestUrl.pathname.startsWith("/api/")) return;
 
   if (event.request.mode === "navigate") {
     event.respondWith(
@@ -24,19 +27,14 @@ self.addEventListener("fetch", (event) => {
         const copy = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put("/", copy));
         return response;
-      }).catch(() => caches.match("/"))
+      }).catch(() => caches.match("/").then((cached) => cached || caches.match("/offline.html")))
     );
     return;
   }
 
-  event.respondWith(
-    caches.match(event.request).then((cached) => {
-      const refresh = fetch(event.request).then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-        return response;
-      });
-      return cached || refresh.catch(() => caches.match("/"));
-    })
-  );
+  event.respondWith(fetch(event.request).then((response) => {
+    const copy = response.clone();
+    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+    return response;
+  }).catch(() => caches.match(event.request).then((cached) => cached || caches.match("/offline.html"))));
 });

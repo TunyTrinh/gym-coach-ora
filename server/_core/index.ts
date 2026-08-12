@@ -2,6 +2,7 @@ import "dotenv/config";
 import express from "express";
 import { createServer } from "http";
 import net from "net";
+import path from "path";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
@@ -30,11 +31,23 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 async function startServer() {
   const app = express();
   const server = createServer(app);
+  const isProduction = process.env.NODE_ENV === "production";
+  const staticDir = path.resolve(process.env.STATIC_DIR ?? path.join(process.cwd(), "web"));
 
-  // Enable CORS for all routes - reflect the request origin to support credentials
+  // Caddy terminates TLS on the public host; trust its forwarded protocol for secure cookies.
+  app.set("trust proxy", 1);
+
+  // Preview remains cross-origin. Production serves one same-origin PWA and API.
   app.use((req, res, next) => {
     const origin = req.headers.origin;
-    if (origin) {
+    const isSameOrigin = !origin || (() => {
+      try {
+        return new URL(origin).host === req.get("host");
+      } catch {
+        return false;
+      }
+    })();
+    if (origin && (!isProduction || isSameOrigin)) {
       res.header("Access-Control-Allow-Origin", origin);
     }
     res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
@@ -69,6 +82,26 @@ async function startServer() {
       createContext,
     }),
   );
+
+  if (isProduction) {
+    app.use(express.static(staticDir, {
+      index: false,
+      maxAge: "1y",
+      immutable: true,
+      setHeaders: (res, filePath) => {
+        if (filePath.endsWith("sw.js") || filePath.endsWith("manifest.json") || filePath.endsWith(".html")) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        }
+      },
+    }));
+    app.get("*", (req, res) => {
+      if (req.path.startsWith("/api/")) {
+        res.status(404).json({ error: "API route not found" });
+        return;
+      }
+      res.sendFile(path.join(staticDir, "index.html"));
+    });
+  }
 
   const preferredPort = parseInt(process.env.PORT || "3000");
   const port = await findAvailablePort(preferredPort);

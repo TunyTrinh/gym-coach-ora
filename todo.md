@@ -19,3 +19,8 @@
 - [x] Add local health measurement records for weight, body fat, chest, waist, hips, arms, and thighs
 - [x] Add measurement comparisons, dated history, and a simple accessible progress chart
 - [x] Test schedule and health-progress state behavior and verify the new mobile screens compile cleanly
+- [x] Audit existing PWA assets, backend services, environment configuration, and deployment entrypoints
+- [x] Define self-hosted Docker Compose topology, HTTPS/domain reverse proxy, secure environment, and database-backup plan
+- [x] Add production Docker Compose, reverse proxy, environment template, and automated database backup assets
+- [x] Harden the PWA manifest, install guidance, offline fallback, and automatic update workflow
+- [x] Validate the self-hosted deployment package and document one-machine operation and recovery steps
