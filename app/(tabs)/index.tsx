@@ -1,7 +1,7 @@
-import { router } from "expo-router";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { router } from "expo-router";
 
-import { Avatar, GhostButton, OfflineBanner, ScreenHeader, SectionTitle, StatusBadge, SurfaceCard } from "@/components/gym-ui";
+import { Avatar, GhostButton, OfflineBanner, ScreenHeader, SectionTitle, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useGym } from "@/lib/gym-store";
@@ -9,103 +9,74 @@ import { formatShortDate, formatTime, getBookingSlot, getCoach, getService } fro
 
 export default function HomeScreen() {
   const colors = useColors();
-  const { snapshot, upcomingBookings, unreadCount } = useGym();
+  const { snapshot, upcomingBookings, historyBookings, unreadCount } = useGym();
   const nextBooking = upcomingBookings[0];
   const nextSlot = nextBooking ? getBookingSlot(snapshot, nextBooking) : undefined;
   const nextService = nextSlot ? getService(snapshot, nextSlot.serviceTypeId) : undefined;
   const nextCoach = nextSlot ? getCoach(snapshot, nextSlot.coachId) : undefined;
   const announcement = snapshot.announcements[0];
   const firstName = snapshot.member.fullName.split(" ")[0];
+  const completedCount = historyBookings.filter((booking) => booking.status === "Completed").length;
+  const activeCount = upcomingBookings.length + completedCount;
+  const checkedInCount = snapshot.bookings.filter((booking) => Boolean(booking.checkInTime)).length;
+  const attendanceRate = historyBookings.length ? Math.round((completedCount / Math.max(1, historyBookings.filter((booking) => booking.status !== "Cancelled").length)) * 100) : 0;
 
-  return (
-    <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
-      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-        <ScreenHeader title={`Welcome back, ${firstName}`} subtitle="Keep your momentum going." onPress={() => router.push("/notifications")} badge={unreadCount} />
-        <OfflineBanner label="Your schedule stays available offline" />
+  return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
+    <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+      <ScreenHeader title={`Hey, ${firstName}`} subtitle="Ready to move with purpose?" onPress={() => router.push("/notifications")} badge={unreadCount} label="NORTHSTAR · GYMFLOW" />
+      <OfflineBanner label="Your schedule is kept ready, even offline" />
 
-        <View style={styles.heroWrap}>
-          <View style={[styles.heroGlow, { backgroundColor: colors.primary }]} />
-          <View style={styles.heroContent}>
-            <View style={styles.heroTopRow}>
-              <View>
-                <Text style={styles.heroEyebrow}>NEXT UP</Text>
-                <Text style={styles.heroTitle}>{nextService?.name ?? "No session booked"}</Text>
-              </View>
-              <StatusBadge label={nextBooking?.status ?? "Open"} tone="success" />
-            </View>
-            {nextSlot ? (
-              <>
-                <Text style={styles.heroDate}>{formatShortDate(nextSlot.start)} · {formatTime(nextSlot.start)}</Text>
-                <View style={styles.heroMetaRow}>
-                  {nextCoach ? <Avatar initials={nextCoach.initials} accent={nextCoach.accent} size={34} /> : <View style={styles.metaIcon}><Text style={styles.metaIconText}>⌁</Text></View>}
-                  <View style={{ flex: 1 }}><Text style={styles.heroMeta}>{nextCoach?.fullName ?? "Open gym access"}</Text><Text style={styles.heroMetaMuted}>{nextSlot.room} · {snapshot.gyms[0]?.name}</Text></View>
-                  <Pressable onPress={() => router.push("/schedule")} style={styles.heroArrow} accessibilityRole="button" accessibilityLabel="View upcoming booking"><Text style={styles.heroArrowText}>→</Text></Pressable>
-                </View>
-              </>
-            ) : <Text style={styles.heroEmpty}>Choose a session that fits your week.</Text>}
-          </View>
-        </View>
+      <SpectrumCard style={styles.heroCard} onPress={() => router.push("/schedule")} accessibilityLabel="Open your next booking">
+        <View style={styles.heroTopRow}><View><Text style={styles.heroEyebrow}>NEXT SESSION</Text><Text style={styles.heroTitle}>{nextService?.name ?? "Make your next move"}</Text></View><StatusBadge label={nextBooking?.status ?? "Open"} tone={nextBooking ? "success" : "accent"} /></View>
+        {nextSlot ? <><Text style={styles.heroDate}>{formatShortDate(nextSlot.start)} · {formatTime(nextSlot.start)}</Text><View style={styles.heroMetaRow}>{nextCoach ? <Avatar initials={nextCoach.initials} accent={nextCoach.accent} size={36} /> : <View style={styles.metaIcon}><Text style={styles.metaIconText}>⌁</Text></View>}<View style={styles.heroCopy}><Text style={styles.heroMeta}>{nextCoach?.fullName ?? "Open gym access"}</Text><Text style={styles.heroMetaMuted}>{nextSlot.room} · {snapshot.gyms[0]?.name}</Text></View><View style={styles.heroArrow}><Text style={styles.heroArrowText}>→</Text></View></View></> : <Text style={styles.heroEmpty}>Browse the week and claim a session that fits your rhythm.</Text>}
+      </SpectrumCard>
 
-        <View style={styles.actionRow}>
-          <Pressable onPress={() => router.push("/book")} style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.primary }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Book a session">
-            <Text style={styles.actionIcon}>＋</Text><Text style={styles.actionTitle}>Book a session</Text><Text style={styles.actionSubtitle}>Find your next hour</Text>
-          </Pressable>
-          <Pressable onPress={() => router.push("/schedule")} style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Open my schedule">
-            <Text style={[styles.actionIcon, { color: colors.primary }]}>◷</Text><Text style={[styles.actionTitle, { color: colors.foreground }]}>My schedule</Text><Text style={[styles.actionSubtitle, { color: colors.muted }]}>{upcomingBookings.length} upcoming</Text>
-          </Pressable>
-        </View>
+      <View style={styles.actionRow}>
+        <Pressable onPress={() => router.push("/book")} style={({ pressed }) => [styles.actionCard, styles.bookAction, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Book a session"><Text style={styles.actionIcon}>＋</Text><View><Text style={styles.actionTitle}>Book</Text><Text style={styles.actionSubtitle}>Find a fresh slot</Text></View></Pressable>
+        <Pressable onPress={() => router.push("/schedule")} style={({ pressed }) => [styles.actionCard, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Open my schedule"><Text style={[styles.actionIcon, { color: "#a98af0" }]}>◷</Text><View><Text style={[styles.actionTitle, { color: colors.foreground }]}>Schedule</Text><Text style={[styles.actionSubtitle, { color: colors.muted }]}>{upcomingBookings.length} upcoming</Text></View></Pressable>
+      </View>
 
-        <SectionTitle title="This week" action="View history" onAction={() => router.push("/history")} />
-        <SurfaceCard style={styles.statsCard}>
-          <View style={styles.stat}><Text style={[styles.statValue, { color: colors.foreground }]}>03</Text><Text style={[styles.statLabel, { color: colors.muted }]}>Sessions</Text></View>
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.stat}><Text style={[styles.statValue, { color: colors.foreground }]}>02</Text><Text style={[styles.statLabel, { color: colors.muted }]}>Check-ins</Text></View>
-          <View style={[styles.statDivider, { backgroundColor: colors.border }]} />
-          <View style={styles.stat}><Text style={[styles.statValue, { color: colors.primary }]}>67%</Text><Text style={[styles.statLabel, { color: colors.muted }]}>Goal pace</Text></View>
-        </SurfaceCard>
+      <SectionTitle title="Your rhythm" eyebrow="THIS WEEK" action="History" onAction={() => router.push("/history")} />
+      <SurfaceCard style={styles.statsCard}><Metric value={String(activeCount).padStart(2, "0")} label="Sessions" color={colors.foreground} /><View style={[styles.statDivider, { backgroundColor: colors.border }]} /><Metric value={String(checkedInCount).padStart(2, "0")} label="Check-ins" color={colors.foreground} /><View style={[styles.statDivider, { backgroundColor: colors.border }]} /><Metric value={`${attendanceRate}%`} label="Attendance" color="#ff82b7" /></SurfaceCard>
 
-        <SectionTitle title="Latest from the gym" action="All updates" onAction={() => router.push("/notifications")} />
-        <SurfaceCard style={styles.announcementCard} onPress={() => router.push("/notifications")} accessibilityLabel="Open latest gym announcement">
-          <View style={styles.announcementTop}><StatusBadge label={announcement?.priority ?? "Normal"} tone="accent" /><Text style={[styles.announcementTime, { color: colors.muted }]}>Today</Text></View>
-          <Text style={[styles.announcementTitle, { color: colors.foreground }]}>{announcement?.title ?? "You’re all set"}</Text>
-          <Text style={[styles.announcementMessage, { color: colors.muted }]}>{announcement?.message ?? "Your gym updates will appear here."}</Text>
-        </SurfaceCard>
+      <SectionTitle title="From the gym" action="All updates" onAction={() => router.push("/notifications")} />
+      <SurfaceCard style={styles.announcementCard} onPress={() => router.push("/notifications")} accessibilityLabel="Open latest gym announcement"><View style={styles.announcementTop}><StatusBadge label={announcement?.priority ?? "Normal"} tone="accent" /><Text style={[styles.announcementTime, { color: colors.muted }]}>Today</Text></View><Text style={[styles.announcementTitle, { color: colors.foreground }]}>{announcement?.title ?? "You’re all set"}</Text><Text style={[styles.announcementMessage, { color: colors.muted }]}>{announcement?.message ?? "Your gym updates will appear here."}</Text></SurfaceCard>
 
-        <SurfaceCard style={styles.membershipCard}>
-          <View style={styles.membershipCopy}><Text style={[styles.membershipLabel, { color: colors.muted }]}>MEMBERSHIP</Text><Text style={[styles.membershipTitle, { color: colors.foreground }]}>{snapshot.member.membershipPlan}</Text><Text style={[styles.membershipExpiry, { color: colors.muted }]}>Active · renews in 42 days</Text></View>
-          <GhostButton title="View plan" onPress={() => router.push("/profile")} />
-        </SurfaceCard>
-      </ScrollView>
-    </ScreenContainer>
-  );
+      <SurfaceCard style={styles.membershipCard}><View style={styles.membershipCopy}><Text style={[styles.membershipLabel, { color: "#a98af0" }]}>MEMBERSHIP</Text><Text style={[styles.membershipTitle, { color: colors.foreground }]}>{snapshot.member.membershipPlan}</Text><Text style={[styles.membershipExpiry, { color: colors.muted }]}>Active · renews in 42 days</Text></View><GhostButton title="View" onPress={() => router.push("/profile")} /></SurfaceCard>
+    </ScrollView>
+  </ScreenContainer>;
+}
+
+function Metric({ value, label, color }: { value: string; label: string; color: string }) {
+  return <View style={styles.stat}><Text style={[styles.statValue, { color }]}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>;
 }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: 10, paddingBottom: 36, gap: 20 },
-  heroWrap: { borderRadius: 28, overflow: "hidden", backgroundColor: "#0b1220", minHeight: 206, position: "relative" },
-  heroGlow: { position: "absolute", width: 260, height: 260, borderRadius: 130, right: -70, top: -90, opacity: 0.32 },
-  heroContent: { padding: 20, gap: 17 },
+  content: { paddingTop: 10, paddingBottom: 38, gap: 20 },
+  heroCard: { minHeight: 214 },
   heroTopRow: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: 12 },
-  heroEyebrow: { color: "#8fe7db", fontSize: 11, fontWeight: "800", letterSpacing: 1.6, marginBottom: 6 },
-  heroTitle: { color: "#ffffff", fontSize: 24, fontWeight: "800", letterSpacing: -0.5, maxWidth: 220 },
-  heroDate: { color: "#d9f8f3", fontSize: 14, fontWeight: "700" },
-  heroMetaRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  heroMeta: { color: "#ffffff", fontSize: 14, fontWeight: "700" },
-  heroMetaMuted: { color: "#9fb5bf", fontSize: 12, marginTop: 3 },
-  heroArrow: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.14)", alignItems: "center", justifyContent: "center" },
+  heroEyebrow: { color: "rgba(255,255,255,0.76)", fontSize: 10, fontWeight: "800", letterSpacing: 1.5, marginBottom: 6 },
+  heroTitle: { color: "#ffffff", fontSize: 25, fontWeight: "800", letterSpacing: -0.65, maxWidth: 226 },
+  heroDate: { color: "rgba(255,255,255,0.92)", fontSize: 14, fontWeight: "800", marginTop: 19 },
+  heroMetaRow: { flexDirection: "row", alignItems: "center", gap: 10, marginTop: 16 },
+  heroCopy: { flex: 1 },
+  heroMeta: { color: "#ffffff", fontSize: 14, fontWeight: "800" },
+  heroMetaMuted: { color: "rgba(255,255,255,0.75)", fontSize: 12, marginTop: 3 },
+  heroArrow: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(10,10,14,0.2)", borderWidth: 1, borderColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },
   heroArrowText: { color: "#ffffff", fontSize: 21 },
-  heroEmpty: { color: "#b5cbd0", lineHeight: 21 },
-  metaIcon: { width: 34, height: 34, borderRadius: 17, backgroundColor: "#21404a", alignItems: "center", justifyContent: "center" },
-  metaIconText: { color: "#8fe7db", fontSize: 18 },
+  heroEmpty: { color: "rgba(255,255,255,0.82)", lineHeight: 21, marginTop: 18 },
+  metaIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(13,13,15,0.2)", alignItems: "center", justifyContent: "center" },
+  metaIconText: { color: "#ffffff", fontSize: 18 },
   actionRow: { flexDirection: "row", gap: 12 },
-  actionCard: { flex: 1, minHeight: 126, borderRadius: 22, borderWidth: 1, padding: 16, justifyContent: "space-between" },
-  actionIcon: { color: "#ffffff", fontSize: 28, fontWeight: "300", lineHeight: 30 },
+  actionCard: { flex: 1, minHeight: 122, borderRadius: 22, borderWidth: 1, padding: 16, justifyContent: "space-between" },
+  bookAction: { backgroundColor: "#26222b", borderColor: "rgba(255,130,183,0.35)" },
+  actionIcon: { color: "#ff82b7", fontSize: 28, fontWeight: "300", lineHeight: 30 },
   actionTitle: { color: "#ffffff", fontSize: 15, fontWeight: "800" },
-  actionSubtitle: { color: "rgba(255,255,255,0.68)", fontSize: 12, marginTop: 2 },
+  actionSubtitle: { color: "#b4b4bd", fontSize: 12, marginTop: 3 },
   statsCard: { flexDirection: "row", alignItems: "center", justifyContent: "space-around", paddingVertical: 18 },
   stat: { alignItems: "center", gap: 4, flex: 1 },
   statValue: { fontSize: 23, fontWeight: "800", letterSpacing: -0.4 },
-  statLabel: { fontSize: 11, fontWeight: "700" },
+  statLabel: { color: "#777780", fontSize: 10, fontWeight: "800", letterSpacing: 0.2 },
   statDivider: { width: 1, height: 30 },
   announcementCard: { gap: 9 },
   announcementTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
@@ -117,5 +88,5 @@ const styles = StyleSheet.create({
   membershipLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.2 },
   membershipTitle: { fontSize: 15, fontWeight: "800" },
   membershipExpiry: { fontSize: 12 },
-  pressed: { opacity: 0.82, transform: [{ scale: 0.99 }] },
+  pressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
 });

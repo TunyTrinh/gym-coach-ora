@@ -2,10 +2,15 @@
 
 - [x] Initialize Expo mobile application workspace with TypeScript and Tailwind (NativeWind)
 - [x] Create mobile app interface design document (`design.md`)
-- [ ] Implement backend Frappe-inspired data models and tRPC API routers (`server/routers.ts`, `server/storage.ts`) for Gyms, Coaches, Service Types, Time Slots, Bookings, Member Profiles, Announcements, and Notifications
-- [ ] Implement robust booking business rules and concurrency checks on the server
-- [ ] Implement Google OAuth / mock social login and user profile creation flow
-- [ ] Implement tab bar navigation and mobile screen components (Home, Book, Schedule, History, Notifications, Profile, Coach Dashboard)
-- [ ] Implement PWA manifest, service worker configuration, and installation guidance for iOS and Android
-- [ ] Implement automated unit and integration tests for core booking flows
-- [ ] Verify application builds successfully and prepare implementation summary
+- [x] Implement backend Frappe-inspired data models and tRPC API routers (`server/routers.ts`, `server/storage.ts`) for Gyms, Coaches, Service Types, Time Slots, Bookings, Member Profiles, Announcements, and Notifications
+- [x] Implement robust booking business rules and concurrency checks on the server
+- [x] Implement Google OAuth / mock social login and user profile creation flow
+- [x] Implement tab bar navigation and mobile screen components (Home, Book, Schedule, History, Notifications, Profile, Coach Dashboard)
+- [x] Implement PWA manifest, service worker configuration, and installation guidance for iOS and Android
+- [x] Implement automated unit and integration tests for core booking flows
+- [x] Verify application builds successfully and prepare implementation summary
+- [x] Audit existing routes, components, client store, API procedures, theme, and booking scheduler before redesign
+- [x] Define and apply the dark Spectrum design system across the GymFlow mobile experience
+- [x] Upgrade the booking scheduler to initialize from the device's current local date and time, expose a Today action, and de-emphasize elapsed time slots
+- [x] Preserve current booking, cancellation, attendance, notification, and role-aware workflows through the redesign
+- [x] Add focused tests for time-aware scheduler helper behavior and verify redesigned mobile UI at portrait breakpoints

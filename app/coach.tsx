@@ -2,7 +2,7 @@ import { router } from "expo-router";
 import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { IconSymbol } from "@/components/ui/icon-symbol";
-import { Avatar, GhostButton, PrimaryButton, StatusBadge, SurfaceCard } from "@/components/gym-ui";
+import { Avatar, GhostButton, PrimaryButton, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useGym } from "@/lib/gym-store";
@@ -18,7 +18,7 @@ export default function CoachScreen() {
   return <ScreenContainer className="px-5" edges={["top", "left", "right", "bottom"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <View style={styles.header}><Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="button" accessibilityLabel="Go back"><IconSymbol name="chevron.left" size={20} color={colors.foreground} /></Pressable><View style={styles.headerCopy}><Text style={[styles.eyebrow, { color: colors.primary }]}>{roleLabel}</Text><Text style={[styles.title, { color: colors.foreground }]}>Sessions</Text></View><StatusBadge label="Live" tone="success" /></View>
-      <SurfaceCard style={[styles.summaryCard, { backgroundColor: colors.primary }]}><Text style={styles.summaryEyebrow}>TODAY’S FOCUS</Text><View style={styles.summaryRow}><View><Text style={styles.summaryValue}>{sessions.length}</Text><Text style={styles.summaryLabel}>upcoming sessions</Text></View><View style={styles.summaryIcon}><IconSymbol name="figure.strengthtraining.traditional" size={25} color="#b6fff3" /></View></View></SurfaceCard>
+      <SpectrumCard style={styles.summaryCard} intensity="muted"><Text style={styles.summaryEyebrow}>TODAY’S FOCUS</Text><View style={styles.summaryRow}><View><Text style={styles.summaryValue}>{sessions.length}</Text><Text style={styles.summaryLabel}>upcoming sessions</Text></View><View style={styles.summaryIcon}><IconSymbol name="figure.strengthtraining.traditional" size={25} color="#ffffff" /></View></View></SpectrumCard>
       <View style={styles.sectionRow}><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Upcoming schedule</Text><Text style={[styles.sectionMeta, { color: colors.muted }]}>Next 7 days</Text></View>
       <View style={styles.list}>{sessions.length ? sessions.map((slot) => {
         const service = getService(snapshot, slot.serviceTypeId);
@@ -38,10 +38,10 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4, marginBottom: 3 },
   title: { fontSize: 28, fontWeight: "800", letterSpacing: -0.6 },
   summaryCard: { gap: 11, marginTop: 4 },
-  summaryEyebrow: { color: "#b6fff3", fontSize: 10, fontWeight: "800", letterSpacing: 1.4 },
+  summaryEyebrow: { color: "rgba(255,255,255,0.72)", fontSize: 10, fontWeight: "800", letterSpacing: 1.4 },
   summaryRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
   summaryValue: { color: "#ffffff", fontSize: 34, fontWeight: "800", letterSpacing: -0.8 },
-  summaryLabel: { color: "rgba(255,255,255,0.72)", fontSize: 12, fontWeight: "700" },
+  summaryLabel: { color: "rgba(255,255,255,0.76)", fontSize: 12, fontWeight: "700" },
   summaryIcon: { width: 52, height: 52, borderRadius: 26, backgroundColor: "rgba(255,255,255,0.13)", alignItems: "center", justifyContent: "center" },
   sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 2 },
   sectionTitle: { fontSize: 18, fontWeight: "800" },

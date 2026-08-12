@@ -1,64 +1,45 @@
-# GymFlow Mobile App Interface Design
+# GymFlow Spectrum Redesign
 
-## Design Philosophy & HIG Standards
-GymFlow is crafted as a first-party iOS and Android Progressive Web App (PWA) optimized for mobile portrait orientation (9:16) and effortless one-handed usage. Following Apple Human Interface Guidelines (HIG) and Material Design principles, the app prioritizes:
-- **Ergonomic Reach**: Primary actions and navigation tabs are positioned within easy thumb reach at the bottom and center of the screen.
-- **Visual Clarity**: High-contrast typography, clear hierarchy, and distinct card surfaces (`surface` background with subtle borders) separate active data states.
-- **Immediate Feedback**: Haptic-aligned press responses, skeleton loaders, and inline validation ensure users instantly perceive system status.
+## Product Direction
 
----
+GymFlow will retain its mobile-first, one-handed booking experience while moving to an original **dark Spectrum** visual language. The design combines a near-black canvas with selectively applied pink, coral, orange, violet, and electric-blue energy. Gradient surfaces are reserved for decisive moments—booking, upcoming sessions, and staff focus—while routine information remains calm, high contrast, and fast to scan during a workout.
 
-## Screen List & Architecture
+The app remains optimized for portrait 9:16 use. Tabs, confirmation actions, cancellation controls, and date selection all stay within comfortable thumb reach. Controls use large hit areas, readable type, compact secondary information, and immediate pressed or disabled states in line with Apple Human Interface Guidelines.
 
-1. **Login & Welcome Screen** (`app/index.tsx` / auth)
-   - *Content*: Brand logo, gym tagline, Google Sign-In button, PWA installation guide summary.
-   - *Functionality*: OAuth authentication redirect, guest preview mode, error handling.
+## Screen List and Content
 
-2. **Home Dashboard** (`app/(tabs)/index.tsx`)
-   - *Content*: Greeting ("Welcome back, [Name]"), Next Upcoming Booking Card with countdown, Quick "Book Session" CTA, Today's Schedule preview, Latest Gym Announcement banner, Notification badge.
-   - *Functionality*: Tap upcoming booking to view details/check-in, tap quick book to jump to booking flow, tap announcement to read full notice.
+| Screen | Primary content | Spectrum treatment and function |
+|---|---|---|
+| Home | Next booking, attendance progress, gym announcements, membership | Dark dashboard with a Spectrum next-session card and a quiet ambient glow behind key actions. |
+| Book | Service and coach filters, date rail, real-time availability, confirmation sheet | Time-aware scheduler starts on the device’s current local day, exposes a clear **Today** control, and removes elapsed slots from booking. |
+| My Schedule | Confirmed sessions, check-in window, cancellation action | Agenda-style cards use focused time typography and semantic status badges. |
+| History | Attendance records and activity summary | High-contrast filters and quiet, compact historical cards. |
+| Profile | Membership, preferences, PWA install guidance, role preview | Elevated settings surfaces with a compact Spectrum membership treatment. |
+| Notifications | Booking reminders, announcements, membership messages | Unread notifications receive a subtle violet-to-blue edge state, retaining existing deep links. |
+| Coach / Admin | Upcoming coach sessions, attendees, attendance controls | Spectrum staff summary card with semantic attendance actions and protected role behavior. |
 
-3. **Browse & Book** (`app/(tabs)/book.tsx`)
-   - *Content*: Gym selector, Service Type pills (Personal Training, Group Class, Open Gym, Yoga), Coach selector, Date picker (7-day horizontal strip), Available Time Slots list with capacity indicators (e.g., "3 spots left").
-   - *Functionality*: Filter slots by criteria, tap slot to open Booking Confirmation modal/sheet.
+## Local-Time Scheduler Interaction
 
-4. **My Schedule** (`app/(tabs)/schedule.tsx`)
-   - *Content*: Upcoming bookings list, agenda view, booking status indicators (Confirmed, Pending), Check-In button (active within window), Cancel booking action with cancellation window checks.
-   - *Functionality*: Perform check-in, cancel booking with reason prompt, view session directions/notes.
-
-5. **History & Attendance** (`app/(tabs)/history.tsx`)
-   - *Content*: Completed, cancelled, and no-show sessions list, date range and service filters, monthly attendance summary stats, streak counter.
-   - *Functionality*: Review past workout frequency and attendance records.
-
-6. **Notifications Center** (`app/(tabs)/notifications.tsx`)
-   - *Content*: List of announcements, booking reminders, membership alerts; read/unread status badges.
-   - *Functionality*: Mark single or all notifications as read, tap notification to jump to relevant booking or announcement.
-
-7. **Profile & Settings** (`app/(tabs)/profile.tsx`)
-   - *Content*: User avatar, membership plan details & expiry date, emergency contact info, notification preferences toggles (Push, Email), PWA installation instructions for iOS/Android, Logout button.
-   - *Functionality*: Update profile preferences, trigger PWA install prompt, sign out safely.
-
-8. **Coach & Admin Dashboard** (`app/coach/index.tsx` or role-restricted tab)
-   - *Content*: Coach session schedule, attendee list per session, attendance marking controls (Completed / No-show), session cancellation action with required reason, broadcast message to attendees.
-   - *Functionality*: Manage coach availability and attendance tracking.
-
----
+The scheduler uses the **device’s local time** as its current clock. It derives a seven-day date rail from local midnight, initializes selection to today, and updates its now value on an interval so that a slot naturally becomes unavailable when its start time passes. A user may jump back to the current day with **Today** after browsing forward. Sessions that started in the past are never presented as bookable; existing booking, capacity, overlap, and cancellation validations remain unchanged.
 
 ## Key User Flows
 
-1. **Member Booking Flow**:
-   - Tap "Book" tab → Select Service / Gym / Coach / Date → Browse available slots → Tap slot → Confirm booking in bottom sheet → Immediate entry in "My Schedule".
+| Flow | Steps |
+|---|---|
+| Book a session | Open Book → filter service or coach → select a locally dated day or tap Today → choose an upcoming open slot → review the Spectrum confirmation sheet → confirm booking → receive existing schedule and notification updates. |
+| Check in | Open My Schedule near the session start → use Check in when the existing 30-minute window permits it → receive the current success message and stored attendance timestamp. |
+| Staff attendance | Switch to the existing coach/admin preview → open Coach view → mark attendee Completed or No-show → retain current booking state behavior. |
 
-2. **Check-In Flow**:
-   - Open "My Schedule" on session day → When within check-in window, tap "Check In" → Success confirmation with timestamp and recorded actor.
+## Color and Surface Tokens
 
-3. **Cancellation Flow**:
-   - Open upcoming booking in "My Schedule" → Tap "Cancel Booking" → Review cancellation policy & deadline → Enter reason (if applicable) → Confirm → Slot capacity released instantly.
+| Token | Value | Use |
+|---|---:|---|
+| Background | `#0D0D0F` | Primary dark canvas |
+| Elevated background | `#151518` | Navigation and modal layers |
+| Surface | `#1D1D21` | Cards and date tiles |
+| Surface hover / active | `#26262B` / `#303036` | Pressed and selected support states |
+| Text | `#F7F7F8` / `#B4B4BD` / `#777780` | Primary, secondary, and muted hierarchy |
+| Spectrum | Pink → coral → orange → violet → blue | Gradient-only identity and primary emphasis |
+| Semantic | Success `#32D77B`, warning `#FFBD2E`, danger `#FF453A` | Capacity, attendance, and cancellation states |
 
----
-
-## Color Choices & Branding (GymFlow Brand)
-- **Primary Accent**: Electric Teal / Deep Cyan (`#0a7ea4` / `#22d3ee`) symbolizing energy, precision, and modern fitness.
-- **Background**: Crisp adaptive background (`#ffffff` light, `#121212` dark).
-- **Surface**: Elevated card background (`#f8fafc` light, `#1e293b` dark).
-- **Success / Warning / Error**: Standard semantic colors (`#22c55e`, `#f59e0b`, `#ef4444`) for capacity and booking statuses.
+The primary Spectrum gradient is `linear-gradient(135deg, #E53F87 0%, #ED5F68 25%, #D87870 45%, #9660BD 70%, #5266E6 100%)`. It is reproduced in the native UI as a reusable SVG gradient, not as a copied third-party asset.
