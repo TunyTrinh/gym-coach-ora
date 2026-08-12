@@ -87,3 +87,4 @@
 - [x] Diagnose and fix dev-server bundling failure and re-establish a responsive preview
 - [ ] Diagnose and fix recurring dev-server shutdown causing preview to stop responding
 - [x] Diagnose and harden Expo Go native-bundle request path to prevent sandbox process crash during device testing
+- [x] Investigate and resolve recurring server stoppage after temporary running state
