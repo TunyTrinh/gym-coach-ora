@@ -224,7 +224,7 @@ export const appRouter = router({
         const endAt = localDateTime(input.startDate, input.endTime);
         if (!startAt || !endAt || endAt <= startAt) throw new Error("Choose an end time after the start time.");
         const now = new Date();
-        if (startAt <= now) throw new Error("Availability must be in the future.");
+        if (startAt.getTime() < now.getTime() + 30 * 60_000) throw new Error("Today’s availability must start at least 30 minutes from now.");
         const conflicts = await db.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(
           eq(availabilityShifts.coachId, coachId),
           lt(availabilityShifts.startAt, endAt),

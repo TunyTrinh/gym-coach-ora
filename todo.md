@@ -106,3 +106,9 @@
 - [x] Synchronize booking, cancellation, and rescheduling notifications and data refreshes across Client and Coach views
 - [x] Localize all continuous-availability content, capacity feedback, schedule states, and notifications in English and Vietnamese
 - [x] Add regression coverage, mobile layout validation, and checkpoint for continuous availability windows
+
+- [x] Audit Coach calendar routing, availability publishing, and tab navigation for the requested workflow refinement
+- [x] Add a Coach Schedule calendar with direct client time blocks and selected-day booking details
+- [x] Enforce a 30-minute minimum lead time for same-day availability and provide localized inline red guidance
+- [x] Restore persistent Coach bottom navigation on Add Availability and preserve active-tab context
+- [x] Validate Coach calendar, lead-time feedback, navigation, bilingual labels, and production build

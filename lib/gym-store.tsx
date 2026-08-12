@@ -237,7 +237,7 @@ export function GymProvider({ children }: PropsWithChildren) {
     if (!snapshot.coaches.some((coach) => coach.id === coachId)) return { success: false, error: "Choose a valid coach." };
     const window = createAvailabilityWindow(input);
     if (!window) return { success: false, error: "Choose an end time after the start time." };
-    if (new Date(window.start).getTime() <= Date.now()) return { success: false, error: "Availability must be in the future." };
+    if (new Date(window.start).getTime() < Date.now() + 30 * 60_000) return { success: false, error: "Today’s availability must start at least 30 minutes from now." };
     const conflicts = snapshot.availabilityShifts.some((shift) => shift.coachId === coachId && ["Available", "Booked", "Blocked"].includes(shift.status) && intervalsOverlap(window.start, window.end, shift.start, shift.end));
     if (conflicts) return { success: false, error: "This overlaps an existing availability window or blocked period." };
     const timestamp = Date.now();

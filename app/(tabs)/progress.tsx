@@ -64,7 +64,7 @@ export default function ProgressScreen() {
         <SurfaceCard style={styles.restrictedCard}>
           <Text style={[styles.restrictedTitle, { color: colors.foreground }]}>Manage availability</Text>
           <Text style={[styles.restrictedCopy, { color: colors.muted }]}>Publish or manage coach time from the staff workspace.</Text>
-          <PrimaryButton title="Open availability" onPress={() => router.replace("/availability")} />
+          <PrimaryButton title="Open availability" onPress={() => router.replace("/book")} />
         </SurfaceCard>
       </View>
     </ScreenContainer>;

@@ -30,7 +30,7 @@ export default function HomeScreen() {
       <OfflineBanner label={t("offlineSync")} />
 
       <>
-        {role === "coach" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/availability")} accessibilityLabel={t("openCoachAvailability")}>
+        {role === "coach" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/book")} accessibilityLabel={t("openCoachAvailability")}>
           <View style={styles.heroTopRow}>
             <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{t("dashboard").toUpperCase()}</Text><Text style={styles.heroTitle}>{t("upcomingSession")}</Text></View>
             <StatusBadge label={t("active")} tone="success" />
