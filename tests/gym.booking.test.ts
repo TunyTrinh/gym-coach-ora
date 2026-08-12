@@ -44,6 +44,15 @@ describe("gym.book", () => {
     const second = await caller.gym.book({ slotId: openSlot.id });
     expect(second).toEqual({ success: false, error: "You are already booked for this session." });
   });
+
+  it("books an upcoming Open Gym time slot", async () => {
+    const caller = appRouter.createCaller(createContext(member));
+    const openGymSlot = getGymSnapshot().slots.find((slot) => slot.serviceTypeId === "service-open" && slot.status === "Open" && new Date(slot.start).getTime() > Date.now());
+    expect(openGymSlot).toBeDefined();
+    const result = await caller.gym.book({ slotId: openGymSlot!.id });
+    if (!result.success) throw new Error(result.error);
+    expect(result.booking?.timeSlotId).toBe(openGymSlot!.id);
+  });
 });
 
 describe("gym.cancel", () => {

@@ -31,3 +31,6 @@
 - [x] Simplify Health Progress with latest-versus-previous comparisons, metric selection, and separate detailed history
 - [x] Add accessible feedback states and reduced-motion-aware micro-interactions without delaying actions
 - [x] Validate member routes and preserved login-to-progress data flow through type checks, linting, automated business-rule tests, and a successful production PWA export build
+- [x] Diagnose and restore Learn Gym time-slot booking without weakening local-time, capacity, duplicate-booking, or cancellation safeguards
+- [x] Declare the NativeWind runtime dependency and validate the production server bundle plus PWA export; Docker is unavailable in this sandbox for a local container build
+- [x] Add focused regression coverage and revalidate booking behavior plus the production web build

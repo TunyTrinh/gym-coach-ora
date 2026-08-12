@@ -17,6 +17,7 @@ import {
   iso,
   seedGymData,
 } from "@/shared/gym";
+import { restoreUpcomingAvailability } from "@/lib/availability";
 
 const STORAGE_KEY = "gymflow.snapshot.v1";
 
@@ -52,7 +53,10 @@ export function GymProvider({ children }: PropsWithChildren) {
       .then((raw) => {
         if (raw) {
           const parsed = JSON.parse(raw) as Partial<GymSnapshot>;
-          setSnapshot((current) => ({ ...current, ...parsed, measurements: Array.isArray(parsed.measurements) ? parsed.measurements : [] }));
+          setSnapshot((current) => {
+            const restored = { ...current, ...parsed, measurements: Array.isArray(parsed.measurements) ? parsed.measurements : [] } as GymSnapshot;
+            return restoreUpcomingAvailability(restored);
+          });
         }
       })
       .catch(() => undefined)
