@@ -89,3 +89,4 @@
 - [x] Diagnose and harden Expo Go native-bundle request path to prevent sandbox process crash during device testing
 - [x] Investigate and resolve recurring server stoppage after temporary running state
 - [x] Clean up duplicate browser/preview processes and verify stable memory usage
+- [x] Diagnose and fix Expo Go device connection crash causing VM server failure
