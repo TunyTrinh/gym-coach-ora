@@ -1,6 +1,6 @@
 import { router } from "expo-router";
-import { useMemo, useState } from "react";
-import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { GhostButton, PrimaryButton, ScreenHeader, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
@@ -23,10 +23,11 @@ function addDays(date: Date, days: number) {
   return next;
 }
 
-const availabilityTimeOptions = Array.from({ length: 65 }, (_, index) => {
-  const totalMinutes = 6 * 60 + index * 15;
-  return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(totalMinutes % 60).padStart(2, "0")}`;
-});
+const wheelHours = Array.from({ length: 12 }, (_, index) => String(index + 1));
+const wheelMinutes = ["00", "15", "30", "45"];
+const wheelPeriods = ["AM", "PM"];
+const wheelRowHeight = 44;
+const wheelHeight = wheelRowHeight * 5;
 
 function timeToMinutes(value: string) {
   const match = /^(\d{2}):(\d{2})$/.exec(value);
@@ -147,6 +148,7 @@ function CreateShiftSheet({ visible, coachId, snapshot, language, t, busy, onClo
   const [startTime, setStartTime] = useState("09:00");
   const [endTime, setEndTime] = useState("12:00");
   const [activeTimeField, setActiveTimeField] = useState<"start" | "end" | null>(null);
+  const [timeDraft, setTimeDraft] = useState("09:00");
   const [showMore, setShowMore] = useState(false);
   const [location, setLocation] = useState("Studio A");
   const [note, setNote] = useState("");
@@ -154,6 +156,17 @@ function CreateShiftSheet({ visible, coachId, snapshot, language, t, busy, onClo
   const service = snapshot.services.find((item) => item.id === serviceTypeId);
   const duration = (service?.durationMinutes ?? 60) as 30 | 45 | 60 | 90;
   const preview = useMemo(() => generateAvailabilityIntervals({ coachId, serviceTypeId, startDate: date, endDate: repeatWeekly ? localDayString(addDays(new Date(`${date}T12:00:00`), 21)) : undefined, startTime, endTime, durationMinutes: duration, breakMinutes: 0, weekdays: repeatWeekly ? [new Date(`${date}T12:00:00`).getDay()] : undefined, location, note }), [coachId, date, duration, endTime, location, note, repeatWeekly, serviceTypeId, startTime]);
+
+  const openTimePicker = (field: "start" | "end") => {
+    setTimeDraft(field === "start" ? startTime : endTime);
+    setActiveTimeField(field);
+  };
+
+  const saveTimePicker = () => {
+    if (activeTimeField === "start") setStartTime(timeDraft);
+    if (activeTimeField === "end") setEndTime(timeDraft);
+    setActiveTimeField(null);
+  };
 
   const handlePublish = () => {
     if (!serviceTypeId) {
@@ -194,17 +207,109 @@ function CreateShiftSheet({ visible, coachId, snapshot, language, t, busy, onClo
           <Text style={[styles.fieldLabel, { color: colors.muted }]}>2. {t("measurementDate").toUpperCase()}</Text>
           <FlatList horizontal data={dates} keyExtractor={(item) => item.toISOString()} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateRail} renderItem={({ item }) => <Pressable onPress={() => setDate(localDayString(item))} style={({ pressed }) => [styles.datePill, { borderColor: date === localDayString(item) ? "#f04488" : colors.border, backgroundColor: date === localDayString(item) ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]} accessibilityRole="button"><Text style={[styles.datePillText, { color: date === localDayString(item) ? "#ff82b7" : colors.muted }]}>{formatDateLocalized(item, language, { weekday: "short", day: "numeric" })}</Text></Pressable>} />
           <Text style={[styles.fieldLabel, { color: colors.muted }]}>3. {t("starts")}</Text>
-          <Pressable onPress={() => setActiveTimeField("start")} style={({ pressed }) => [styles.timeChoice, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("starts")}><Text style={[styles.timeChoiceValue, { color: colors.foreground }]}>{formatAvailabilityTime(startTime, language)}</Text><Text style={[styles.timeChoiceHint, { color: colors.muted }]}>{t("chooseTime")}</Text></Pressable>
+          <Pressable onPress={() => openTimePicker("start")} style={({ pressed }) => [styles.timeChoice, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("starts")}><Text style={[styles.timeChoiceValue, { color: colors.foreground }]}>{formatAvailabilityTime(startTime, language)}</Text><Text style={[styles.timeChoiceHint, { color: colors.muted }]}>{t("chooseTime")}</Text></Pressable>
           <Text style={[styles.fieldLabel, { color: colors.muted }]}>4. {t("ends")}</Text>
-          <Pressable onPress={() => setActiveTimeField("end")} style={({ pressed }) => [styles.timeChoice, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("ends")}><Text style={[styles.timeChoiceValue, { color: colors.foreground }]}>{formatAvailabilityTime(endTime, language)}</Text><Text style={[styles.timeChoiceHint, { color: colors.muted }]}>{t("chooseTime")}</Text></Pressable>
+          <Pressable onPress={() => openTimePicker("end")} style={({ pressed }) => [styles.timeChoice, { color: colors.foreground, backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={t("ends")}><Text style={[styles.timeChoiceValue, { color: colors.foreground }]}>{formatAvailabilityTime(endTime, language)}</Text><Text style={[styles.timeChoiceHint, { color: colors.muted }]}>{t("chooseTime")}</Text></Pressable>
           <Pressable onPress={() => setShowMore((value) => !value)} style={({ pressed }) => [styles.moreRow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]} accessibilityRole="button" accessibilityState={{ expanded: showMore }}><View><Text style={[styles.moreTitle, { color: colors.foreground }]}>{t("moreOptions")}</Text><Text style={[styles.moreCopy, { color: colors.muted }]}>{showMore ? t("hideSchedulingOptions") : t("moreSchedulingOptions")}</Text></View><Text style={styles.moreToggle}>{showMore ? t("hide") : t("show")}</Text></Pressable>
           {showMore ? <View style={styles.moreContent}><Field label="LOCATION" value={location} onChangeText={setLocation} /><Pressable onPress={() => setRepeatWeekly((value) => !value)} style={({ pressed }) => [styles.repeatRow, { borderColor: repeatWeekly ? "#f04488" : colors.border, backgroundColor: repeatWeekly ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]} accessibilityRole="switch" accessibilityState={{ checked: repeatWeekly }}><View><Text style={[styles.repeatTitle, { color: colors.foreground }]}>{t("repeatThisDay")}</Text><Text style={[styles.repeatCopy, { color: colors.muted }]}>{t("repeatFourWeeks")}</Text></View><Text style={styles.moreToggle}>{repeatWeekly ? t("on") : t("off")}</Text></Pressable><Field label={t("noteOptional")} value={note} onChangeText={setNote} /></View> : null}
           <View style={[styles.preview, { borderColor: colors.border, backgroundColor: colors.surface }]}><Text style={[styles.previewLabel, { color: colors.muted }]}>{t("readyToPublish")}</Text><Text style={[styles.previewValue, { color: colors.foreground }]}>{preview.length ? `${preview.length} ${preview.length === 1 ? t("shift") : t("shifts")} · ${duration} ${t("minutes")} ${t("each")}` : t("completeShiftFits")}</Text></View>
           <View style={styles.sheetActions}><GhostButton title={t("cancel")} onPress={onClose} /><View style={styles.createAction}><PrimaryButton title={busy ? t("publishing") : t("publish")} disabled={busy} onPress={handlePublish} /></View></View>
         </ScrollView>
-        {activeTimeField ? <View style={styles.timePickerBackdrop}><View style={[styles.timePickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><Text style={styles.sheetEyebrow}>{t("chooseTime")}</Text><Text style={[styles.timePickerTitle, { color: colors.foreground }]}>{activeTimeField === "start" ? t("starts") : t("ends")}</Text><ScrollView style={styles.timeOptions} contentContainerStyle={styles.timeOptionsContent} showsVerticalScrollIndicator={false}>{availabilityTimeOptions.map((option) => { const active = option === (activeTimeField === "start" ? startTime : endTime); return <Pressable key={option} onPress={() => { if (activeTimeField === "start") setStartTime(option); else setEndTime(option); setActiveTimeField(null); }} style={({ pressed }) => [styles.timeOption, { borderColor: active ? "#f04488" : colors.border, backgroundColor: active ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]} accessibilityRole="radio" accessibilityState={{ selected: active }}><Text style={[styles.timeOptionValue, { color: active ? "#ff82b7" : colors.foreground }]}>{formatAvailabilityTime(option, language)}</Text>{active ? <Text style={styles.timeOptionCheck}>✓</Text> : null}</Pressable>; })}</ScrollView><GhostButton title={t("close")} onPress={() => setActiveTimeField(null)} /></View></View> : null}
+        {activeTimeField ? (
+          <View style={styles.timePickerBackdrop}>
+            <View style={[styles.timePickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}>
+              <View style={styles.timePickerHeader}>
+                <Pressable onPress={() => setActiveTimeField(null)} style={({ pressed }) => [styles.timePickerAction, pressed && styles.pressed]} accessibilityRole="button">
+                  <Text style={styles.timePickerActionText}>{t("cancel")}</Text>
+                </Pressable>
+                <Text style={[styles.timePickerTitle, { color: colors.foreground }]}>{activeTimeField === "start" ? t("starts") : t("ends")}</Text>
+                <Pressable onPress={saveTimePicker} style={({ pressed }) => [styles.timePickerAction, pressed && styles.pressed]} accessibilityRole="button">
+                  <Text style={styles.timePickerActionText}>{t("save")}</Text>
+                </Pressable>
+              </View>
+              <Text style={[styles.sheetEyebrow, styles.timePickerEyebrow]}>{t("chooseTime")}</Text>
+              <TimeWheelPicker value={timeDraft} onChange={setTimeDraft} colors={colors} />
+            </View>
+          </View>
+        ) : null}
       </View>
     </Modal>
+  );
+}
+
+function timePartsFromValue(value: string) {
+  const minutes = timeToMinutes(value) ?? 9 * 60;
+  const hour24 = Math.floor(minutes / 60) % 24;
+  return {
+    hour: String(hour24 % 12 || 12),
+    minute: String(minutes % 60).padStart(2, "0"),
+    period: hour24 >= 12 ? "PM" : "AM",
+  };
+}
+
+function timeValueFromParts(hour: string, minute: string, period: string) {
+  const hour12 = Number(hour) || 12;
+  const hour24 = (hour12 % 12) + (period === "PM" ? 12 : 0);
+  return `${String(hour24).padStart(2, "0")}:${minute}`;
+}
+
+function WheelColumn({ options, selectedIndex, onChange, colors, accessibilityLabel }: { options: string[]; selectedIndex: number; onChange: (index: number) => void; colors: ReturnType<typeof useColors>; accessibilityLabel: string }) {
+  const listRef = useRef<FlatList<string>>(null);
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => listRef.current?.scrollToOffset({ offset: selectedIndex * wheelRowHeight, animated: false }));
+    return () => cancelAnimationFrame(frame);
+  }, [selectedIndex]);
+
+  const finishScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const index = Math.max(0, Math.min(options.length - 1, Math.round(event.nativeEvent.contentOffset.y / wheelRowHeight)));
+    if (index !== selectedIndex) onChange(index);
+  };
+
+  return (
+    <FlatList
+      ref={listRef}
+      data={options}
+      keyExtractor={(item) => `${accessibilityLabel}-${item}`}
+      style={styles.wheelColumn}
+      contentContainerStyle={styles.wheelListContent}
+      showsVerticalScrollIndicator={false}
+      snapToInterval={wheelRowHeight}
+      decelerationRate="fast"
+      scrollEventThrottle={16}
+      onMomentumScrollEnd={finishScroll}
+      onScrollEndDrag={finishScroll}
+      accessibilityLabel={accessibilityLabel}
+      getItemLayout={(_, index) => ({ length: wheelRowHeight, offset: wheelRowHeight * index, index })}
+      renderItem={({ item, index }) => {
+        const distance = Math.abs(index - selectedIndex);
+        const opacity = distance === 0 ? 1 : distance === 1 ? 0.55 : distance === 2 ? 0.3 : 0.16;
+        return <View style={styles.wheelValueRow}><Text style={[styles.wheelValue, { color: index === selectedIndex ? "#ff82b7" : colors.muted, opacity }]}>{item}</Text></View>;
+      }}
+    />
+  );
+}
+
+function TimeWheelPicker({ value, onChange, colors }: { value: string; onChange: (value: string) => void; colors: ReturnType<typeof useColors> }) {
+  const parts = timePartsFromValue(value);
+  const hourIndex = Math.max(0, wheelHours.indexOf(parts.hour));
+  const minuteIndex = Math.max(0, wheelMinutes.indexOf(parts.minute));
+  const periodIndex = Math.max(0, wheelPeriods.indexOf(parts.period));
+  const update = (field: "hour" | "minute" | "period", next: string) => {
+    const nextParts = { ...parts, [field]: next };
+    onChange(timeValueFromParts(nextParts.hour, nextParts.minute, nextParts.period));
+  };
+
+  return (
+    <View style={styles.wheelPicker}>
+      <View pointerEvents="none" style={[styles.wheelSelectionFrame, { borderColor: colors.border, backgroundColor: "rgba(255,255,255,0.08)" }]} />
+      <View style={styles.wheelColumns}>
+        <WheelColumn options={wheelHours} selectedIndex={hourIndex} onChange={(index) => update("hour", wheelHours[index])} colors={colors} accessibilityLabel="Hour" />
+        <Text style={[styles.wheelSeparator, { color: colors.muted }]}>:</Text>
+        <WheelColumn options={wheelMinutes} selectedIndex={minuteIndex} onChange={(index) => update("minute", wheelMinutes[index])} colors={colors} accessibilityLabel="Minute" />
+        <WheelColumn options={wheelPeriods} selectedIndex={periodIndex} onChange={(index) => update("period", wheelPeriods[index])} colors={colors} accessibilityLabel="AM or PM" />
+      </View>
+    </View>
   );
 }
 
@@ -277,13 +382,20 @@ const styles = StyleSheet.create({
   timeChoiceValue: { fontSize: 16, fontWeight: "800" },
   timeChoiceHint: { fontSize: 11, fontWeight: "700" },
   timePickerBackdrop: { ...StyleSheet.absoluteFillObject, justifyContent: "center", padding: 20, backgroundColor: "rgba(0,0,0,0.72)" },
-  timePickerSheet: { maxHeight: "82%", borderRadius: 24, borderWidth: 1, padding: 18, gap: 12 },
-  timePickerTitle: { fontSize: 21, fontWeight: "900" },
-  timeOptions: { maxHeight: 360 },
-  timeOptionsContent: { gap: 8, paddingBottom: 4 },
-  timeOption: { minHeight: 48, borderRadius: 13, borderWidth: 1, paddingHorizontal: 15, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
-  timeOptionValue: { fontSize: 15, fontWeight: "800" },
-  timeOptionCheck: { color: "#ff82b7", fontSize: 18, fontWeight: "900" },
+  timePickerSheet: { width: "100%", maxWidth: 390, alignSelf: "center", borderRadius: 24, borderWidth: 1, padding: 18, gap: 10 },
+  timePickerHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 30 },
+  timePickerAction: { minWidth: 62, paddingVertical: 5 },
+  timePickerActionText: { color: "#ff82b7", fontSize: 14, fontWeight: "800" },
+  timePickerTitle: { fontSize: 18, fontWeight: "900" },
+  timePickerEyebrow: { alignSelf: "center", marginTop: 2 },
+  wheelPicker: { height: wheelHeight, position: "relative", overflow: "hidden", borderRadius: 16 },
+  wheelSelectionFrame: { position: "absolute", left: 0, right: 0, top: (wheelHeight - wheelRowHeight) / 2, height: wheelRowHeight, borderRadius: 12, borderWidth: 1, zIndex: 0 },
+  wheelColumns: { height: wheelHeight, flexDirection: "row", alignItems: "center", justifyContent: "center", zIndex: 1 },
+  wheelColumn: { width: 58, height: wheelHeight, zIndex: 1 },
+  wheelListContent: { paddingVertical: wheelRowHeight * 2 },
+  wheelValueRow: { height: wheelRowHeight, alignItems: "center", justifyContent: "center" },
+  wheelValue: { fontSize: 20, fontWeight: "800", lineHeight: 25 },
+  wheelSeparator: { width: 14, fontSize: 20, fontWeight: "900", textAlign: "center" },
   repeatRow: { borderWidth: 1, borderRadius: 15, padding: 13, flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 },
   repeatTitle: { fontSize: 13, fontWeight: "900" },
   repeatCopy: { fontSize: 11, marginTop: 3 },

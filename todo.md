@@ -82,3 +82,5 @@
 - [x] Remove Duration and Break from the primary Coach availability flow
 - [x] Show clear localized reasons when Coach availability publishing is blocked
 - [x] Validate the updated Coach availability flow across tests and previews
+- [x] Upgrade Coach availability time selection to an iPhone-style wheel with hour, minute, and AM/PM columns
+- [x] Validate the wheel picker behavior and save a verified checkpoint
