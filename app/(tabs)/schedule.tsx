@@ -83,14 +83,14 @@ export default function ScheduleScreen() {
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <ScreenHeader title="My schedule" subtitle="Your booked sessions, in one place." label="SCHEDULE" />
+      <ScreenHeader title={t("scheduleTitle")} subtitle={t("scheduleSubtitle")} label={t("scheduleHeader")} />
       <SurfaceCard style={styles.calendarCard}>
         <View style={styles.monthHeader}>
-          <View><Text style={[styles.monthEyebrow, { color: "#ff82b7" }]}>MONTH VIEW</Text><Text style={[styles.monthTitle, { color: colors.foreground }]}>{monthTitle}</Text></View>
+          <View><Text style={[styles.monthEyebrow, { color: "#ff82b7" }]}>{t("monthView")}</Text><Text style={[styles.monthTitle, { color: colors.foreground }]}>{monthTitle}</Text></View>
           <View style={styles.monthActions}>
-            <Pressable onPress={() => setVisibleMonth((month) => addMonths(month, -1))} accessibilityRole="button" accessibilityLabel="Previous month" style={({ pressed }) => [styles.iconButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.iconButtonText, { color: colors.foreground }]}>‹</Text></Pressable>
-            <Pressable onPress={resetToToday} accessibilityRole="button" style={({ pressed }) => [styles.todayButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.todayButtonText, { color: colors.foreground }]}>Today</Text></Pressable>
-            <Pressable onPress={() => setVisibleMonth((month) => addMonths(month, 1))} accessibilityRole="button" accessibilityLabel="Next month" style={({ pressed }) => [styles.iconButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.iconButtonText, { color: colors.foreground }]}>›</Text></Pressable>
+            <Pressable onPress={() => setVisibleMonth((month) => addMonths(month, -1))} accessibilityRole="button" accessibilityLabel={t("previous")} style={({ pressed }) => [styles.iconButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.iconButtonText, { color: colors.foreground }]}>‹</Text></Pressable>
+            <Pressable onPress={resetToToday} accessibilityRole="button" style={({ pressed }) => [styles.todayButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.todayButtonText, { color: colors.foreground }]}>{t("today")}</Text></Pressable>
+            <Pressable onPress={() => setVisibleMonth((month) => addMonths(month, 1))} accessibilityRole="button" accessibilityLabel={t("next")} style={({ pressed }) => [styles.iconButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.iconButtonText, { color: colors.foreground }]}>›</Text></Pressable>
           </View>
         </View>
         <View style={styles.weekRow}>{weekDays.map((day) => <Text key={day} style={[styles.weekDay, { color: colors.muted }]}>{day}</Text>)}</View>
@@ -102,12 +102,12 @@ export default function ScheduleScreen() {
           const isCurrentMonth = day.getMonth() === visibleMonth.getMonth();
           return <View key={key} style={styles.dayCell}><Pressable onPress={() => { setSelectedDate(startOfLocalDay(day)); if (!isCurrentMonth) setVisibleMonth(startOfMonth(day)); }} accessibilityRole="button" accessibilityLabel={`${day.toDateString()}${dayBookings.length ? `, ${dayBookings.length} booked session${dayBookings.length === 1 ? "" : "s"}` : ""}`} style={({ pressed }) => [styles.dayButton, isSelected && styles.selectedDay, isToday && !isSelected && { borderColor: "#975bd7", borderWidth: 1 }, pressed && styles.pressed]}><Text style={[styles.dayNumber, { color: isCurrentMonth ? colors.foreground : colors.muted }, isSelected && styles.selectedDayText]}>{day.getDate()}</Text>{dayBookings.length > 0 ? <View style={[styles.bookingDot, { backgroundColor: dayBookings.length > 1 ? "#ff82b7" : "#8a77ef" }]}><Text style={styles.bookingDotText}>{dayBookings.length}</Text></View> : <View style={styles.dotSpacer} />}</Pressable></View>;
         })}</View>
-        <Text style={[styles.calendarHint, { color: colors.muted }]}>Pink markers show booked days. Tap any date to see its agenda.</Text>
+        <Text style={[styles.calendarHint, { color: colors.muted }]}>{t("calendarHint")}</Text>
       </SurfaceCard>
 
-      <View style={styles.daySummaryHeader}><View><Text style={[styles.summaryEyebrow, { color: "#a98af0" }]}>SELECTED DAY</Text><Text style={[styles.summaryTitle, { color: colors.foreground }]}>{selectedTitle}</Text></View><Text style={[styles.summaryCount, { color: "#ff82b7" }]}>{selectedBookings.length} {selectedBookings.length === 1 ? "session" : "sessions"}</Text></View>
+      <View style={styles.daySummaryHeader}><View><Text style={[styles.summaryEyebrow, { color: "#a98af0" }]}>{t("selectedDay")}</Text><Text style={[styles.summaryTitle, { color: colors.foreground }]}>{selectedTitle}</Text></View><Text style={[styles.summaryCount, { color: "#ff82b7" }]}>{selectedBookings.length} {selectedBookings.length === 1 ? t("session") : t("sessions")}</Text></View>
 
-      {selectedBookings.length === 0 ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Nothing booked</Text><Text style={[styles.emptyMessage, { color: colors.muted }]}>Choose another day or book a new session.</Text><PrimaryButton title="Browse sessions" onPress={() => router.push("/book")} /></SurfaceCard> : selectedBookings.map((booking) => {
+      {selectedBookings.length === 0 ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("nothingBooked")}</Text><Text style={[styles.emptyMessage, { color: colors.muted }]}>{t("chooseDayOrBook")}</Text><PrimaryButton title={t("browseSessions")} onPress={() => router.push("/book")} /></SurfaceCard> : selectedBookings.map((booking) => {
         const slot = getBookingSlot(snapshot, booking);
         if (!slot) return null;
         const service = getService(snapshot, slot.serviceTypeId);
