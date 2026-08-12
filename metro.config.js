@@ -14,5 +14,5 @@ try {
 
 module.exports = withNativeWind(config, {
   input: "./global.css",
-  forceWriteFileSystem: true,
+  forceWriteFileSystem: false,
 });
