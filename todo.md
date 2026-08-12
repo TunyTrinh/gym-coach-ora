@@ -92,3 +92,5 @@
 - [x] Diagnose and fix Expo Go device connection crash causing VM server failure
 - [x] Fix localhost:8081 connection refused by providing the correct exposed preview URL
 - [x] Configure Metro and Expo start for host binding so phone testing and preview access work correctly
+- [x] Verify and restore the secure public PWA route for phone access without Expo Go or localhost
+- [x] Fix Metro exiting after initial bundle so secure preview access remains available
