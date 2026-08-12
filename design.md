@@ -2,9 +2,9 @@
 
 ## Product Direction
 
-GymFlow will retain its mobile-first, one-handed booking experience while moving to an original **dark Spectrum** visual language. The design combines a near-black canvas with selectively applied pink, coral, orange, violet, and electric-blue energy. Gradient surfaces are reserved for decisive moments—booking, upcoming sessions, and staff focus—while routine information remains calm, high contrast, and fast to scan during a workout.
+GymFlow is **simplicity-first**. A member should understand the next action without studying the screen, a coach should publish free time without filling out a scheduling form, and every screen should have one obvious primary action. The dark Spectrum visual language is secondary: it marks important decisions without competing with them. Gradient surfaces are reserved for the next session, the primary action, and confirmation; routine information stays calm, high contrast, and short.
 
-The app remains optimized for portrait 9:16 use. Tabs, confirmation actions, cancellation controls, and date selection all stay within comfortable thumb reach. Controls use large hit areas, readable type, compact secondary information, and immediate pressed or disabled states in line with Apple Human Interface Guidelines.
+The app remains optimized for portrait 9:16 use and one-handed operation. Required choices stay visible, secondary details move into detail pages or a clearly labelled **More options** section, and technical wording is replaced with plain language. Clients never see staff controls, and coaches never see client booking controls. Controls use large hit areas, readable type, and immediate pressed, loading, success, error, and permission states in line with Apple Human Interface Guidelines.
 
 ## Member-First Information Architecture
 
@@ -18,7 +18,7 @@ The primary member navigation is intentionally limited to **Home, Schedule, Book
 | Progress | Understand personal body-measurement change | Latest selected metric, previous comparison, focused trend chart, add-check-in action | Other metrics and dated measurement history are available on demand, while privacy guidance remains quiet and contextual. |
 | Profile | Manage the membership and discover secondary tools | Membership state, preferences, install/account actions | Attendance History, role preview, and self-hosted Google sign-in remain available as secondary actions. |
 
-The design uses a single strong decision on each member-facing screen. The Home dashboard has one primary **Book a session** call to action. Booking follows the ordered progression **pick a day → optionally refine the session type or coach → choose a time → confirm**. Schedule opens on the selected day rather than presenting every management control at once. Progress opens on one chosen metric and reveals full body-measurement records only after the member asks to compare or review them.
+The design uses a single strong decision on each screen. Home has one primary action: **Book a session** for clients, **Add availability** for coaches, and **Open operations** for admins. Client booking is reduced to three screens: **1) choose a day, 2) choose a time, 3) confirm**. Coach publishing exposes only four required choices: **service, date, start time, and end time**; location, repeat, duration override, break, and note live under **More options**. Schedule, Progress, Profile, History, and Notifications show the essential summary first and reveal detail only after the user asks for it.
 
 ## Interaction and Motion Principles
 
@@ -45,7 +45,7 @@ The scheduler uses the **device’s local time** as its current clock. It derive
 
 ## Coach Availability and Free Shifts
 
-Coach accounts receive a dedicated **Availability** tab in place of the member booking tab. It uses the same one-handed Spectrum layout: a compact week/date rail, an available-hours summary, an always-visible **Add availability** action, and a focused list of shifts. The default view is deliberately simple: choose a date, see current shifts, and add free time. A secondary sheet offers a list/calendar switch, semantic status filters, copy-previous-week, and shift details without crowding the primary workflow.
+Coach accounts receive a dedicated **Availability** tab in place of the member booking tab. The default view has one primary action, **Add availability**, followed by a short list of future shifts. Counts, status filters, coach switching, and release controls are secondary; Admin-only controls are hidden from Coaches. The add sheet asks for only **Service**, **Date**, **Starts**, and **Ends**. A clearly labelled **More options** disclosure contains location, repeat, duration override, break, and note. Clients see only Available shifts and never see blocked, cancelled, private-note, or administrative information.
 
 | Role | What the role can see | What the role can change |
 |---|---|---|
@@ -68,8 +68,8 @@ The client booking journey becomes **coach → locally dated availability → sp
 | Staff attendance | Switch to the existing coach/admin preview → open Coach view → mark attendee Completed or No-show → retain current booking state behavior. |
 | Review the month | Open My Schedule → use previous/next month or Today → tap a day with a booking signal → review all sessions for the selected day → use the existing check-in or cancellation action where available. |
 | Record progress | Open Progress from the primary tab or Home summary → review the latest selected metric and its change from the previous check-in → change the metric or open detailed history as needed → select Add measurement → enter any available fields from weight, body fat, chest, waist, hips, arms, and thighs → save with the device-local date. |
-| Create coach availability | Sign in as a Coach → Availability → Add availability → choose Single or Multiple → enter a future date/range, start/end, service, location, note, duration and optional recurrence → review generated shifts → confirm → see the availability summary update. |
-| Book a coach shift | Open Book as a Client → choose a coach → select a date with an availability indicator → choose one Available shift → review coach, start/end, location, and session type → confirm → receive booking and coach notification. |
+| Create coach availability | Sign in as a Coach → Availability → Add availability → choose Service, Date, Starts, and Ends → optionally open More options → publish → see the new shift in the short list. |
+| Book a coach shift | Open Book as a Client → choose a day → choose one Available time with the coach and service shown → confirm on the final screen → receive the existing booking and notification updates. |
 | Release a cancelled shift | Client cancels within the existing policy → booking remains in history as Cancelled and the shift is held → coach opens shift details → choose Re-open or Keep blocked → both client and coach receive the existing semantic feedback. |
 
 ## Color and Surface Tokens

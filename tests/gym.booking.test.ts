@@ -13,7 +13,7 @@ function createContext(user: User | null): TrpcContext {
   };
 }
 
-const member: User = { id: 42, openId: "member-42", email: "member@example.com", name: "Alex Morgan", loginMethod: "manus", role: "user", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() };
+const member: User = { id: 42, openId: "member-42", email: "member@example.com", name: "Alex Morgan", loginMethod: "manus", role: "client", createdAt: new Date(), updatedAt: new Date(), lastSignedIn: new Date() };
 const admin: User = { ...member, id: 99, openId: "admin-99", role: "admin" };
 
 beforeEach(() => {

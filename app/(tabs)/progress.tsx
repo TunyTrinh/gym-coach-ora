@@ -1,9 +1,11 @@
 import { Alert, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { router } from "expo-router";
 import { useMemo, useState } from "react";
 import Svg, { Circle, Line, Polyline } from "react-native-svg";
 
 import { PrimaryButton, ScreenHeader, SpectrumCard, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
+import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useGym } from "@/lib/gym-store";
@@ -24,7 +26,9 @@ const emptyForm = () => ({ date: localDateString(new Date()), weightKg: "", body
 
 export default function ProgressScreen() {
   const colors = useColors();
+  const { user } = useAuth();
   const { snapshot, saveMeasurement } = useGym();
+  const role = user?.role ?? snapshot.member.role;
   const [metricKey, setMetricKey] = useState<HealthMeasurementKey>("weightKg");
   const [showForm, setShowForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -52,6 +56,19 @@ export default function ProgressScreen() {
     Alert.alert(result.success ? "Progress saved" : "Couldn’t save", result.success ? result.message ?? "Measurement saved." : result.error);
     if (result.success) { setShowForm(false); setForm(emptyForm()); }
   };
+
+  if (role !== "client") {
+    return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
+      <View style={styles.restricted}>
+        <ScreenHeader title="Staff tools" subtitle="Health progress is private to each client." label={role === "admin" ? "ADMIN" : "COACH"} />
+        <SurfaceCard style={styles.restrictedCard}>
+          <Text style={[styles.restrictedTitle, { color: colors.foreground }]}>Manage availability</Text>
+          <Text style={[styles.restrictedCopy, { color: colors.muted }]}>Publish or manage coach time from the staff workspace.</Text>
+          <PrimaryButton title="Open availability" onPress={() => router.replace("/availability")} />
+        </SurfaceCard>
+      </View>
+    </ScreenContainer>;
+  }
 
   return <ScreenContainer className="px-5" edges={["top", "bottom", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -98,7 +115,7 @@ function formatValue(value: number, unit: string) { return `${value.toFixed(unit
 function formatDelta(value: number | undefined, unit: string) { if (typeof value !== "number") return "No comparison"; const direction = value > 0 ? "+" : ""; return `${direction}${formatValue(value, unit)}`; }
 
 const styles = StyleSheet.create({
-  content: { paddingTop: 10, paddingBottom: 38, gap: 16 }, closeText: { fontSize: 26, lineHeight: 29, fontWeight: "400" },
+  content: { paddingTop: 10, paddingBottom: 38, gap: 16 }, restricted: { paddingTop: 10, gap: 18 }, restrictedCard: { gap: 12, padding: 19 }, restrictedTitle: { fontSize: 20, fontWeight: "900" }, restrictedCopy: { fontSize: 13, lineHeight: 20 }, closeText: { fontSize: 26, lineHeight: 29, fontWeight: "400" },
   heroCard: { minHeight: 158 }, heroEyebrow: { color: "rgba(255,255,255,0.76)", fontSize: 10, fontWeight: "900", letterSpacing: 1.4 }, heroValue: { color: "#ffffff", fontSize: 38, fontWeight: "900", letterSpacing: -1.4, marginTop: 7 }, heroMetric: { color: "rgba(255,255,255,0.78)", fontSize: 12, fontWeight: "700", marginTop: 3 }, heroDelta: { position: "absolute", right: 18, bottom: 18, alignItems: "flex-end" }, heroDeltaLabel: { color: "rgba(255,255,255,0.62)", fontSize: 9, fontWeight: "900", letterSpacing: 1.1 }, heroDeltaValue: { color: "#ffffff", fontSize: 16, fontWeight: "900", marginTop: 4 },
   metricRail: { gap: 8, paddingRight: 18 }, metricPill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9 }, chartCard: { gap: 14 }, chartHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }, chartTitle: { fontSize: 17, fontWeight: "800" }, chartCopy: { fontSize: 12, marginTop: 3 }, chartRange: { fontSize: 16, fontWeight: "900" }, svgWrap: { gap: 4 }, chartFoot: { flexDirection: "row", justifyContent: "space-between" }, chartFootText: { fontSize: 10, fontWeight: "700" }, chartEmpty: { height: 150, justifyContent: "center", alignItems: "center", borderRadius: 16, backgroundColor: "#151518", paddingHorizontal: 28 }, chartEmptyText: { fontSize: 12, textAlign: "center", lineHeight: 18 },
   comparisonHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 2 }, sectionEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, sectionTitle: { fontSize: 20, fontWeight: "800", marginTop: 3 }, addButton: { minHeight: 36, borderRadius: 18, backgroundColor: "#f04488", paddingHorizontal: 14, justifyContent: "center" }, addButtonText: { color: "#ffffff", fontSize: 12, fontWeight: "900" }, addPressed: { opacity: 0.78, transform: [{ scale: 0.97 }] }, historySummary: { minHeight: 78, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12 }, historySummaryCopy: { flex: 1 }, historySummaryTitle: { fontSize: 15, fontWeight: "800" }, historySummaryDetail: { fontSize: 11, lineHeight: 17, marginTop: 4 }, historySummaryAction: { color: "#ff82b7", fontSize: 12, fontWeight: "800" }, privateNote: { fontSize: 11, lineHeight: 17, textAlign: "center", paddingHorizontal: 16 }, pressed: { opacity: 0.72 },

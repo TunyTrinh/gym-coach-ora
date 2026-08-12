@@ -32,7 +32,7 @@ export function useAuth(options?: UseAuthOptions) {
             name: apiUser.name,
             email: apiUser.email,
             loginMethod: apiUser.loginMethod,
-            role: (apiUser.role as "user" | "coach" | "admin") || "user",
+            role: (apiUser.role as "client" | "coach" | "admin") || "client",
             lastSignedIn: new Date(apiUser.lastSignedIn),
           };
           setUser(userInfo);

@@ -45,3 +45,11 @@
 - [x] Build a mobile Coach Availability interface with calendar/list views, shift creation preview, filters, details, and future-shift management
 - [x] Connect client booking to coach-managed Available shifts and expose guarded Admin oversight controls
 - [x] Add complete feedback states, availability conflict regression tests, and validate the repaired PWA export; Docker remains unavailable in this sandbox for a local container image build
+
+- [ ] Audit every client, coach, admin, booking, availability, schedule, profile, progress, history, and notification screen for unnecessary or duplicated UI
+- [ ] Simplify client booking to a maximum of three clear screens with one primary action per screen
+- [ ] Simplify coach free-shift publishing to no more than four required inputs and move advanced options under More options
+- [ ] Enforce role-specific navigation and hide Coach/Admin controls from Clients and client booking controls from Coach mode
+- [ ] Simplify secondary schedule, profile, progress, history, notifications, and admin surfaces
+- [ ] Fix TypeScript and Docker production build failures and add usability/role regression coverage
+- [ ] Validate mobile and web layouts and save a simplification checkpoint

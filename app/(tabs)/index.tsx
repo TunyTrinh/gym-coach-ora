@@ -1,9 +1,8 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
-import { Avatar, OfflineBanner, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
+import { Avatar, OfflineBanner, ScreenHeader, SpectrumCard, StatusBadge } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
-import { useColors } from "@/hooks/use-colors";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
@@ -12,18 +11,15 @@ import { formatShortDate, formatTime, getBookingSlot, getCoach, getService } fro
 import { useAuth } from "@/hooks/use-auth";
 
 export default function HomeScreen() {
-  const colors = useColors();
   const reducedMotion = useReducedMotion();
   const { user } = useAuth();
-  const role = user?.role || "user";
+  const role = user?.role || "client";
   const { snapshot, upcomingBookings, unreadCount } = useGym();
   const nextBooking = upcomingBookings[0];
   const nextSlot = nextBooking ? getBookingSlot(snapshot, nextBooking) : undefined;
   const nextService = nextSlot ? getService(snapshot, nextSlot.serviceTypeId) : undefined;
   const nextCoach = nextSlot ? getCoach(snapshot, nextSlot.coachId) : undefined;
   const firstName = snapshot.member.fullName.split(" ")[0];
-  const latestMeasurement = [...snapshot.measurements].sort((left, right) => new Date(right.recordedAt).getTime() - new Date(left.recordedAt).getTime())[0];
-  const weight = latestMeasurement?.weightKg;
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -49,7 +45,7 @@ export default function HomeScreen() {
           <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⚙</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>Global Settings</Text><Text style={styles.heroMetaMuted}>Manage roles and permissions</Text></View><Text style={styles.heroArrow}>→</Text></View>
         </SpectrumCard>}
 
-        {role === "user" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/schedule")} accessibilityLabel="Open your next session">
+        {role === "client" && <SpectrumCard style={styles.heroCard}>
           <View style={styles.heroTopRow}>
             <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{nextBooking ? "NEXT SESSION" : "YOUR NEXT MOVE"}</Text><Text style={styles.heroTitle}>{nextService?.name ?? "Ready when you are"}</Text></View>
             <StatusBadge label={nextBooking?.status ?? "Open"} tone={nextBooking ? "success" : "accent"} />
@@ -61,15 +57,9 @@ export default function HomeScreen() {
         </SpectrumCard>}
       </>
 
-      <Pressable onPress={() => { haptic.light(); router.push("/book"); }} style={({ pressed }) => [styles.primaryAction, pressed && (reducedMotion ? styles.primaryReducedPressed : styles.primaryPressed)]} accessibilityRole="button" accessibilityLabel="Book a session">
-        <View><Text style={styles.primaryEyebrow}>FIND YOUR TIME</Text><Text style={styles.primaryTitle}>Book a session</Text><Text style={styles.primaryCopy}>Browse upcoming coaching and gym slots</Text></View><View style={styles.primaryArrow}><Text style={styles.primaryArrowText}>+</Text></View>
-      </Pressable>
-
-      <Text style={[styles.sectionLabel, { color: colors.muted }]}>TODAY AT A GLANCE</Text>
-      <View style={styles.summaryRow}>
-        <SurfaceCard style={styles.summaryCard} onPress={() => router.push("/schedule")} accessibilityLabel="Open your schedule"><Text style={[styles.summaryValue, { color: colors.foreground }]}>{upcomingBookings.length}</Text><Text style={[styles.summaryTitle, { color: colors.foreground }]}>Upcoming</Text><Text style={[styles.summaryCopy, { color: colors.muted }]}>{upcomingBookings.length === 1 ? "session planned" : "sessions planned"}</Text></SurfaceCard>
-        <SurfaceCard style={styles.summaryCard} onPress={() => router.push("/progress")} accessibilityLabel="Open Health Progress"><Text style={[styles.summaryValue, { color: "#ff82b7" }]}>{typeof weight === "number" ? `${weight} kg` : "—"}</Text><Text style={[styles.summaryTitle, { color: colors.foreground }]}>Progress</Text><Text style={[styles.summaryCopy, { color: colors.muted }]}>{latestMeasurement ? "Latest check-in" : "Add a check-in"}</Text></SurfaceCard>
-      </View>
+      {role === "client" ? <Pressable onPress={() => { haptic.light(); router.push("/book"); }} style={({ pressed }) => [styles.primaryAction, pressed && (reducedMotion ? styles.primaryReducedPressed : styles.primaryPressed)]} accessibilityRole="button" accessibilityLabel="Book a session">
+        <View><Text style={styles.primaryEyebrow}>FIND YOUR TIME</Text><Text style={styles.primaryTitle}>Book a session</Text><Text style={styles.primaryCopy}>Choose a coach and time in a few taps</Text></View><View style={styles.primaryArrow}><Text style={styles.primaryArrowText}>+</Text></View>
+      </Pressable> : null}
     </ScrollView>
   </ScreenContainer>;
 }

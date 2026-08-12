@@ -1,4 +1,4 @@
-export type Role = "member" | "coach" | "admin";
+export type Role = "client" | "coach" | "admin";
 export type BookingStatus = "Pending" | "Confirmed" | "Cancelled" | "Completed" | "No-show";
 export type SlotStatus = "Open" | "Full" | "Blocked" | "Cancelled" | "Completed";
 export type AvailabilityShiftStatus = "Available" | "Booked" | "Blocked" | "Completed" | "Cancelled" | "Expired";
@@ -313,7 +313,7 @@ export function seedGymData(now = new Date()): GymSnapshot {
       phone: "+1 (512) 555-0134",
       membershipPlan: "Northstar Unlimited",
       membershipEndDate: iso(atDay(now, 42, 12, 0)),
-      role: "member",
+      role: "client",
       initials: "AM",
     },
     measurements: [

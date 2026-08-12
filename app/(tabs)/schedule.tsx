@@ -2,8 +2,9 @@ import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { Avatar, GhostButton, PrimaryButton, ScreenHeader, StatusBadge, SurfaceCard } from "@/components/gym-ui";
+import { Avatar, PrimaryButton, ScreenHeader, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
+import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { addMonths, buildMonthGrid, isSameLocalDay, localDayKey, startOfLocalDay, startOfMonth } from "@/lib/calendar";
 import { useGym } from "@/lib/gym-store";
@@ -13,7 +14,9 @@ const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 export default function ScheduleScreen() {
   const colors = useColors();
+  const { user } = useAuth();
   const { snapshot, upcomingBookings, cancelBooking, checkInBooking } = useGym();
+  const role = user?.role ?? snapshot.member.role;
   const [now, setNow] = useState(() => new Date());
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => startOfLocalDay(new Date()));
@@ -35,10 +38,6 @@ export default function ScheduleScreen() {
     return result;
   }, [snapshot, upcomingBookings]);
   const selectedBookings = bookingsByDay.get(localDayKey(selectedDate)) ?? [];
-  const monthSessionCount = Array.from(bookingsByDay.entries()).reduce((count, [key, bookings]) => {
-    const [year, month] = key.split("-").map(Number);
-    return year === visibleMonth.getFullYear() && month === visibleMonth.getMonth() + 1 ? count + bookings.length : count;
-  }, 0);
   const monthTitle = new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(visibleMonth);
   const selectedTitle = isSameLocalDay(selectedDate, now)
     ? "Today"
@@ -65,14 +64,22 @@ export default function ScheduleScreen() {
     setVisibleMonth(startOfMonth(today));
   };
 
+  if (role !== "client") {
+    return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
+      <View style={styles.staffRestricted}>
+        <ScreenHeader title="Staff schedule" subtitle="Manage coaching time from the staff workspace." label={role === "admin" ? "ADMIN" : "COACH"} />
+        <SurfaceCard style={styles.staffCard}>
+          <Text style={[styles.staffTitle, { color: colors.foreground }]}>Coach schedule</Text>
+          <Text style={[styles.staffCopy, { color: colors.muted }]}>Publish free time, block a shift, or review booked sessions.</Text>
+          <PrimaryButton title="Open staff workspace" onPress={() => router.replace("/availability")} />
+        </SurfaceCard>
+      </View>
+    </ScreenContainer>;
+  }
+
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <ScreenHeader title="My schedule" subtitle="Everything you’ve planned, in one place." label="YOUR RHYTHM" />
-      <SurfaceCard style={styles.agendaCard}>
-        <View style={styles.agendaCopy}><Text style={[styles.agendaEyebrow, { color: colors.muted }]}>THIS MONTH</Text><Text style={[styles.agendaLabel, { color: colors.foreground }]}>{monthSessionCount === 1 ? "1 session planned" : `${monthSessionCount} sessions planned`}</Text></View>
-        <Pressable onPress={resetToToday} accessibilityRole="button" style={({ pressed }) => [styles.agendaToday, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={styles.agendaTodayText}>Today</Text></Pressable>
-      </SurfaceCard>
-
+      <ScreenHeader title="My schedule" subtitle="Your booked sessions, in one place." label="SCHEDULE" />
       <SurfaceCard style={styles.calendarCard}>
         <View style={styles.monthHeader}>
           <View><Text style={[styles.monthEyebrow, { color: "#ff82b7" }]}>MONTH VIEW</Text><Text style={[styles.monthTitle, { color: colors.foreground }]}>{monthTitle}</Text></View>
@@ -96,7 +103,7 @@ export default function ScheduleScreen() {
 
       <View style={styles.daySummaryHeader}><View><Text style={[styles.summaryEyebrow, { color: "#a98af0" }]}>SELECTED DAY</Text><Text style={[styles.summaryTitle, { color: colors.foreground }]}>{selectedTitle}</Text></View><Text style={[styles.summaryCount, { color: "#ff82b7" }]}>{selectedBookings.length} {selectedBookings.length === 1 ? "session" : "sessions"}</Text></View>
 
-      {selectedBookings.length === 0 ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Nothing booked here</Text><Text style={[styles.emptyMessage, { color: colors.muted }]}>Pick another day or find a new class to add to your rhythm.</Text><PrimaryButton title="Browse sessions" onPress={() => router.push("/book")} /></SurfaceCard> : selectedBookings.map((booking) => {
+      {selectedBookings.length === 0 ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>Nothing booked</Text><Text style={[styles.emptyMessage, { color: colors.muted }]}>Choose another day or book a new session.</Text><PrimaryButton title="Browse sessions" onPress={() => router.push("/book")} /></SurfaceCard> : selectedBookings.map((booking) => {
         const slot = getBookingSlot(snapshot, booking);
         if (!slot) return null;
         const service = getService(snapshot, slot.serviceTypeId);
@@ -105,13 +112,13 @@ export default function ScheduleScreen() {
         const checkInOpen = minutesUntil <= 30 && minutesUntil >= -30;
         return <SurfaceCard key={booking.id} style={styles.bookingCard}><View style={styles.bookingTop}><View><Text style={[styles.bookingTime, { color: colors.foreground }]}>{formatTime(slot.start)} <Text style={[styles.bookingDuration, { color: colors.muted }]}>· {service?.durationMinutes} min</Text></Text><Text style={[styles.bookingDate, { color: "#ff82b7" }]}>{formatShortDate(slot.start).toUpperCase()}</Text></View><StatusBadge label={booking.checkInTime ? "Checked in" : booking.status} tone={booking.checkInTime ? "success" : "accent"} /></View><View style={[styles.bookingRule, { backgroundColor: colors.border }]} /><View style={styles.bookingMain}>{coach ? <Avatar initials={coach.initials} accent={coach.accent} size={40} /> : <View style={styles.openIcon}><Text style={styles.openIconText}>⌁</Text></View>}<View style={styles.bookingCopy}><Text style={[styles.bookingService, { color: colors.foreground }]}>{service?.name}</Text><Text style={[styles.bookingCoach, { color: colors.muted }]}>{coach?.fullName ?? "Self-guided access"}</Text><Text style={[styles.bookingLocation, { color: colors.muted }]}>{slot.room} · Northstar Downtown</Text></View></View><View style={styles.actionRow}>{checkInOpen && !booking.checkInTime ? <View style={styles.actionFill}><PrimaryButton title="Check in" onPress={() => handleCheckIn(booking.id)} icon="checkmark.circle.fill" /></View> : <View style={styles.windowNote}><Text style={[styles.windowText, { color: colors.muted }]}>{booking.checkInTime ? "Check-in recorded" : `Check-in opens ${Math.max(1, minutesUntil - 30)} min before`}</Text></View>}<Pressable onPress={() => handleCancel(booking.id)} accessibilityRole="button" accessibilityLabel="Cancel booking" style={({ pressed }) => [styles.cancelButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.cancelText, { color: colors.error }]}>Cancel</Text></Pressable></View></SurfaceCard>;
       })}
-      <GhostButton title="Find another session" onPress={() => router.push("/book")} icon="calendar.badge.plus" />
     </ScrollView>
   </ScreenContainer>;
 }
 
 const styles = StyleSheet.create({
   content: { paddingTop: 10, paddingBottom: 40, gap: 16 },
+  staffRestricted: { paddingTop: 10, gap: 18 }, staffCard: { gap: 12, padding: 19 }, staffTitle: { fontSize: 20, fontWeight: "900" }, staffCopy: { fontSize: 13, lineHeight: 20 },
   agendaCard: { minHeight: 76, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 12, paddingVertical: 14 }, agendaCopy: { gap: 4, flex: 1 }, agendaEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4 }, agendaLabel: { fontSize: 16, fontWeight: "800" }, agendaToday: { minHeight: 38, borderRadius: 19, borderWidth: 1, justifyContent: "center", paddingHorizontal: 13 }, agendaTodayText: { color: "#ff82b7", fontSize: 12, fontWeight: "800" },
   calendarCard: { padding: 14, gap: 13 }, monthHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }, monthEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, monthTitle: { fontSize: 19, fontWeight: "800", marginTop: 3 }, monthActions: { flexDirection: "row", alignItems: "center", gap: 6 }, iconButton: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" }, iconButtonText: { fontSize: 28, lineHeight: 28, marginTop: -3 }, todayButton: { height: 34, borderRadius: 17, borderWidth: 1, paddingHorizontal: 11, justifyContent: "center" }, todayButtonText: { fontSize: 11, fontWeight: "800" },
   weekRow: { flexDirection: "row" }, weekDay: { width: "14.285%", textAlign: "center", fontSize: 9, fontWeight: "800" }, grid: { flexDirection: "row", flexWrap: "wrap" }, dayCell: { width: "14.285%", aspectRatio: 0.86, padding: 2 }, dayButton: { flex: 1, alignItems: "center", justifyContent: "center", borderRadius: 12 }, selectedDay: { backgroundColor: "#f04488" }, selectedDayText: { color: "#ffffff", fontWeight: "900" }, dayNumber: { fontSize: 13, fontWeight: "700" }, bookingDot: { minWidth: 14, height: 14, paddingHorizontal: 3, borderRadius: 7, alignItems: "center", justifyContent: "center", marginTop: 3 }, bookingDotText: { fontSize: 8, color: "#ffffff", fontWeight: "900" }, dotSpacer: { height: 14, marginTop: 3 }, calendarHint: { borderTopWidth: 1, borderTopColor: "#303036", paddingTop: 11, fontSize: 10, fontWeight: "700", textAlign: "center" },

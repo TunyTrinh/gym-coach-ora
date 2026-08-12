@@ -69,7 +69,7 @@ export const appRouter = router({
   }),
   admin: router({
     updateRole: protectedProcedure
-      .input(z.object({ userId: z.number(), role: z.enum(["user", "coach", "admin"]) }))
+      .input(z.object({ userId: z.number(), role: z.enum(["client", "coach", "admin"]) }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "admin") {
           throw new Error("Unauthorized: Admin access required.");
@@ -163,7 +163,7 @@ export const appRouter = router({
     bookable: protectedProcedure
       .input(z.object({ coachId: z.number().int().positive(), dateStart: z.string().datetime(), dateEnd: z.string().datetime() }))
       .query(async ({ ctx, input }) => {
-        if (ctx.user.role !== "user") throw new Error("Member access is required to view bookable shifts.");
+        if (ctx.user.role !== "client") throw new Error("Member access is required to view bookable shifts.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         return db.select({
@@ -176,7 +176,7 @@ export const appRouter = router({
           status: availabilityShifts.status,
         }).from(availabilityShifts).where(and(
           eq(availabilityShifts.coachId, input.coachId),
-          eq(availabilityShifts.status, "Available"),
+          eq(availabilityShifts.status, "available"),
           gte(availabilityShifts.startAt, new Date(input.dateStart)),
           lt(availabilityShifts.startAt, new Date(input.dateEnd)),
           gt(availabilityShifts.startAt, new Date()),
@@ -199,7 +199,7 @@ export const appRouter = router({
           eq(availabilityShifts.coachId, coachId),
           lt(availabilityShifts.startAt, lastEnd),
           gt(availabilityShifts.endAt, firstStart),
-          inArray(availabilityShifts.status, ["Available", "Booked", "Blocked"]),
+          inArray(availabilityShifts.status, ["available", "booked", "blocked"]),
         )).limit(1);
         if (conflicts.length) throw new Error("This availability overlaps an existing shift or blocked period.");
         await db.transaction(async (tx: any) => {
@@ -215,7 +215,7 @@ export const appRouter = router({
               endAt: new Date(interval.end),
               location: input.location,
               note: input.note,
-              status: "Available",
+              status: "available",
               createdBy: ctx.user.id,
               recurrenceGroupId,
             });
@@ -242,9 +242,10 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const shift = await canManageShift(db, ctx.user, input.shiftId);
-        if (new Date(shift.startAt) <= new Date() || shift.status === "Booked" || shift.status === "Completed") throw new Error("Only future unbooked shifts can be changed.");
+        if (new Date(shift.startAt) <= new Date() || shift.status === "booked" || shift.status === "completed") throw new Error("Only future unbooked shifts can be changed.");
+        const status = input.status === "Blocked" ? "blocked" : "available";
         await db.transaction(async (tx: any) => {
-          await tx.update(availabilityShifts).set({ status: input.status, updatedBy: ctx.user.id }).where(eq(availabilityShifts.id, shift.id));
+          await tx.update(availabilityShifts).set({ status, updatedBy: ctx.user.id }).where(eq(availabilityShifts.id, shift.id));
           await tx.update(timeSlots).set({ status: input.status === "Blocked" ? "Blocked" : "Open" }).where(eq(timeSlots.externalId, `managed-slot-${shift.externalId}`));
           await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: `${input.status.toUpperCase()}_AVAILABILITY`, details: `Updated ${input.shiftId}.` });
         });
@@ -253,13 +254,13 @@ export const appRouter = router({
     book: protectedProcedure
       .input(z.object({ shiftId: z.string().min(1).max(64) }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "user") throw new Error("Only members can book a coach shift.");
+        if (ctx.user.role !== "client") throw new Error("Only members can book a coach shift.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         return db.transaction(async (tx: any) => {
-          const updated = await tx.update(availabilityShifts).set({ status: "Booked", memberUserId: ctx.user.id, updatedBy: ctx.user.id }).where(and(
+          const updated = await tx.update(availabilityShifts).set({ status: "booked", memberUserId: ctx.user.id, updatedBy: ctx.user.id }).where(and(
             eq(availabilityShifts.externalId, input.shiftId),
-            eq(availabilityShifts.status, "Available"),
+            eq(availabilityShifts.status, "available"),
             gt(availabilityShifts.startAt, new Date()),
           ));
           if (!updated[0]?.affectedRows) throw new Error("That shift was just booked or is no longer available.");
@@ -289,10 +290,10 @@ export const appRouter = router({
         if (!record[0]) throw new Error("Managed booking not found.");
         const canCancel = record[0].booking.memberUserId === ctx.user.id || ctx.user.role === "admin" || (ctx.user.role === "coach" && (await managedCoachId(db, ctx.user)) === record[0].shift.coachId);
         if (!canCancel) throw new Error("You cannot cancel this booking.");
-        if (record[0].booking.status !== "Confirmed") throw new Error("This booking cannot be cancelled.");
+        if (record[0].booking.status !== "confirmed") throw new Error("This booking cannot be cancelled.");
         await db.transaction(async (tx: any) => {
           await tx.update(bookings).set({ status: "Cancelled", cancellationTime: new Date(), cancellationReason: input.reason }).where(eq(bookings.id, record[0].booking.id));
-          await tx.update(availabilityShifts).set({ status: "Cancelled", updatedBy: ctx.user.id }).where(eq(availabilityShifts.id, record[0].shift.id));
+          await tx.update(availabilityShifts).set({ status: "cancelled", updatedBy: ctx.user.id }).where(eq(availabilityShifts.id, record[0].shift.id));
           await tx.update(timeSlots).set({ status: "Cancelled", bookedCount: 0 }).where(eq(timeSlots.externalId, `managed-slot-${record[0].shift.externalId}`));
           await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "CANCEL_AVAILABILITY_BOOKING", details: `Cancelled ${input.bookingId}; coach release decision required.` });
         });
@@ -304,11 +305,11 @@ export const appRouter = router({
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const shift = await canManageShift(db, ctx.user, input.shiftId);
-        if (shift.status !== "Cancelled" || new Date(shift.startAt) <= new Date()) throw new Error("Only a future cancelled shift can be released.");
-        const status = input.release === "reopen" ? "Available" : "Blocked" as const;
+        if (shift.status !== "cancelled" || new Date(shift.startAt) <= new Date()) throw new Error("Only a future cancelled shift can be released.");
+        const status = input.release === "reopen" ? "available" : "blocked" as const;
         await db.transaction(async (tx: any) => {
           await tx.update(availabilityShifts).set({ status, memberUserId: null, bookingId: null, updatedBy: ctx.user.id }).where(eq(availabilityShifts.id, shift.id));
-          await tx.update(timeSlots).set({ status: status === "Available" ? "Open" : "Blocked", bookedCount: 0 }).where(eq(timeSlots.externalId, `managed-slot-${shift.externalId}`));
+          await tx.update(timeSlots).set({ status: status === "available" ? "Open" : "Blocked", bookedCount: 0 }).where(eq(timeSlots.externalId, `managed-slot-${shift.externalId}`));
           await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "RELEASE_CANCELLED_SHIFT", details: `${input.release} ${input.shiftId}.` });
         });
         return { success: true as const, status };
@@ -319,7 +320,8 @@ export const appRouter = router({
         if (ctx.user.role !== "admin") throw new Error("Admin access is required.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
-        const conditions = [input?.coachId ? eq(availabilityShifts.coachId, input.coachId) : undefined, input?.status ? eq(availabilityShifts.status, input.status) : undefined].filter(Boolean) as any[];
+        const status = input?.status ? input.status.toLowerCase() as "available" | "booked" | "blocked" | "completed" | "cancelled" | "expired" : undefined;
+        const conditions = [input?.coachId ? eq(availabilityShifts.coachId, input.coachId) : undefined, status ? eq(availabilityShifts.status, status) : undefined].filter(Boolean) as any[];
         return db.select().from(availabilityShifts).where(conditions.length ? and(...conditions) : undefined);
       }),
   }),
