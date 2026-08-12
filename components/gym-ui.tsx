@@ -35,7 +35,7 @@ export function SpectrumCard({ children, style, onPress, accessibilityLabel, int
   return <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={accessibilityLabel} style={({ pressed }) => pressed && (reducedMotion ? styles.pressed : styles.cardPressed)}>{content}</Pressable>;
 }
 
-export function ScreenHeader({ title, subtitle, onPress, icon = "bell.fill", badge, label = "GYMFLOW" }: { title: string; subtitle?: string; onPress?: () => void; icon?: any; badge?: number; label?: string }) {
+export function ScreenHeader({ title, subtitle, onPress, icon = "bell.fill", badge, label = "COACHORA" }: { title: string; subtitle?: string; onPress?: () => void; icon?: any; badge?: number; label?: string }) {
   const colors = useColors();
   return (
     <View style={styles.header}>
