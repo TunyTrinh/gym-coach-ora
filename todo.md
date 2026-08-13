@@ -172,3 +172,17 @@
 - [x] Start the production-style local Coachora API against the dedicated local test database and record idle health/resource baseline
 - [x] Run the approved 10-user, 2-minute realistic local smoke workflow and validate auth, capacity, consistency, cleanup, and recovery
 - [x] Document local smoke evidence and stop before staging or higher-load testing pending user approval
+- [x] Review the pushed dev-test load-test code for real-contract use, production isolation, run-scoped cleanup, artifact exclusion, secret handling, and application regressions
+- [x] Record dev-test review findings and safe remediation requirements without merging main
+- [x] Prepare a non-deployment staging topology, monitoring, identity, data-isolation, acceptance, and approval-gate plan
+- [x] Keep all temporary test reports, generated fixtures, results, logs, and staging plans local and uncommitted on `dev-test`
+- [x] Continue safe local validation only on `dev-test` without modifying, committing, or pushing any other branch
+- [x] Audit the current local 10-user evidence and record why it cannot support a 10,000-active-user claim
+- [x] Research current infrastructure and distributed load-generator pricing assumptions for a no-deployment 10,000-user staging plan
+- [x] Design a production-isolated 10,000-concurrent-user staging topology, telemetry, traffic mix, race tests, acceptance gates, and recovery controls
+- [x] Keep the 10,000-user architecture, cost, and staging planning report local, uncommitted, and unpushed pending explicit approval
+- [x] Run local-only dev-test static, regression, build, and preview-health checks without commit, push, checkpoint, deployment, or staging execution
+- [x] Report the local validation results and clearly distinguish them from unexecuted 10,000-user staging verification
+- [x] Verify the dev-test diff and stage only approved implementation changes, excluding all temporary artifacts
+- [ ] Commit the approved implementation changes on dev-test
+- [ ] Push only dev-test to GitHub and verify the remote branch status
