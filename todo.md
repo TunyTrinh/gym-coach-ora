@@ -158,3 +158,10 @@
 - [x] Implement an isolated `load-tests/` suite using real Coachora contracts and exclude it from runtime, bundling, Docker, and deployment paths
 - [x] Build and inspect the production artifact to verify load-test code, credentials, routes, and generated test data are absent
 - [x] Document the staged 10-to-1,000-user execution profile, pass criteria, and verified isolation results under `docs/`
+- [ ] Verify the staging URL, real test accounts, monitored database target, and staging-only safeguards before a smoke run
+- [ ] Prepare a run-tagged future Coach availability window, secure temporary session inputs, and cleanup confirmation
+- [ ] Execute the bounded staging smoke profile from a separate load generator and verify test-data cleanup and recovery
+- [ ] Document staging smoke results and whether the monitored 1,000-user run is ready for approval
+- [x] Verify the localhost API/database target is isolated from production before local smoke preparation
+- [x] Prepare localhost-only smoke configuration with no production credentials, accounts, or test-data deletion path
+- [x] Validate localhost guard behavior and document why it cannot replace the monitored staging run

@@ -15,5 +15,6 @@ describe("load-test isolation", () => {
     expect(guard).toContain("I_CONFIRM_STAGING_ONLY");
     expect(guard).toContain("Refusing a URL that appears to be production");
     expect(guard).toContain("Refusing a database URL equal to DATABASE_URL");
+    expect(guard).toContain("COACHORA_LOCAL_SMOKE_DATABASE_URL must use localhost");
   });
 });

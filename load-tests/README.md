@@ -35,6 +35,19 @@ node load-tests/setup/assert-staging.mjs
 
 The assertion rejects a missing confirmation, targets that look like production, a target equal to `PRODUCTION_APP_DOMAIN`, a database URL equal to `DATABASE_URL`, and database host/name combinations that do not contain `stage`, `staging`, or `test`.
 
+## Localhost-only preflight
+
+Localhost can verify the suite’s **isolation and health-check wiring**, but cannot replace a staging workload. It must use a separately provisioned local MySQL database whose host is localhost and whose name contains `local` or `test`; the active application database is deliberately rejected even when the app URL is localhost. Set the following values only in the local shell or a separately protected local environment file; do not commit credentials.
+
+```bash
+export COACHORA_LOCAL_SMOKE_URL='http://127.0.0.1:3000'
+export COACHORA_LOCAL_SMOKE_DATABASE_URL='mysql://load_test:password@127.0.0.1:3306/coachora_local_test'
+export COACHORA_LOCAL_SMOKE_CONFIRMATION='I_CONFIRM_LOCAL_ISOLATION'
+node load-tests/setup/assert-local-smoke.mjs
+```
+
+This preflight issues only `GET /api/health`. It does not need OAuth tokens, create availability, book a session, write the database, or delete any record. Do not run k6 against localhost until Coachora is explicitly started with the separate local-test database and test OAuth/session configuration.
+
 ## Execution profiles
 
 Run from a **separate load-generator machine** against staging. The default is a short smoke profile. Set `COACHORA_LOAD_PROFILE=full` only after staging monitoring and database backup/restore have been checked. The full profile provides: 10 users for 2 minutes; 100 users for 5 minutes; ramp to 1,000 over 10 minutes; sustain 1,000 for 30 minutes; a 200-to-1,000 booking spike; and recovery to 100 then zero users.

@@ -47,3 +47,23 @@ export function assertStagingDatabase() {
   }
   return value;
 }
+
+export function assertLocalSmokeTarget() {
+  const appUrl = new URL(required("COACHORA_LOCAL_SMOKE_URL"));
+  const localHosts = ["localhost", "127.0.0.1", "::1"];
+  if (!localHosts.includes(appUrl.hostname) || appUrl.protocol !== "http:") {
+    throw new Error("[load-tests] COACHORA_LOCAL_SMOKE_URL must be an explicit http localhost target.");
+  }
+  if (process.env.COACHORA_LOCAL_SMOKE_CONFIRMATION !== "I_CONFIRM_LOCAL_ISOLATION") {
+    throw new Error("[load-tests] Set COACHORA_LOCAL_SMOKE_CONFIRMATION=I_CONFIRM_LOCAL_ISOLATION after checking the target.");
+  }
+  const databaseUrl = new URL(required("COACHORA_LOCAL_SMOKE_DATABASE_URL"));
+  const databaseName = databaseUrl.pathname.replace(/^\//, "").toLowerCase();
+  if (!localHosts.includes(databaseUrl.hostname) || !/(local|test)/.test(databaseName)) {
+    throw new Error("[load-tests] COACHORA_LOCAL_SMOKE_DATABASE_URL must use localhost and a database name containing local or test.");
+  }
+  if ((process.env.DATABASE_URL && databaseUrl.toString() === process.env.DATABASE_URL) || (process.env.PRODUCTION_DATABASE_URL && databaseUrl.toString() === process.env.PRODUCTION_DATABASE_URL)) {
+    throw new Error("[load-tests] Refusing a local smoke database URL equal to an application or production database URL.");
+  }
+  return { appUrl: appUrl.toString().replace(/\/$/, ""), database: databaseUrl.toString() };
+}
