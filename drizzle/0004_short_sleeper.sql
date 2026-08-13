@@ -1,4 +1,3 @@
-ALTER TABLE `coaches` ADD `gymId` int NOT NULL;
 ALTER TABLE `coaches` ADD `gymId` int;
 --> statement-breakpoint
 UPDATE `coaches` AS `coach`

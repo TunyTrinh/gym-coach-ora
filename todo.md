@@ -165,3 +165,10 @@
 - [x] Verify the localhost API/database target is isolated from production before local smoke preparation
 - [x] Prepare localhost-only smoke configuration with no production credentials, accounts, or test-data deletion path
 - [x] Validate localhost guard behavior and document why it cannot replace the monitored staging run
+- [x] Repair fresh-schema parity for audit, coach-client, coach-note, and health-measurement tables exposed by the isolated smoke run
+- [x] Add confirmation-gated cleanup for exact localhost smoke-run fixtures
+- [x] Provision a localhost-bound `coachora_load_test` MySQL database using test-only credentials and apply real migrations
+- [x] Seed only run-tagged generated Coachora Client, Coach, availability, and booking data with real schema relationships
+- [x] Start the production-style local Coachora API against the dedicated local test database and record idle health/resource baseline
+- [x] Run the approved 10-user, 2-minute realistic local smoke workflow and validate auth, capacity, consistency, cleanup, and recovery
+- [x] Document local smoke evidence and stop before staging or higher-load testing pending user approval

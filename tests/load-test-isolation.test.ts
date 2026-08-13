@@ -17,4 +17,13 @@ describe("load-test isolation", () => {
     expect(guard).toContain("Refusing a database URL equal to DATABASE_URL");
     expect(guard).toContain("COACHORA_LOCAL_SMOKE_DATABASE_URL must use localhost");
   });
+
+  it("keeps localhost cleanup confirmation-gated and scoped to one generated run", async () => {
+    const cleanup = await readFile(resolve(root, "load-tests/local/cleanup-local.mjs"), "utf8");
+    expect(cleanup).toContain('assertLocalSmokeTarget()');
+    expect(cleanup).toContain('COACHORA_LOCAL_SMOKE_CLEANUP_CONFIRMATION');
+    expect(cleanup).toContain('DELETE_ONLY_THIS_LOCAL_RUN');
+    expect(cleanup).toContain('local-load:${runId}:%');
+    expect(cleanup).toContain('LOAD_TEST:${runId}');
+  });
 });
