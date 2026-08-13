@@ -153,3 +153,8 @@
 - [x] Measure development versus production process/heap/RSS/CPU usage and production build artifacts without weakening development tooling
 - [x] Run functional, authorization, booking-concurrency, security, bounded load/spike, and post-load stability verification within safe environment limits
 - [x] Write the required expanded Markdown completion report, including evidence limits for the requested 1,000-user test
+- [x] Map real Coachora tRPC procedures, authentication boundaries, roles, data models, and workflow contracts for staging tests
+- [x] Design staging-only load-test safety guards, unique run identifiers, test-data cleanup boundaries, and environment validation
+- [x] Implement an isolated `load-tests/` suite using real Coachora contracts and exclude it from runtime, bundling, Docker, and deployment paths
+- [x] Build and inspect the production artifact to verify load-test code, credentials, routes, and generated test data are absent
+- [x] Document the staged 10-to-1,000-user execution profile, pass criteria, and verified isolation results under `docs/`
