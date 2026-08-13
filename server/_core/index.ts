@@ -9,6 +9,7 @@ import { registerOAuthRoutes } from "./oauth";
 import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
+import { closeDb } from "../db";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -145,7 +146,9 @@ async function startServer() {
         console.error("[api] shutdown error", error);
         process.exit(1);
       }
-      process.exit(0);
+      void closeDb().catch((databaseError) => {
+        console.error("[api] database shutdown error", databaseError);
+      }).finally(() => process.exit(0));
     });
   };
   process.once("SIGTERM", () => shutdown("SIGTERM"));

@@ -147,3 +147,9 @@
 - [x] Apply safe backward-compatible security, stability, and maintainability improvements found by the audit
 - [x] Run functional, regression, static, security-oriented, and bounded load validation with measured outcomes
 - [x] Produce an evidence-based production audit and optimization report with traffic findings and remaining risks
+- [x] Inventory all source modules, active process relationships, duplicate logic, dependencies, and data-source boundaries for the expanded audit
+- [x] Audit end-to-end Client, Coach, and Admin correctness, authorization, privacy, localization, PWA behavior, and continuous-availability consistency
+- [x] Apply only safe backward-compatible resource, security, concurrency, and maintainability improvements supported by the audit
+- [x] Measure development versus production process/heap/RSS/CPU usage and production build artifacts without weakening development tooling
+- [x] Run functional, authorization, booking-concurrency, security, bounded load/spike, and post-load stability verification within safe environment limits
+- [x] Write the required expanded Markdown completion report, including evidence limits for the requested 1,000-user test

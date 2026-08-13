@@ -58,6 +58,16 @@ async function canManageShift(db: any, actor: { id: number; role: string }, shif
   return shift[0];
 }
 
+async function managedCoachClientId(db: any, actor: { id: number; role: string }, clientUserId: number, requestedCoachId?: number) {
+  const coachId = await managedCoachId(db, actor, requestedCoachId);
+  const assignment = await db.select({ id: coachClients.id }).from(coachClients).where(and(
+    eq(coachClients.coachId, coachId),
+    eq(coachClients.clientUserId, clientUserId),
+  )).limit(1);
+  if (!assignment[0]) throw new Error("This Client is not assigned to the selected Coach.");
+  return coachId;
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -146,19 +156,16 @@ export const appRouter = router({
       return query;
     }),
     saveNote: protectedProcedure
-      .input(z.object({ clientUserId: z.number(), note: z.string().min(1) }))
+      .input(z.object({ clientUserId: z.number().int().positive(), coachId: z.number().int().positive().optional(), note: z.string().trim().min(1).max(4_000) }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "coach" && ctx.user.role !== "admin") {
           throw new Error("Unauthorized: Coach access required.");
         }
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
-        
-        const coachRecord = await db.select().from(coaches).where(eq(coaches.userId, ctx.user.id)).limit(1);
-        const coach = coachRecord[0];
-        
+        const coachId = await managedCoachClientId(db, ctx.user, input.clientUserId, input.coachId);
         await db.insert(coachNotes).values({
-          coachId: coach ? coach.id : 0,
+          coachId,
           clientUserId: input.clientUserId,
           note: input.note,
         });
@@ -303,19 +310,21 @@ export const appRouter = router({
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
-        const record = await db.select({ booking: bookings, shift: availabilityShifts, clientName: users.name }).from(bookings).innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).innerJoin(users, eq(bookings.memberUserId, users.id)).where(eq(bookings.externalId, input.bookingId)).limit(1);
-        if (!record[0]) throw new Error("Managed booking not found.");
-        const canCancel = record[0].booking.memberUserId === ctx.user.id || ctx.user.role === "admin" || (ctx.user.role === "coach" && (await managedCoachId(db, ctx.user)) === record[0].shift.coachId);
-        if (!canCancel) throw new Error("You cannot cancel this booking.");
-        if (record[0].booking.status !== "confirmed") throw new Error("This booking cannot be cancelled.");
-        await db.transaction(async (tx: any) => {
+        const cancellation = await db.transaction(async (tx: any) => {
+          await tx.execute(sql`SELECT id FROM bookings WHERE externalId = ${input.bookingId} FOR UPDATE`);
+          const record = await tx.select({ booking: bookings, shift: availabilityShifts, clientName: users.name }).from(bookings).innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).innerJoin(users, eq(bookings.memberUserId, users.id)).where(eq(bookings.externalId, input.bookingId)).limit(1);
+          if (!record[0]) throw new Error("Managed booking not found.");
+          const canCancel = record[0].booking.memberUserId === ctx.user.id || ctx.user.role === "admin" || (ctx.user.role === "coach" && (await managedCoachId(tx, ctx.user)) === record[0].shift.coachId);
+          if (!canCancel) throw new Error("You cannot cancel this booking.");
+          if (record[0].booking.status !== "confirmed") throw new Error("This booking cannot be cancelled.");
           await tx.update(bookings).set({ status: "cancelled", cancellationTime: new Date(), cancellationReason: input.reason }).where(eq(bookings.id, record[0].booking.id));
           await tx.update(timeSlots).set({ status: "Cancelled", bookedCount: 0 }).where(eq(timeSlots.id, record[0].booking.timeSlotId));
           const coach = await tx.select({ userId: coaches.userId }).from(coaches).where(eq(coaches.id, record[0].shift.coachId)).limit(1);
           if (coach[0]?.userId) await tx.insert(notifications).values({ userId: coach[0].userId, type: "cancellation", title: "Client session cancelled", message: `${record[0].clientName ?? "A client"} cancelled a session in your availability window.`, relatedBookingId: record[0].booking.id });
           await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "CANCEL_AVAILABILITY_BOOKING", details: `Cancelled ${input.bookingId}; the availability window remains open.` });
+          return { shiftId: record[0].shift.externalId };
         });
-        return { success: true as const, releaseRequired: false as const, shiftId: record[0].shift.externalId };
+        return { success: true as const, releaseRequired: false as const, shiftId: cancellation.shiftId };
       }),
     releaseAfterCancellation: protectedProcedure
       .input(z.object({ shiftId: z.string().min(1).max(64), release: z.enum(["reopen", "block"]) }))

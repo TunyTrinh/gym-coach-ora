@@ -1,21 +1,46 @@
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
+import { createPool, type Pool } from "mysql2/promise";
 import { InsertUser, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
-let _db: ReturnType<typeof drizzle> | null = null;
+let _db: MySql2Database | null = null;
+let _pool: Pool | null = null;
+
+function connectionLimit() {
+  const parsed = Number.parseInt(process.env.DB_CONNECTION_LIMIT ?? "30", 10);
+  return Number.isInteger(parsed) && parsed >= 1 && parsed <= 50 ? parsed : 30;
+}
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
   if (!_db && process.env.DATABASE_URL) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      _pool = createPool({
+        uri: process.env.DATABASE_URL,
+        waitForConnections: true,
+        connectionLimit: connectionLimit(),
+        queueLimit: 0,
+        connectTimeout: 10_000,
+        enableKeepAlive: true,
+        keepAliveInitialDelay: 0,
+      });
+      _db = drizzle({ client: _pool });
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
+      await _pool?.end().catch(() => undefined);
+      _pool = null;
       _db = null;
     }
   }
   return _db;
+}
+
+export async function closeDb() {
+  const pool = _pool;
+  _pool = null;
+  _db = null;
+  await pool?.end();
 }
 
 export async function upsertUser(user: InsertUser): Promise<void> {
