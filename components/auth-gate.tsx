@@ -20,6 +20,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   const isOAuthCallback = segments[0] === "oauth";
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [showLocalAccount, setShowLocalAccount] = useState(false);
   const [localBusy, setLocalBusy] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
 
@@ -69,13 +70,26 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           <Text style={styles.buttonText}>{t("continueWithGoogle")}</Text>
         </Pressable>
         <View style={styles.divider} />
-        <Text style={styles.localHeading}>{t("localAccount")}</Text>
-        <TextInput value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!localBusy} placeholder={t("username")} placeholderTextColor="#777780" accessibilityLabel={t("username")} style={styles.input} returnKeyType="next" />
-        <TextInput value={password} onChangeText={setPassword} secureTextEntry editable={!localBusy} placeholder={t("password")} placeholderTextColor="#777780" accessibilityLabel={t("password")} style={styles.input} returnKeyType="done" onSubmitEditing={() => void continueWithLocalAccount()} />
-        {localError ? <Text accessibilityRole="alert" style={styles.errorText}>{localError}</Text> : null}
-        <Pressable accessibilityRole="button" accessibilityLabel={t("signInWithAccount")} disabled={localBusy} onPress={() => void continueWithLocalAccount()} style={({ pressed }) => [styles.localButton, (pressed || localBusy) && styles.buttonPressed]}>
-          {localBusy ? <ActivityIndicator color="#f7f7f8" /> : <Text style={styles.localButtonText}>{t("signInWithAccount")}</Text>}
-        </Pressable>
+        {!showLocalAccount ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t("signInWithAccount")}
+            onPress={() => { setShowLocalAccount(true); setLocalError(null); }}
+            style={({ pressed }) => [styles.accountLink, pressed && styles.linkPressed]}
+          >
+            <Text style={styles.accountLinkText}>{t("signInWithAccount")}</Text>
+          </Pressable>
+        ) : (
+          <View style={styles.localAccountForm}>
+            <Text style={styles.localHeading}>{t("localAccount")}</Text>
+            <TextInput value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!localBusy} placeholder={t("username")} placeholderTextColor="#777780" accessibilityLabel={t("username")} style={styles.input} returnKeyType="next" />
+            <TextInput value={password} onChangeText={setPassword} secureTextEntry editable={!localBusy} placeholder={t("password")} placeholderTextColor="#777780" accessibilityLabel={t("password")} style={styles.input} returnKeyType="done" onSubmitEditing={() => void continueWithLocalAccount()} />
+            {localError ? <Text accessibilityRole="alert" style={styles.errorText}>{localError}</Text> : null}
+            <Pressable accessibilityRole="button" accessibilityLabel={t("signInWithAccount")} disabled={localBusy} onPress={() => void continueWithLocalAccount()} style={({ pressed }) => [styles.localButton, (pressed || localBusy) && styles.buttonPressed]}>
+              {localBusy ? <ActivityIndicator color="#f7f7f8" /> : <Text style={styles.localButtonText}>{t("signInWithAccount")}</Text>}
+            </Pressable>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -93,6 +107,10 @@ const styles = StyleSheet.create({
   buttonPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
   buttonText: { color: "#ffffff", fontSize: 15, fontWeight: "800" },
   divider: { width: "100%", height: 1, backgroundColor: "#000000", opacity: 0.92, marginTop: 22, marginBottom: 18 },
+  accountLink: { paddingHorizontal: 16, paddingVertical: 5 },
+  accountLinkText: { color: "#ff82b7", fontSize: 13, fontWeight: "800", textDecorationLine: "underline" },
+  linkPressed: { opacity: 0.7 },
+  localAccountForm: { width: "100%" },
   localHeading: { width: "100%", color: "#b4b4bd", fontSize: 12, fontWeight: "800", marginBottom: 10 },
   input: { width: "100%", minHeight: 48, borderRadius: 13, borderWidth: 1, borderColor: "#000000", backgroundColor: "#111113", color: "#f7f7f8", fontSize: 15, paddingHorizontal: 14, marginBottom: 10 },
   errorText: { width: "100%", color: "#ff766e", fontSize: 12, lineHeight: 18, fontWeight: "700", marginTop: -2, marginBottom: 4 },

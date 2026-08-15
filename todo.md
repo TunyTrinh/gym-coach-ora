@@ -179,3 +179,4 @@
 - [x] Add localized local sign-in fields below Google Sign-In and refresh the verified session after sign-in
 - [x] Add an Admin-only Coach account creation form, Client promotion, server-side validation, and audit logging
 - [x] Add regression tests and validate local login plus Admin Coach-account creation
+- [x] Keep the local-account username/password form hidden until the user taps the bilingual account sign-in link
