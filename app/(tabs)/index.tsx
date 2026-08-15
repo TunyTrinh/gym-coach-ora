@@ -4,6 +4,7 @@ import { router } from "expo-router";
 import { Avatar, OfflineBanner, ScreenHeader, SpectrumCard, StatusBadge } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
+import { useNetworkStatus } from "@/hooks/use-network-status";
 import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { useLanguage } from "@/lib/language-provider";
@@ -18,6 +19,7 @@ export default function HomeScreen() {
   const role = user?.role || "client";
   const { snapshot, upcomingBookings, unreadCount } = useGym();
   const { language, t } = useLanguage();
+  const isOnline = useNetworkStatus();
   const nextBooking = upcomingBookings[0];
   const nextSlot = nextBooking ? getBookingSlot(snapshot, nextBooking) : undefined;
   const nextService = nextSlot ? getService(snapshot, nextSlot.serviceTypeId) : undefined;
@@ -27,7 +29,7 @@ export default function HomeScreen() {
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <ScreenHeader title={`${t("welcomeBack")}, ${firstName}`} subtitle={role === "coach" ? t("dashboard") : role === "admin" ? t("adminHub") : t("findYourTime")} onPress={() => router.push("/notifications")} badge={unreadCount} label={role === "coach" ? t("coachLabel") : role === "admin" ? t("admin") : "Coachora"} />
-      <OfflineBanner label={t("offlineSync")} />
+      {!isOnline ? <OfflineBanner label={t("offlineNow")} /> : null}
 
       <>
         {role === "coach" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/book")} accessibilityLabel={t("openCoachAvailability")}>

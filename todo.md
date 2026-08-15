@@ -170,3 +170,5 @@
 - [x] Trace the exact public login-image URL rendered in the live DOM and replace its remaining legacy pink-C asset with the supplied full Coachora logo
 - [ ] Provide a safe development-only Google sign-in test flow for the Preview panel and Expo Go without changing production access controls
 - [x] Allow the managed Preview panel to bypass the login gate automatically while enforcing Google Sign-In on the public website and production app builds
+- [x] Replace the static offline banner with real online/offline network status
+- [x] Make the web PWA installation card invoke the browser install prompt when available and show platform-appropriate fallback guidance otherwise
