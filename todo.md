@@ -162,3 +162,5 @@
 - [x] Configure the required Google OAuth deployment settings so production sign-in can start
 - [x] Replace Coachora mobile and PWA icon assets with the supplied Coachora logo
 - [x] Restore the original Coachora logo already retained in the codebase across mobile and PWA branding assets
+- [x] Apply the exact supplied full Coachora logo to splash and web branding surfaces
+- [x] Apply a matching square crop from the supplied Coachora logo to launcher and PWA icon surfaces
