@@ -206,3 +206,4 @@
 - [x] Align the Admin room calendar size and day-cell layout with Client and Coach calendars
 - [x] Re-verify Admin-controlled Coach Google-email authorization, revocation, and role enforcement end to end
 - [x] Require Coaches to select an active room when publishing availability and sync it to the Admin room calendar
+- [x] Fix Client booking room visibility so the Admin calendar resolves the same managed room identifier

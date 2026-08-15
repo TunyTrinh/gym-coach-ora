@@ -1,4 +1,4 @@
-import { and, eq, gt, inArray, lt, or } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lt, or } from "drizzle-orm";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import { createPool, type Pool } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
@@ -244,9 +244,13 @@ export async function getAdminRoomSchedule(input: { roomId: number; from: Date; 
   if (!db) throw new Error("Database unavailable");
   const room = await db.select().from(gymRooms).where(eq(gymRooms.id, input.roomId)).limit(1);
   if (!room[0]) throw new Error("Room not found.");
-  const roomMatch = or(eq(availabilityShifts.roomId, input.roomId), eq(availabilityShifts.location, room[0].name));
-  const windows = await db.select({ id: availabilityShifts.externalId, startAt: availabilityShifts.startAt, endAt: availabilityShifts.endAt, status: availabilityShifts.status, maximumCapacity: availabilityShifts.maximumCapacity, location: availabilityShifts.location, note: availabilityShifts.note, coachName: coaches.fullName }).from(availabilityShifts).innerJoin(coaches, eq(availabilityShifts.coachId, coaches.id)).where(and(roomMatch, lt(availabilityShifts.startAt, input.to), gt(availabilityShifts.endAt, input.from)));
-  const bookingRows = await db.select({ id: bookings.externalId, status: bookings.status, checkInTime: bookings.checkInTime, clientName: users.name, startAt: timeSlots.startAt, endAt: timeSlots.endAt, availabilityId: availabilityShifts.externalId }).from(bookings).innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).innerJoin(users, eq(bookings.memberUserId, users.id)).where(and(roomMatch, lt(timeSlots.startAt, input.to), gt(timeSlots.endAt, input.from)));
+  const candidates = await db.select({ internalId: availabilityShifts.id, roomId: availabilityShifts.roomId, id: availabilityShifts.externalId, startAt: availabilityShifts.startAt, endAt: availabilityShifts.endAt, status: availabilityShifts.status, maximumCapacity: availabilityShifts.maximumCapacity, location: availabilityShifts.location, note: availabilityShifts.note, coachName: coaches.fullName }).from(availabilityShifts).innerJoin(coaches, eq(availabilityShifts.coachId, coaches.id)).where(and(or(eq(availabilityShifts.roomId, input.roomId), isNull(availabilityShifts.roomId)), lt(availabilityShifts.startAt, input.to), gt(availabilityShifts.endAt, input.from)));
+  const matchedCandidates = candidates.filter((window) => window.roomId === input.roomId || normalizeRoomName(window.location) === room[0].nameNormalized);
+  const windows = matchedCandidates.map(({ internalId: _internalId, roomId: _roomId, ...window }) => window);
+  const matchedShiftIds = matchedCandidates.map((window) => window.internalId);
+  const bookingRows = matchedShiftIds.length
+    ? await db.select({ id: bookings.externalId, status: bookings.status, checkInTime: bookings.checkInTime, clientName: users.name, startAt: timeSlots.startAt, endAt: timeSlots.endAt, availabilityId: availabilityShifts.externalId }).from(bookings).innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).innerJoin(users, eq(bookings.memberUserId, users.id)).where(and(inArray(bookings.availabilityShiftId, matchedShiftIds), lt(timeSlots.startAt, input.to), gt(timeSlots.endAt, input.from)))
+    : [];
   const openAvailabilityCount = windows.filter((window) => window.status.toLowerCase() === "available").length;
   const bookedSessionCount = bookingRows.filter((booking) => !["cancelled", "canceled"].includes(booking.status.toLowerCase())).length;
   return { room: room[0], windows, bookings: bookingRows, summary: { openAvailabilityCount, bookedSessionCount } };

@@ -201,6 +201,7 @@ export function GymProvider({ children }: PropsWithChildren) {
         availabilityShiftId: availability.id,
         gymId: availability.gymId,
         coachId: availability.coachId,
+        roomId: availability.roomId,
         serviceTypeId: availability.serviceTypeId,
         start: startAt.toISOString(),
         end: endAt.toISOString(),

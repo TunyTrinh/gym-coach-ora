@@ -37,6 +37,8 @@ export interface TimeSlot {
   id: string;
   gymId: string;
   coachId?: string;
+  /** Managed room identifier, preserved for room-aware Admin preview synchronization. */
+  roomId?: string;
   /** Present when this booked session belongs to a coach availability window. */
   availabilityShiftId?: string;
   serviceTypeId: string;

@@ -9,6 +9,7 @@ import { useColors } from "@/hooks/use-colors";
 import { intervalFitsAvailability, intervalsOverlap } from "@/lib/availability-shifts";
 import { bookingFailureTranslationKey } from "@/lib/booking-feedback";
 import { addMonths, buildMonthGrid, localDayKey, startOfLocalDay, startOfMonth } from "@/lib/calendar";
+import { buildAdminPreviewRoomCalendar } from "@/lib/admin-room-preview";
 import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
@@ -62,24 +63,31 @@ function AdminBookingsCalendar() {
   const colors = useColors();
   const [selectedDate, setSelectedDate] = useState(() => startOfLocalDay(new Date()));
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
-  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+  const [selectedRoomId, setSelectedRoomId] = useState<number | string | null>(null);
   const monthStart = startOfMonth(visibleMonth);
   const monthEnd = addMonths(monthStart, 1);
   const monthDays = buildMonthGrid(monthStart);
   const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
   const hasAuthenticatedAdmin = user?.role === "admin";
   const isPreviewAdmin = isLocalTestMode() && role === "admin" && !hasAuthenticatedAdmin;
+  const previewCalendar = useMemo(() => isPreviewAdmin ? buildAdminPreviewRoomCalendar(snapshot) : null, [isPreviewAdmin, snapshot]);
   const rooms = trpc.admin.listRooms.useQuery(undefined, { enabled: hasAuthenticatedAdmin });
+  const selectedServerRoomId = typeof selectedRoomId === "number" ? selectedRoomId : 0;
   const schedule = trpc.admin.roomSchedule.useQuery(
-    { roomId: selectedRoomId ?? 0, from: monthStart.toISOString(), to: monthEnd.toISOString() },
-    { enabled: hasAuthenticatedAdmin && Boolean(selectedRoomId) },
+    { roomId: selectedServerRoomId, from: monthStart.toISOString(), to: monthEnd.toISOString() },
+    { enabled: hasAuthenticatedAdmin && selectedServerRoomId > 0 },
   );
 
-  const previewRooms = isPreviewAdmin ? [{ id: -1, name: "Coachora Gym", maximumCapacity: 0 }] : [];
+  const previewRooms = previewCalendar?.rooms ?? [];
   const roomOptions = rooms.data?.length ? rooms.data : previewRooms;
 
-  const roomWindows = schedule.data?.windows ?? [];
-  const roomBookings = schedule.data?.bookings ?? [];
+  const roomWindows = isPreviewAdmin
+    ? previewCalendar?.windows.filter((window) => window.roomId === String(selectedRoomId)) ?? []
+    : schedule.data?.windows ?? [];
+  const selectedPreviewWindowIds = new Set(roomWindows.map((window) => window.id));
+  const roomBookings = isPreviewAdmin
+    ? previewCalendar?.bookings.filter((booking) => selectedPreviewWindowIds.has(booking.availabilityId)) ?? []
+    : schedule.data?.bookings ?? [];
   const dailyActivity = new Map<string, { open: number; booked: number }>();
   roomWindows.forEach((window) => {
     const key = localDayKey(window.startAt);
@@ -102,8 +110,8 @@ function AdminBookingsCalendar() {
       <ScreenHeader title={t("adminBookingsCalendar")} subtitle={t("adminBookingsCalendarBody")} label={t("admin").toUpperCase()} />
       <Text style={[styles.stepLabel, { color: colors.muted }]}>{t("selectRoom").toUpperCase()}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.adminRoomRail}>
-        {rooms.isLoading ? <ActivityIndicator color="#ff82b7" /> : roomOptions.map((room) => <Pressable key={room.id} onPress={() => setSelectedRoomId(room.id)} style={({ pressed }) => [styles.adminRoomPill, { borderColor: room.id === selectedRoomId ? "#f04488" : colors.border, backgroundColor: room.id === selectedRoomId ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}>
-          <Text style={[styles.adminRoomName, { color: room.id === selectedRoomId ? "#ff82b7" : colors.foreground }]}>{room.name}</Text>
+        {rooms.isLoading && !isPreviewAdmin ? <ActivityIndicator color="#ff82b7" /> : roomOptions.map((room) => <Pressable key={room.id} onPress={() => setSelectedRoomId(room.id)} style={({ pressed }) => [styles.adminRoomPill, { borderColor: String(room.id) === String(selectedRoomId) ? "#f04488" : colors.border, backgroundColor: String(room.id) === String(selectedRoomId) ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}>
+          <Text style={[styles.adminRoomName, { color: String(room.id) === String(selectedRoomId) ? "#ff82b7" : colors.foreground }]}>{room.name}</Text>
           <Text style={[styles.adminRoomMeta, { color: colors.muted }]}>{room.maximumCapacity} {t("clients").toLowerCase()}</Text>
         </Pressable>)}
       </ScrollView>
@@ -111,7 +119,7 @@ function AdminBookingsCalendar() {
       {selectedRoomId ? <><SurfaceCard style={styles.adminCalendarCard}><View style={styles.monthCalendarHeading}><Text style={[styles.stepLabel, { color: colors.muted }]}>{t("chooseDay").toUpperCase()}</Text><View style={styles.monthNavigation}><Pressable accessibilityLabel={t("previousMonth")} onPress={() => setVisibleMonth((month) => addMonths(month, -1))} style={({ pressed }) => [styles.monthArrow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><Text style={[styles.monthArrowText, { color: colors.foreground }]}>‹</Text></Pressable><Text style={[styles.monthTitle, { color: colors.foreground }]}>{formatDateLocalized(monthStart.toISOString(), language, { month: "long", year: "numeric" })}</Text><Pressable accessibilityLabel={t("nextMonth")} onPress={() => setVisibleMonth((month) => addMonths(month, 1))} style={({ pressed }) => [styles.monthArrow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><Text style={[styles.monthArrowText, { color: colors.foreground }]}>›</Text></Pressable></View></View>
         <View style={styles.monthWeekdays}>{monthDays.slice(0, 7).map((day) => <Text key={day.toISOString()} style={[styles.monthWeekday, { color: colors.muted }]}>{new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en-US", { weekday: "narrow" }).format(day).toUpperCase()}</Text>)}</View><View style={styles.monthGrid}>{monthDays.map((day) => { const active = isSameLocalDay(day, selectedDate); const inMonth = day.getMonth() === monthStart.getMonth(); const activity = dailyActivity.get(localDayKey(day)) ?? { open: 0, booked: 0 }; return <Pressable key={day.toISOString()} onPress={() => { setSelectedDate(startOfLocalDay(day)); if (!inMonth) setVisibleMonth(startOfMonth(day)); }} style={({ pressed }) => [styles.monthDay, { borderColor: active ? "#f04488" : colors.border, backgroundColor: active ? "#2b1f2a" : colors.surface, opacity: inMonth ? 1 : 0.42 }, pressed && styles.pressed]}><Text style={[styles.monthDayNumber, { color: active ? "#ff82b7" : colors.foreground }]}>{day.getDate()}</Text>{activity.open || activity.booked ? <View style={styles.monthActivity}><View style={[styles.monthDot, { backgroundColor: "#32d77b" }]} /><Text style={[styles.monthActivityCount, { color: colors.muted }]}>{activity.open}</Text><View style={[styles.monthDot, { backgroundColor: "#f04488" }]} /><Text style={[styles.monthActivityCount, { color: colors.muted }]}>{activity.booked}</Text></View> : <View style={styles.monthActivitySpacer} />}</Pressable>; })}</View></SurfaceCard>
         <SpectrumCard style={styles.activitySummary} intensity="muted"><Text style={styles.activityDate}>{formatDateLocalized(selectedDate.toISOString(), language, { weekday: "long", month: "short", day: "numeric" })}</Text><View style={styles.activityStats}><View style={styles.activityStat}><Text style={styles.activityNumber}>{selectedActivity.open}</Text><Text style={styles.activityLabel}>{t("openAvailabilityCount")}</Text></View><View style={styles.activityDivider} /><View style={styles.activityStat}><Text style={styles.activityNumber}>{selectedActivity.booked}</Text><Text style={styles.activityLabel}>{t("bookedSessionCount")}</Text></View></View></SpectrumCard>
-        {schedule.isLoading ? <ActivityIndicator color="#ff82b7" style={styles.activityLoading} /> : selectedWindows.length ? <View style={styles.adminWindowList}>{selectedWindows.map((window) => { const participants = roomBookings.filter((booking) => booking.availabilityId === window.id); return <SurfaceCard key={window.id} style={styles.adminWindowCard}><View style={styles.adminWindowTop}><View><Text style={[styles.windowTime, { color: colors.foreground }]}>{formatTimeLocalized(window.startAt, language)}–{formatTimeLocalized(window.endAt, language)}</Text><Text style={[styles.windowHint, { color: colors.muted }]}>{window.coachName} · {window.location}</Text></View><StatusBadge label={window.status.toLowerCase() === "available" ? t("available") : window.status} tone={window.status.toLowerCase() === "available" ? "success" : "warning"} /></View><Text style={[styles.adminWindowMeta, { color: colors.muted }]}>{participants.length}/{window.maximumCapacity} {t("clients").toLowerCase()} · {participants.length} {t("bookedSessionCount").toLowerCase()}</Text>{participants.map((participant) => <View key={participant.id} style={[styles.adminParticipant, { borderTopColor: colors.border }]}><Text style={[styles.adminParticipantName, { color: colors.foreground }]}>{participant.clientName ?? "—"}</Text><Text style={[styles.adminParticipantMeta, { color: colors.muted }]}>{participant.status}{participant.checkInTime ? ` · ${t("attendance")}` : ""}</Text></View>)}</SurfaceCard>; })}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noRoomActivity")}</Text></SurfaceCard>}</> : null}
+        {schedule.isLoading && !isPreviewAdmin ? <ActivityIndicator color="#ff82b7" style={styles.activityLoading} /> : selectedWindows.length ? <View style={styles.adminWindowList}>{selectedWindows.map((window) => { const participants = roomBookings.filter((booking) => booking.availabilityId === window.id); return <SurfaceCard key={window.id} style={styles.adminWindowCard}><View style={styles.adminWindowTop}><View><Text style={[styles.windowTime, { color: colors.foreground }]}>{formatTimeLocalized(window.startAt, language)}–{formatTimeLocalized(window.endAt, language)}</Text><Text style={[styles.windowHint, { color: colors.muted }]}>{window.coachName} · {window.location}</Text></View><StatusBadge label={window.status.toLowerCase() === "available" ? t("available") : window.status} tone={window.status.toLowerCase() === "available" ? "success" : "warning"} /></View><Text style={[styles.adminWindowMeta, { color: colors.muted }]}>{participants.length}/{window.maximumCapacity} {t("clients").toLowerCase()} · {participants.length} {t("bookedSessionCount").toLowerCase()}</Text>{participants.map((participant) => <View key={participant.id} style={[styles.adminParticipant, { borderTopColor: colors.border }]}><Text style={[styles.adminParticipantName, { color: colors.foreground }]}>{participant.clientName ?? "—"}</Text><Text style={[styles.adminParticipantMeta, { color: colors.muted }]}>{participant.status}{participant.checkInTime ? ` · ${t("attendance")}` : ""}</Text></View>)}</SurfaceCard>; })}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noRoomActivity")}</Text></SurfaceCard>}</> : null}
     </ScrollView>
   </ScreenContainer>;
 }
