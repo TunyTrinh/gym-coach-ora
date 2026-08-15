@@ -30,9 +30,8 @@ const env = {
   // App branding - update these values directly (do not use env vars)
   appName: "Coachora",
   appSlug: "gym-coach-booking-pwa",
-  // S3 URL of the app logo - set this to the URL returned by generate_image when creating custom logo
-  // Leave empty to use the default icon from assets/images/icon.png
-  logoUrl: "/manus-storage/coachora-icon_f1a42ade.png",
+  // Durable platform reference for the supplied Coachora logo.
+  logoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663887412756/lLucOwQgASqqgIum.png",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,

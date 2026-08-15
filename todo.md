@@ -159,3 +159,5 @@
 - [x] Audit and remove the production test-user bypass while retaining a development-only test mode
 - [x] Require authenticated Google Sign-In before private Coachora routes and APIs can be used
 - [x] Preserve Client, Coach, and Admin role access after sign-in and add verified logout
+- [x] Configure the required Google OAuth deployment settings so production sign-in can start
+- [x] Replace Coachora mobile and PWA icon assets with the supplied Coachora logo
