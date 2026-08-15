@@ -9,6 +9,7 @@ const baseInput = {
   startTime: "09:00",
   endTime: "21:00",
   maximumCapacity: 3,
+  roomId: "room-studio-a",
   location: "Studio A",
 };
 
@@ -37,6 +38,10 @@ describe("continuous coach availability", () => {
   it("refuses a window whose end does not follow its start", () => {
     expect(createAvailabilityWindow({ ...baseInput, startTime: "21:00", endTime: "09:00" })).toBeNull();
     expect(createAvailabilityWindow({ ...baseInput, startTime: "not-a-time" })).toBeNull();
+  });
+
+  it("refuses an availability window that is not assigned to a room", () => {
+    expect(createAvailabilityWindow({ ...baseInput, roomId: undefined })).toBeNull();
   });
 
   it("recognizes only real interval conflicts so adjacent sessions remain bookable", () => {

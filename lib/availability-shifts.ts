@@ -20,7 +20,7 @@ function localDateKey(date: Date) {
 export function createAvailabilityWindow(input: AvailabilityCreateInput): AvailabilityWindowInterval | null {
   const startAt = localDateTime(input.startDate, input.startTime);
   const endAt = localDateTime(input.startDate, input.endTime);
-  if (!startAt || !endAt || endAt <= startAt) return null;
+  if (!input.roomId || !startAt || !endAt || endAt <= startAt) return null;
   return { start: startAt.toISOString(), end: endAt.toISOString() };
 }
 

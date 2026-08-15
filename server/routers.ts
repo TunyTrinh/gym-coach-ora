@@ -16,7 +16,7 @@ const availabilityInput = z.object({
   startTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   endTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
   maximumCapacity: z.number().int().min(1).max(12),
-  roomId: z.number().int().positive().optional(),
+  roomId: z.number().int().positive(),
   location: z.string().trim().min(1).max(128),
   note: z.string().trim().max(600).optional(),
 });
@@ -255,9 +255,9 @@ export const appRouter = router({
         if (startAt.getTime() < now.getTime() + 30 * 60_000) throw new Error("Today’s availability must start at least 30 minutes from now.");
         const defaultService = await db.select({ id: serviceTypes.id }).from(serviceTypes).where(eq(serviceTypes.active, true)).limit(1);
         if (!defaultService[0]) throw new Error("No active coaching service is available.");
-        const room = input.roomId ? await db.select().from(gymRooms).where(and(eq(gymRooms.id, input.roomId), eq(gymRooms.active, true))).limit(1) : [];
-        if (input.roomId && !room[0]) throw new Error("Select an active room for this availability.");
-        if (room[0] && input.maximumCapacity > room[0].maximumCapacity) throw new Error("This availability exceeds the room’s maximum client capacity.");
+        const room = await db.select().from(gymRooms).where(and(eq(gymRooms.id, input.roomId), eq(gymRooms.active, true))).limit(1);
+        if (!room[0]) throw new Error("Select an active room for this availability.");
+        if (input.maximumCapacity > room[0].maximumCapacity) throw new Error("This availability exceeds the room’s maximum client capacity.");
         const windowId = `availability-${randomUUID()}`;
         await db.transaction(async (tx: any) => {
           // Serializes new windows for the same Coach, preventing overlapping publications from racing.
@@ -269,7 +269,7 @@ export const appRouter = router({
             inArray(availabilityShifts.status, ["available", "booked", "blocked"]),
           )).limit(1);
           if (conflicts.length) throw new Error("This availability overlaps an existing availability window or blocked period.");
-          await tx.insert(availabilityShifts).values({ externalId: windowId, gymId: room[0]?.gymId ?? 1, coachId, roomId: room[0]?.id, serviceTypeId: defaultService[0].id, startAt, endAt, maximumCapacity: input.maximumCapacity, location: room[0]?.name ?? input.location, note: input.note, status: "available", createdBy: ctx.user.id });
+          await tx.insert(availabilityShifts).values({ externalId: windowId, gymId: room[0].gymId, coachId, roomId: room[0].id, serviceTypeId: defaultService[0].id, startAt, endAt, maximumCapacity: input.maximumCapacity, location: room[0].name, note: input.note, status: "available", createdBy: ctx.user.id });
           await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "CREATE_AVAILABILITY", details: `Created continuous availability window ${windowId} for coach ${coachId}.` });
         });
         return { success: true as const, windowId, createdCount: 1 };

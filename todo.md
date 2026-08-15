@@ -205,3 +205,4 @@
 - [x] Make the development-preview role switch immediately apply the matching Admin navigation and screens
 - [x] Align the Admin room calendar size and day-cell layout with Client and Coach calendars
 - [x] Re-verify Admin-controlled Coach Google-email authorization, revocation, and role enforcement end to end
+- [x] Require Coaches to select an active room when publishing availability and sync it to the Admin room calendar

@@ -255,6 +255,7 @@ export function GymProvider({ children }: PropsWithChildren) {
     if (snapshot.member.role !== "coach" && snapshot.member.role !== "admin") return { success: false, error: "Coach access is required to create availability." };
     const coachId = String(input.coachId);
     if (!snapshot.coaches.some((coach) => coach.id === coachId)) return { success: false, error: "Choose a valid coach." };
+    if (!input.roomId) return { success: false, error: "Select an active room for this availability." };
     const window = createAvailabilityWindow(input);
     if (!window) return { success: false, error: "Choose an end time after the start time." };
     if (new Date(window.start).getTime() < Date.now() + 30 * 60_000) return { success: false, error: "Today’s availability must start at least 30 minutes from now." };
