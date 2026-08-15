@@ -164,3 +164,4 @@
 - [x] Restore the original Coachora logo already retained in the codebase across mobile and PWA branding assets
 - [x] Apply the exact supplied full Coachora logo to splash and web branding surfaces
 - [x] Apply a matching square crop from the supplied Coachora logo to launcher and PWA icon surfaces
+- [x] Replace the login screen’s legacy logo treatment with the supplied full Coachora mark
