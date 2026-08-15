@@ -19,6 +19,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
     email: "sample@example.com",
     name: "Sample User",
     loginMethod: "manus",
+    passwordHash: null,
     role: "client",
     createdAt: new Date(),
     updatedAt: new Date(),
@@ -70,5 +71,12 @@ describe("auth.logout", () => {
     const caller = appRouter.createCaller(ctx);
 
     await expect(caller.gym.snapshot()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("rejects Admin Coach-account access from a Client session", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+
+    await expect(caller.admin.listClientAccounts()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

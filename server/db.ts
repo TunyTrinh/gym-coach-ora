@@ -1,7 +1,8 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import { createPool, type Pool } from "mysql2/promise";
-import { InsertUser, users } from "../drizzle/schema";
+import { randomUUID } from "node:crypto";
+import { auditLogs, coaches, gyms, InsertUser, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 
 let _db: MySql2Database | null = null;
@@ -112,6 +113,152 @@ export async function getUserByOpenId(openId: string) {
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
 
   return result.length > 0 ? result[0] : undefined;
+}
+
+export async function getLocalUserByUsername(username: string) {
+  return getUserByOpenId(`local:${username}`);
+}
+
+export async function createLocalUser(input: {
+  username: string;
+  passwordHash: string;
+  name: string;
+  role: "client" | "coach" | "admin";
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  const openId = `local:${input.username}`;
+  const existing = await getUserByOpenId(openId);
+  if (existing) throw new Error("That username is already in use.");
+
+  await db.insert(users).values({
+    openId,
+    name: input.name,
+    email: input.username,
+    loginMethod: "local",
+    passwordHash: input.passwordHash,
+    role: input.role,
+    lastSignedIn: new Date(),
+  });
+
+  const created = await getUserByOpenId(openId);
+  if (!created) throw new Error("Local account could not be created.");
+  return created;
+}
+
+export async function updateUserLastSignedIn(userId: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, userId));
+}
+
+export async function listActiveGyms() {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  return db.select({ id: gyms.id, name: gyms.name, address: gyms.address }).from(gyms).where(eq(gyms.active, true));
+}
+
+export async function listCoachAccounts() {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  return db.select({
+    coachId: coaches.id,
+    accountId: users.id,
+    fullName: coaches.fullName,
+    specialty: coaches.specialty,
+    gymId: coaches.gymId,
+    username: users.email,
+    active: coaches.active,
+  }).from(coaches).leftJoin(users, eq(coaches.userId, users.id)).where(eq(coaches.active, true));
+}
+
+export async function listClientAccounts() {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  return db.select({ id: users.id, name: users.name, username: users.email }).from(users).where(eq(users.role, "client"));
+}
+
+export async function createLocalCoachAccount(input: {
+  username: string;
+  passwordHash: string;
+  fullName: string;
+  specialty: string;
+  gymId: number;
+  actorUserId: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  return db.transaction(async (tx: any) => {
+    const gym = await tx.select({ id: gyms.id }).from(gyms).where(and(eq(gyms.id, input.gymId), eq(gyms.active, true))).limit(1);
+    if (!gym[0]) throw new Error("Select an active gym for this Coach account.");
+
+    const openId = `local:${input.username}`;
+    const existing = await tx.select({ id: users.id }).from(users).where(eq(users.openId, openId)).limit(1);
+    if (existing[0]) throw new Error("That username is already in use.");
+
+    await tx.insert(users).values({
+      openId,
+      name: input.fullName,
+      email: input.username,
+      loginMethod: "local",
+      passwordHash: input.passwordHash,
+      role: "coach",
+      lastSignedIn: new Date(),
+    });
+    const user = await tx.select({ id: users.id }).from(users).where(eq(users.openId, openId)).limit(1);
+    if (!user[0]) throw new Error("Coach account could not be created.");
+
+    const externalId = `coach-${randomUUID()}`;
+    await tx.insert(coaches).values({
+      externalId,
+      gymId: input.gymId,
+      userId: user[0].id,
+      fullName: input.fullName,
+      specialty: input.specialty,
+      active: true,
+    });
+    await tx.insert(auditLogs).values({
+      actorUserId: input.actorUserId,
+      action: "CREATE_COACH_ACCOUNT",
+      targetUserId: user[0].id,
+      details: `Created Coach account ${input.username} for gym ${input.gymId}.`,
+    });
+
+    return { accountId: user[0].id, coachId: externalId };
+  });
+}
+
+export async function promoteClientToCoach(input: {
+  userId: number;
+  fullName: string;
+  specialty: string;
+  gymId: number;
+  actorUserId: number;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+
+  return db.transaction(async (tx: any) => {
+    const gym = await tx.select({ id: gyms.id }).from(gyms).where(and(eq(gyms.id, input.gymId), eq(gyms.active, true))).limit(1);
+    if (!gym[0]) throw new Error("Select an active gym for this Coach profile.");
+    const user = await tx.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, input.userId)).limit(1);
+    if (!user[0] || user[0].role !== "client") throw new Error("Only an existing Client account can be promoted to Coach.");
+    const existingCoach = await tx.select({ id: coaches.id }).from(coaches).where(eq(coaches.userId, input.userId)).limit(1);
+    if (existingCoach[0]) throw new Error("This Client already has a Coach profile.");
+
+    await tx.update(users).set({ role: "coach", name: input.fullName }).where(eq(users.id, input.userId));
+    const externalId = `coach-${randomUUID()}`;
+    await tx.insert(coaches).values({ externalId, gymId: input.gymId, userId: input.userId, fullName: input.fullName, specialty: input.specialty, active: true });
+    await tx.insert(auditLogs).values({
+      actorUserId: input.actorUserId,
+      action: "PROMOTE_CLIENT_TO_COACH",
+      targetUserId: input.userId,
+      details: `Promoted Client ${input.userId} to Coach at gym ${input.gymId}.`,
+    });
+    return { accountId: input.userId, coachId: externalId };
+  });
 }
 
 // TODO: add feature queries here as your schema grows.

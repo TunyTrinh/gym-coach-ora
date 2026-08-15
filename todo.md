@@ -173,3 +173,9 @@
 - [x] Replace the static offline banner with real online/offline network status
 - [x] Make the web PWA installation card invoke the browser install prompt when available and show platform-appropriate fallback guidance otherwise
 - [ ] Diagnose why the public deployment serves an earlier static web bundle after a successful backend publication and correct the release path
+- [x] Add secure username-and-password login alongside Google Sign-In, with the requested administrator account created using a password hash
+- [x] Add an Admin-only Coach account creation and existing-Client promotion workflow with server-side role and profile validation
+- [x] Add a rate-limited local username/password sign-in endpoint with secure password hashing and the requested Admin bootstrap account
+- [x] Add localized local sign-in fields below Google Sign-In and refresh the verified session after sign-in
+- [x] Add an Admin-only Coach account creation form, Client promotion, server-side validation, and audit logging
+- [x] Add regression tests and validate local login plus Admin Coach-account creation

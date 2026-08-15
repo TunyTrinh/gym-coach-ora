@@ -10,6 +10,7 @@ import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { closeDb } from "../db";
+import { ensureBootstrapAdminAccount } from "../admin-bootstrap";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -31,6 +32,7 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  await ensureBootstrapAdminAccount();
   const app = express();
   const server = createServer(app);
   const isProduction = process.env.NODE_ENV === "production";

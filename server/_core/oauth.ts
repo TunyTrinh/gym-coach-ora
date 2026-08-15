@@ -2,7 +2,8 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
 import type { Express, Request, Response } from "express";
 import { randomBytes } from "node:crypto";
 import { parse as parseCookie } from "cookie";
-import { getUserByOpenId, upsertUser } from "../db";
+import { getLocalUserByUsername, getUserByOpenId, updateUserLastSignedIn, upsertUser } from "../db";
+import { isValidLocalPassword, isValidLocalUsername, normalizeLocalUsername, verifyLocalPassword } from "../local-credentials";
 import { getSessionCookieOptions } from "./cookies";
 import { ENV } from "./env";
 import { sdk } from "./sdk";
@@ -68,6 +69,9 @@ function buildUserResponse(
 
 const GOOGLE_STATE_COOKIE = "gymflow_google_oauth_state";
 const GOOGLE_STATE_TTL_MS = 10 * 60 * 1000;
+const LOCAL_LOGIN_WINDOW_MS = 60_000;
+const LOCAL_LOGIN_MAX_ATTEMPTS = 5;
+const localLoginAttempts = new Map<string, { count: number; resetAt: number }>();
 
 function googleIsConfigured() {
   return Boolean(ENV.googleClientId && ENV.googleClientSecret && (ENV.googleRedirectUri || ENV.appBaseUrl));
@@ -85,7 +89,63 @@ function googleStateCookieOptions(req: Request) {
   return { ...getSessionCookieOptions(req), sameSite: "lax" as const, maxAge: GOOGLE_STATE_TTL_MS };
 }
 
+function localLoginRateLimitAllows(req: Request) {
+  const key = req.ip || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const current = localLoginAttempts.get(key);
+  if (!current || current.resetAt <= now) {
+    localLoginAttempts.set(key, { count: 1, resetAt: now + LOCAL_LOGIN_WINDOW_MS });
+    return true;
+  }
+  if (current.count >= LOCAL_LOGIN_MAX_ATTEMPTS) return false;
+  current.count += 1;
+  return true;
+}
+
+function clearLocalLoginRateLimit(req: Request) {
+  localLoginAttempts.delete(req.ip || req.socket.remoteAddress || "unknown");
+}
+
 export function registerOAuthRoutes(app: Express) {
+  app.post("/api/auth/local/login", async (req: Request, res: Response) => {
+    if (!localLoginRateLimitAllows(req)) {
+      res.status(429).json({ error: "Too many sign-in attempts. Please wait a minute." });
+      return;
+    }
+
+    const rawUsername = typeof req.body?.username === "string" ? req.body.username : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const username = normalizeLocalUsername(rawUsername);
+    const invalidCredentials = () => res.status(401).json({ error: "Username or password is incorrect." });
+
+    if (!isValidLocalUsername(username) || !isValidLocalPassword(password)) {
+      invalidCredentials();
+      return;
+    }
+
+    try {
+      const user = await getLocalUserByUsername(username);
+      const passwordHash = user?.passwordHash;
+      const validPassword = passwordHash ? await verifyLocalPassword(password, passwordHash) : false;
+      if (!user || !validPassword) {
+        invalidCredentials();
+        return;
+      }
+
+      await updateUserLastSignedIn(user.id);
+      const sessionToken = await sdk.createSessionToken(user.openId, {
+        name: user.name || "Coachora member",
+        expiresInMs: ONE_YEAR_MS,
+      });
+      clearLocalLoginRateLimit(req);
+      res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(req), maxAge: ONE_YEAR_MS });
+      res.json({ app_session_id: sessionToken, user: buildUserResponse({ ...user, lastSignedIn: new Date() }) });
+    } catch (error) {
+      console.error("[Local auth] Sign-in failed", error);
+      res.status(503).json({ error: "Sign-in is temporarily unavailable. Please try again." });
+    }
+  });
+
   app.get("/api/auth/google", (req: Request, res: Response) => {
     if (!googleIsConfigured()) {
       res.status(503).json({ error: "Google sign-in has not been configured on this server." });

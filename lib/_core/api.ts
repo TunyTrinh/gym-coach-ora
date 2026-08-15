@@ -116,6 +116,14 @@ export async function exchangeOAuthCode(
   };
 }
 
+export async function localLogin(username: string, password: string): Promise<{ sessionToken: string; user: any }> {
+  const result = await apiCall<{ app_session_id: string; user: any }>("/api/auth/local/login", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+  return { sessionToken: result.app_session_id, user: result.user };
+}
+
 // Logout
 export async function logout(): Promise<void> {
   await apiCall<void>("/api/auth/logout", {

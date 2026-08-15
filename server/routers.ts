@@ -2,9 +2,10 @@ import { z } from "zod";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { protectedProcedure, publicProcedure, router } from "./_core/trpc";
+import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { bookGymSlot, cancelGymBooking, getGymSnapshot, markGymAttendance } from "./gym-store";
-import { getDb } from "./db";
+import { createLocalCoachAccount, getDb, listActiveGyms, listClientAccounts, listCoachAccounts, promoteClientToCoach } from "./db";
+import { hashLocalPassword, isValidLocalPassword, isValidLocalUsername, normalizeLocalUsername } from "./local-credentials";
 import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, notifications, serviceTypes, timeSlots, users } from "../drizzle/schema";
 import { and, eq, gt, gte, inArray, lt, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
@@ -94,6 +95,42 @@ export const appRouter = router({
       }),
   }),
   admin: router({
+    listCoachAccounts: adminProcedure.query(() => listCoachAccounts()),
+    listActiveGyms: adminProcedure.query(() => listActiveGyms()),
+    listClientAccounts: adminProcedure.query(() => listClientAccounts()),
+    createCoach: adminProcedure
+      .input(z.object({
+        username: z.string().trim().min(3).max(64),
+        password: z.string().min(10).max(128),
+        fullName: z.string().trim().min(2).max(255),
+        specialty: z.string().trim().min(2).max(255),
+        gymId: z.number().int().positive(),
+      }))
+      .mutation(async ({ ctx, input }) => {
+        const username = normalizeLocalUsername(input.username);
+        if (!isValidLocalUsername(username)) {
+          throw new Error("Use 3–64 lowercase letters, numbers, dots, hyphens, or underscores for the username.");
+        }
+        if (!isValidLocalPassword(input.password)) {
+          throw new Error("The initial password must be 10–128 characters.");
+        }
+        return createLocalCoachAccount({
+          username,
+          passwordHash: await hashLocalPassword(input.password),
+          fullName: input.fullName,
+          specialty: input.specialty,
+          gymId: input.gymId,
+          actorUserId: ctx.user.id,
+        });
+      }),
+    promoteClient: adminProcedure
+      .input(z.object({
+        userId: z.number().int().positive(),
+        fullName: z.string().trim().min(2).max(255),
+        specialty: z.string().trim().min(2).max(255),
+        gymId: z.number().int().positive(),
+      }))
+      .mutation(({ ctx, input }) => promoteClientToCoach({ ...input, actorUserId: ctx.user.id })),
     updateRole: protectedProcedure
       .input(z.object({ userId: z.number(), role: z.enum(["client", "coach", "admin"]) }))
       .mutation(async ({ ctx, input }) => {

@@ -1,8 +1,11 @@
-import { ActivityIndicator, Image, Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Image, Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSegments } from "expo-router";
+import { useState } from "react";
 
 import { getApiBaseUrl } from "@/constants/oauth";
 import { useAuth } from "@/hooks/use-auth";
+import * as Api from "@/lib/_core/api";
+import * as Auth from "@/lib/_core/auth";
 import { useLanguage } from "@/lib/language-provider";
 import { isLocalTestMode } from "@/lib/local-test-mode";
 
@@ -11,10 +14,14 @@ function googleSignInUrl() {
 }
 
 export function AuthGate({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, loading, refresh } = useAuth();
   const { t } = useLanguage();
   const segments = useSegments();
   const isOAuthCallback = segments[0] === "oauth";
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [localBusy, setLocalBusy] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const continueWithGoogle = async () => {
     const url = googleSignInUrl();
@@ -23,6 +30,25 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
       return;
     }
     await Linking.openURL(url);
+  };
+
+  const continueWithLocalAccount = async () => {
+    if (!username.trim() || !password) {
+      setLocalError(t("localSignInRequired"));
+      return;
+    }
+    setLocalBusy(true);
+    setLocalError(null);
+    try {
+      const result = await Api.localLogin(username, password);
+      if (Platform.OS !== "web") await Auth.setSessionToken(result.sessionToken);
+      await refresh();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      setLocalError(message.includes("Too many") ? t("localSignInRateLimited") : t("localSignInFailed"));
+    } finally {
+      setLocalBusy(false);
+    }
   };
 
   if (isOAuthCallback || isAuthenticated || isLocalTestMode()) return <>{children}</>;
@@ -42,6 +68,14 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
         <Pressable accessibilityRole="button" accessibilityLabel={t("continueWithGoogle")} onPress={continueWithGoogle} style={({ pressed }) => [styles.button, pressed && styles.buttonPressed]}>
           <Text style={styles.buttonText}>{t("continueWithGoogle")}</Text>
         </Pressable>
+        <View style={styles.divider} />
+        <Text style={styles.localHeading}>{t("localAccount")}</Text>
+        <TextInput value={username} onChangeText={setUsername} autoCapitalize="none" autoCorrect={false} editable={!localBusy} placeholder={t("username")} placeholderTextColor="#777780" accessibilityLabel={t("username")} style={styles.input} returnKeyType="next" />
+        <TextInput value={password} onChangeText={setPassword} secureTextEntry editable={!localBusy} placeholder={t("password")} placeholderTextColor="#777780" accessibilityLabel={t("password")} style={styles.input} returnKeyType="done" onSubmitEditing={() => void continueWithLocalAccount()} />
+        {localError ? <Text accessibilityRole="alert" style={styles.errorText}>{localError}</Text> : null}
+        <Pressable accessibilityRole="button" accessibilityLabel={t("signInWithAccount")} disabled={localBusy} onPress={() => void continueWithLocalAccount()} style={({ pressed }) => [styles.localButton, (pressed || localBusy) && styles.buttonPressed]}>
+          {localBusy ? <ActivityIndicator color="#f7f7f8" /> : <Text style={styles.localButtonText}>{t("signInWithAccount")}</Text>}
+        </Pressable>
       </View>
     </View>
   );
@@ -58,6 +92,12 @@ const styles = StyleSheet.create({
   button: { width: "100%", minHeight: 52, borderRadius: 16, justifyContent: "center", alignItems: "center", marginTop: 26, backgroundColor: "#f04488" },
   buttonPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] },
   buttonText: { color: "#ffffff", fontSize: 15, fontWeight: "800" },
+  divider: { width: "100%", height: 1, backgroundColor: "#000000", opacity: 0.92, marginTop: 22, marginBottom: 18 },
+  localHeading: { width: "100%", color: "#b4b4bd", fontSize: 12, fontWeight: "800", marginBottom: 10 },
+  input: { width: "100%", minHeight: 48, borderRadius: 13, borderWidth: 1, borderColor: "#000000", backgroundColor: "#111113", color: "#f7f7f8", fontSize: 15, paddingHorizontal: 14, marginBottom: 10 },
+  errorText: { width: "100%", color: "#ff766e", fontSize: 12, lineHeight: 18, fontWeight: "700", marginTop: -2, marginBottom: 4 },
+  localButton: { width: "100%", minHeight: 48, borderRadius: 14, justifyContent: "center", alignItems: "center", marginTop: 2, borderWidth: 1, borderColor: "#35353b", backgroundColor: "#232328" },
+  localButtonText: { color: "#f7f7f8", fontSize: 14, fontWeight: "800" },
   loading: { flex: 1, alignItems: "center", justifyContent: "center", gap: 12, backgroundColor: "#0d0d0f" },
   loadingText: { color: "#b4b4bd", fontSize: 13, fontWeight: "700" },
 });
