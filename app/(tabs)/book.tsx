@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native";
+import { ActivityIndicator, Alert, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native";
 
 import AvailabilityScreen from "@/app/availability";
 import { Avatar, GhostButton, PrimaryButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
@@ -12,6 +12,7 @@ import { haptic } from "@/lib/haptics";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
 import { useLanguage } from "@/lib/language-provider";
 import { createLocalDateRail, formatLocalClock, isSameLocalDay } from "@/lib/scheduler";
+import { trpc } from "@/lib/trpc";
 import { getBookingSlot, getCoach, type AvailabilityShift, type GymSnapshot } from "@/shared/gym";
 
 const quickDurations = [30, 45, 60] as const;
@@ -48,6 +49,46 @@ function buildStartTimes(window: AvailabilityShift, duration: number, now: Date,
 
 function clockValue(date: Date) {
   return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function AdminBookingsCalendar() {
+  const { user } = useAuth();
+  const { language, t } = useLanguage();
+  const colors = useColors();
+  const [selectedDay, setSelectedDay] = useState(0);
+  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+  const days = createLocalDateRail(new Date(), 7);
+  const selectedDate = days[selectedDay] ?? days[0];
+  const dayEnd = new Date(selectedDate);
+  dayEnd.setDate(dayEnd.getDate() + 1);
+  const rooms = trpc.admin.listRooms.useQuery(undefined, { enabled: user?.role === "admin" });
+  const schedule = trpc.admin.roomSchedule.useQuery(
+    { roomId: selectedRoomId ?? 0, from: selectedDate.toISOString(), to: dayEnd.toISOString() },
+    { enabled: user?.role === "admin" && Boolean(selectedRoomId) },
+  );
+
+  useEffect(() => {
+    if (!selectedRoomId && rooms.data?.[0]) setSelectedRoomId(rooms.data[0].id);
+  }, [rooms.data, selectedRoomId]);
+
+  if (user?.role !== "admin") return null;
+
+  return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
+    <ScrollView contentContainerStyle={styles.adminBookingsContent} showsVerticalScrollIndicator={false}>
+      <ScreenHeader title={t("adminBookingsCalendar")} subtitle={t("adminBookingsCalendarBody")} label={t("admin").toUpperCase()} />
+      <Text style={[styles.stepLabel, { color: colors.muted }]}>{t("selectRoom").toUpperCase()}</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.adminRoomRail}>
+        {rooms.isLoading ? <ActivityIndicator color="#ff82b7" /> : rooms.data?.map((room) => <Pressable key={room.id} onPress={() => setSelectedRoomId(room.id)} style={({ pressed }) => [styles.adminRoomPill, { borderColor: room.id === selectedRoomId ? "#f04488" : colors.border, backgroundColor: room.id === selectedRoomId ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}>
+          <Text style={[styles.adminRoomName, { color: room.id === selectedRoomId ? "#ff82b7" : colors.foreground }]}>{room.name}</Text>
+          <Text style={[styles.adminRoomMeta, { color: colors.muted }]}>{room.maximumCapacity} {t("clients").toLowerCase()}</Text>
+        </Pressable>)}
+      </ScrollView>
+      {!rooms.isLoading && !rooms.data?.length ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noRooms")}</Text></SurfaceCard> : null}
+      {selectedRoomId ? <><Text style={[styles.stepLabel, { color: colors.muted }]}>{t("chooseDay").toUpperCase()}</Text><FlatList horizontal data={days} keyExtractor={(day) => day.toISOString()} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateStrip} renderItem={({ item: day, index }) => { const active = index === selectedDay; return <Pressable onPress={() => setSelectedDay(index)} style={({ pressed }) => [styles.dateCard, { backgroundColor: active ? "#2b1f2a" : colors.surface, borderColor: active ? "#f04488" : colors.border }, pressed && styles.pressed]}><Text style={[styles.dateWeekday, { color: active ? "#ff82b7" : colors.muted }]}>{isSameLocalDay(day, new Date()) ? t("today").toUpperCase() : new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en-US", { weekday: "short" }).format(day).toUpperCase()}</Text><Text style={[styles.dateNumber, { color: colors.foreground }]}>{day.getDate()}</Text></Pressable>; }} />
+        <SpectrumCard style={styles.activitySummary} intensity="muted"><Text style={styles.activityDate}>{formatDateLocalized(selectedDate.toISOString(), language, { weekday: "long", month: "short", day: "numeric" })}</Text><View style={styles.activityStats}><View style={styles.activityStat}><Text style={styles.activityNumber}>{schedule.data?.summary.openAvailabilityCount ?? 0}</Text><Text style={styles.activityLabel}>{t("openAvailabilityCount")}</Text></View><View style={styles.activityDivider} /><View style={styles.activityStat}><Text style={styles.activityNumber}>{schedule.data?.summary.bookedSessionCount ?? 0}</Text><Text style={styles.activityLabel}>{t("bookedSessionCount")}</Text></View></View></SpectrumCard>
+        {schedule.isLoading ? <ActivityIndicator color="#ff82b7" style={styles.activityLoading} /> : schedule.data?.windows.length ? <View style={styles.adminWindowList}>{schedule.data.windows.map((window) => { const participants = schedule.data.bookings.filter((booking) => booking.availabilityId === window.id); return <SurfaceCard key={window.id} style={styles.adminWindowCard}><View style={styles.adminWindowTop}><View><Text style={[styles.windowTime, { color: colors.foreground }]}>{formatTimeLocalized(window.startAt, language)}–{formatTimeLocalized(window.endAt, language)}</Text><Text style={[styles.windowHint, { color: colors.muted }]}>{window.coachName} · {window.location}</Text></View><StatusBadge label={window.status.toLowerCase() === "available" ? t("available") : window.status} tone={window.status.toLowerCase() === "available" ? "success" : "warning"} /></View><Text style={[styles.adminWindowMeta, { color: colors.muted }]}>{participants.length}/{window.maximumCapacity} {t("clients").toLowerCase()} · {participants.length} {t("bookedSessionCount").toLowerCase()}</Text>{participants.map((participant) => <View key={participant.id} style={[styles.adminParticipant, { borderTopColor: colors.border }]}><Text style={[styles.adminParticipantName, { color: colors.foreground }]}>{participant.clientName ?? "—"}</Text><Text style={[styles.adminParticipantMeta, { color: colors.muted }]}>{participant.status}{participant.checkInTime ? ` · ${t("attendance")}` : ""}</Text></View>)}</SurfaceCard>; })}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noRoomActivity")}</Text></SurfaceCard>}</> : null}
+    </ScrollView>
+  </ScreenContainer>;
 }
 
 export default function BookScreen() {
@@ -160,6 +201,7 @@ export default function BookScreen() {
     }
   };
 
+  if (role === "admin") return <AdminBookingsCalendar />;
   if (role !== "client") return <AvailabilityScreen />;
 
   return (
@@ -390,5 +432,25 @@ const styles = StyleSheet.create({
   startTimeValue: { width: "100%", textAlign: "center", includeFontPadding: false },
   wheelValueSelected: { fontSize: 22, fontWeight: "900", transform: [{ scale: 1.04 }] },
   wheelSeparator: { fontSize: 18, fontWeight: "900" },
+  adminBookingsContent: { paddingTop: 2, paddingBottom: 30, gap: 13 },
+  adminRoomRail: { gap: 8, paddingRight: 14 },
+  adminRoomPill: { minWidth: 132, borderRadius: 13, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
+  adminRoomName: { fontSize: 13, fontWeight: "900" },
+  adminRoomMeta: { fontSize: 10, marginTop: 3 },
+  activitySummary: { gap: 12 },
+  activityDate: { color: "#ffffff", fontSize: 15, fontWeight: "900" },
+  activityStats: { flexDirection: "row", alignItems: "stretch" },
+  activityStat: { flex: 1, gap: 3 },
+  activityNumber: { color: "#ffffff", fontSize: 27, fontWeight: "900" },
+  activityLabel: { color: "rgba(255,255,255,0.75)", fontSize: 10, fontWeight: "800" },
+  activityDivider: { width: 1, backgroundColor: "rgba(255,255,255,0.22)", marginHorizontal: 14 },
+  activityLoading: { marginTop: 16 },
+  adminWindowList: { gap: 10 },
+  adminWindowCard: { gap: 9 },
+  adminWindowTop: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
+  adminWindowMeta: { fontSize: 11, fontWeight: "700" },
+  adminParticipant: { paddingTop: 8, borderTopWidth: 1, gap: 2 },
+  adminParticipantName: { fontSize: 12, fontWeight: "800" },
+  adminParticipantMeta: { fontSize: 10 },
   pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
 });

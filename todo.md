@@ -191,3 +191,6 @@
 - [x] Enforce room capacity and Admin-only access on backend room-management and schedule APIs
 - [x] Add bilingual EN/VI room and Admin schedule localization plus regression coverage
 - [x] Diagnose and repair the Admin Room Management save action so authorized Admins can create and update rooms
+- [x] Redesign the Admin Bookings tab as a room-selected calendar with open availability and booked-session counts
+- [x] Add Admin-only room activity calendar queries and bilingual daily booking-summary labels
+- [x] Validate room activity counts, Admin permissions, calendar states, and production build

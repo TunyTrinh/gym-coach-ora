@@ -247,7 +247,9 @@ export async function getAdminRoomSchedule(input: { roomId: number; from: Date; 
   const roomMatch = or(eq(availabilityShifts.roomId, input.roomId), eq(availabilityShifts.location, room[0].name));
   const windows = await db.select({ id: availabilityShifts.externalId, startAt: availabilityShifts.startAt, endAt: availabilityShifts.endAt, status: availabilityShifts.status, maximumCapacity: availabilityShifts.maximumCapacity, location: availabilityShifts.location, note: availabilityShifts.note, coachName: coaches.fullName }).from(availabilityShifts).innerJoin(coaches, eq(availabilityShifts.coachId, coaches.id)).where(and(roomMatch, lt(availabilityShifts.startAt, input.to), gt(availabilityShifts.endAt, input.from)));
   const bookingRows = await db.select({ id: bookings.externalId, status: bookings.status, checkInTime: bookings.checkInTime, clientName: users.name, startAt: timeSlots.startAt, endAt: timeSlots.endAt, availabilityId: availabilityShifts.externalId }).from(bookings).innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).innerJoin(users, eq(bookings.memberUserId, users.id)).where(and(roomMatch, lt(timeSlots.startAt, input.to), gt(timeSlots.endAt, input.from)));
-  return { room: room[0], windows, bookings: bookingRows };
+  const openAvailabilityCount = windows.filter((window) => window.status.toLowerCase() === "available").length;
+  const bookedSessionCount = bookingRows.filter((booking) => !["cancelled", "canceled"].includes(booking.status.toLowerCase())).length;
+  return { room: room[0], windows, bookings: bookingRows, summary: { openAvailabilityCount, bookedSessionCount } };
 }
 
 export async function listCoachAccounts() {
