@@ -168,3 +168,5 @@
 - [x] Verify the public deployment serves the latest Coachora login-screen logo and resolve any stale cache path
 - [x] Inspect the public HTML and JavaScript bundle for the active sign-in logo reference, then correct any deployment-specific branding mismatch
 - [x] Trace the exact public login-image URL rendered in the live DOM and replace its remaining legacy pink-C asset with the supplied full Coachora logo
+- [ ] Provide a safe development-only Google sign-in test flow for the Preview panel and Expo Go without changing production access controls
+- [x] Allow the managed Preview panel to bypass the login gate automatically while enforcing Google Sign-In on the public website and production app builds
