@@ -22,7 +22,7 @@ beforeEach(() => {
 
 describe("gym.snapshot", () => {
   it("returns a schedule with open capacity", async () => {
-    const caller = appRouter.createCaller(createContext(null));
+    const caller = appRouter.createCaller(createContext(member));
     const snapshot = await caller.gym.snapshot();
     expect(snapshot.gyms[0]?.name).toBe("Northstar Downtown");
     expect(snapshot.slots.some((slot) => slot.status === "Open")).toBe(true);

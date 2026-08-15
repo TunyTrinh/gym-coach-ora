@@ -79,7 +79,7 @@ export const appRouter = router({
     }),
   }),
   gym: router({
-    snapshot: publicProcedure.query(() => getGymSnapshot()),
+    snapshot: protectedProcedure.query(() => getGymSnapshot()),
     book: protectedProcedure
       .input(z.object({ slotId: z.string().min(1).max(64) }))
       .mutation(({ ctx, input }) => bookGymSlot(input.slotId, ctx.user.id)),

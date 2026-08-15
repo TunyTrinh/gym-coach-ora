@@ -16,7 +16,7 @@ export type ServerMutationResult =
 
 let snapshot: GymSnapshot = seedGymData();
 
-const memberIdFor = (userId?: number | string) => userId ? `member-${userId}` : "member-demo";
+const memberIdFor = (userId: number | string) => `member-${userId}`;
 
 export function getGymSnapshot() {
   return snapshot;
@@ -27,7 +27,7 @@ export function resetGymSnapshot() {
   return snapshot;
 }
 
-export function bookGymSlot(slotId: string, userId?: number | string): ServerMutationResult {
+export function bookGymSlot(slotId: string, userId: number | string): ServerMutationResult {
   const memberId = memberIdFor(userId);
   const slot = getSlot(snapshot, slotId);
   if (!slot) return { success: false, error: "That session is no longer available." };
@@ -55,7 +55,7 @@ export function bookGymSlot(slotId: string, userId?: number | string): ServerMut
   return { success: true, booking, message: `Booking confirmed for ${formatShortDate(slot.start)}.` };
 }
 
-export function cancelGymBooking(bookingId: string, userId?: number | string, reason = "Plans changed"): ServerMutationResult {
+export function cancelGymBooking(bookingId: string, userId: number | string, reason = "Plans changed"): ServerMutationResult {
   const memberId = memberIdFor(userId);
   const booking = snapshot.bookings.find((item) => item.id === bookingId && item.memberId === memberId);
   if (!booking) return { success: false, error: "Booking not found." };

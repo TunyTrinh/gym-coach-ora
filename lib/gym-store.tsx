@@ -20,8 +20,9 @@ import {
 } from "@/shared/gym";
 import { restoreUpcomingAvailability } from "@/lib/availability";
 import { canEditAvailabilityShift, createAvailabilityWindow, intervalsOverlap } from "@/lib/availability-shifts";
+import { useAuth } from "@/hooks/use-auth";
 
-const STORAGE_KEY = "gymflow.snapshot.v1";
+const storageKeyFor = (userId?: number | null) => userId ? `coachora.snapshot.v1.${userId}` : "coachora.snapshot.local";
 
 export type MutationResult =
   | { success: true; booking?: Booking; message?: string }
@@ -51,18 +52,23 @@ type GymContextValue = {
 const GymContext = createContext<GymContextValue | null>(null);
 
 export function GymProvider({ children }: PropsWithChildren) {
+  const { user } = useAuth();
+  const storageKey = storageKeyFor(user?.id);
   const [snapshot, setSnapshot] = useState<GymSnapshot>(() => seedGymData());
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY)
+    let active = true;
+    setHydrated(false);
+    AsyncStorage.getItem(storageKey)
       .then((raw) => {
-        if (raw) {
+        if (raw && active) {
           const parsed = JSON.parse(raw) as Partial<GymSnapshot>;
           setSnapshot((current) => {
             const restored = {
               ...current,
               ...parsed,
+              member: current.member,
               measurements: Array.isArray(parsed.measurements) ? parsed.measurements : [],
               availabilityShifts: Array.isArray(parsed.availabilityShifts)
                 ? parsed.availabilityShifts.map((shift: any) => ({ ...shift, maximumCapacity: Number(shift.maximumCapacity ?? 1) })) as GymSnapshot["availabilityShifts"]
@@ -73,13 +79,25 @@ export function GymProvider({ children }: PropsWithChildren) {
         }
       })
       .catch(() => undefined)
-      .finally(() => setHydrated(true));
-  }, []);
+      .finally(() => { if (active) setHydrated(true); });
+
+    return () => { active = false; };
+  }, [storageKey]);
 
   useEffect(() => {
     if (!hydrated) return;
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot)).catch(() => undefined);
-  }, [hydrated, snapshot]);
+    AsyncStorage.setItem(storageKey, JSON.stringify(snapshot)).catch(() => undefined);
+  }, [hydrated, snapshot, storageKey]);
+
+  useEffect(() => {
+    if (!user) return;
+    setSnapshot((current) => {
+      const fullName = user.name?.trim() || current.member.fullName;
+      const initials = fullName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || current.member.initials;
+      const member = { ...current.member, id: `member-${user.id}`, fullName, email: user.email ?? current.member.email, initials, role: user.role };
+      return current.member.id === member.id && current.member.fullName === member.fullName && current.member.email === member.email && current.member.initials === member.initials && current.member.role === member.role ? current : { ...current, member };
+    });
+  }, [user]);
 
   const upcomingBookings = useMemo(
     () =>

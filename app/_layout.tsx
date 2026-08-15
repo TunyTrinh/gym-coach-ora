@@ -10,6 +10,8 @@ import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
 import { GymProvider } from "@/lib/gym-store";
 import { LanguageProvider } from "@/lib/language-provider";
+import { AuthProvider } from "@/hooks/use-auth";
+import { AuthGate } from "@/components/auth-gate";
 import {
   SafeAreaFrameContext,
   SafeAreaInsetsContext,
@@ -60,20 +62,24 @@ export default function RootLayout() {
   const content = (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <LanguageProvider>
-        <GymProvider>
-          <trpc.Provider client={trpcClient} queryClient={queryClient}>
-            <QueryClientProvider client={queryClient}>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
-                <Stack.Screen name="coach" options={{ presentation: "modal" }} />
-                <Stack.Screen name="availability" options={{ presentation: "modal" }} />
-                <Stack.Screen name="oauth/callback" />
-              </Stack>
-              <StatusBar style="light" />
-            </QueryClientProvider>
-          </trpc.Provider>
-        </GymProvider>
+        <AuthProvider>
+          <AuthGate>
+            <GymProvider>
+              <trpc.Provider client={trpcClient} queryClient={queryClient}>
+                <QueryClientProvider client={queryClient}>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
+                    <Stack.Screen name="coach" options={{ presentation: "modal" }} />
+                    <Stack.Screen name="availability" options={{ presentation: "modal" }} />
+                    <Stack.Screen name="oauth/callback" />
+                  </Stack>
+                  <StatusBar style="light" />
+                </QueryClientProvider>
+              </trpc.Provider>
+            </GymProvider>
+          </AuthGate>
+        </AuthProvider>
       </LanguageProvider>
     </GestureHandlerRootView>
   );

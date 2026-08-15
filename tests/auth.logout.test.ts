@@ -29,7 +29,8 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
     user,
     req: {
       protocol: "https",
-      headers: {},
+      hostname: "coachora.example.com",
+      headers: { host: "coachora.example.com" },
     } as TrpcContext["req"],
     res: {
       clearCookie: (name: string, options: Record<string, unknown>) => {
@@ -41,8 +42,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
   return { ctx, clearedCookies };
 }
 
-// TODO: Remove `.skip` below once you implement user authentication
-describe.skip("auth.logout", () => {
+describe("auth.logout", () => {
   it("clears the session cookie and reports success", async () => {
     const { ctx, clearedCookies } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
@@ -59,5 +59,16 @@ describe.skip("auth.logout", () => {
       httpOnly: true,
       path: "/",
     });
+  });
+
+  it("rejects the private gym snapshot without an authenticated user", async () => {
+    const ctx: TrpcContext = {
+      user: null,
+      req: { protocol: "https", hostname: "coachora.example.com", headers: { host: "coachora.example.com" } } as TrpcContext["req"],
+      res: {} as TrpcContext["res"],
+    };
+    const caller = appRouter.createCaller(ctx);
+
+    await expect(caller.gym.snapshot()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 });

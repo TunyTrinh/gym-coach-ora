@@ -156,3 +156,6 @@
 - [x] Replace the default attendance confirmation alert with a premium Coachora confirmation sheet while preserving the completion flow
 - [x] Replace Client cancellation system alerts with a premium confirmation and result sheet
 - [x] Show a clear localized reason when Coach availability publishing is blocked or fails
+- [x] Audit and remove the production test-user bypass while retaining a development-only test mode
+- [x] Require authenticated Google Sign-In before private Coachora routes and APIs can be used
+- [x] Preserve Client, Coach, and Admin role access after sign-in and add verified logout
