@@ -1,4 +1,4 @@
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
@@ -33,6 +33,12 @@ function statusLabel(status: string, t: (key: any) => string) {
   return status;
 }
 
+type AttendanceFeedback = {
+  success: boolean;
+  title: string;
+  message: string;
+};
+
 export default function ScheduleScreen() {
   const colors = useColors();
   const { user } = useAuth();
@@ -43,6 +49,7 @@ export default function ScheduleScreen() {
   const [now, setNow] = useState(() => new Date());
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => startOfLocalDay(new Date()));
+  const [attendanceFeedback, setAttendanceFeedback] = useState<AttendanceFeedback | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
@@ -105,6 +112,15 @@ export default function ScheduleScreen() {
   const handleCheckIn = async (bookingId: string) => {
     const result = await checkInBooking(bookingId);
     Alert.alert(result.success ? t("checkedInAlert") : t("checkInUnavailable"), result.success ? result.message : result.error);
+  };
+
+  const handleAttendance = async (bookingId: string, status: "Completed" | "No-show") => {
+    const result = await markAttendance(bookingId, status);
+    setAttendanceFeedback({
+      success: result.success,
+      title: result.success ? t("attendanceSaved") : t("couldNotUpdateShift"),
+      message: (result.success ? result.message : result.error) ?? t("couldNotUpdateShift"),
+    });
   };
 
   if (role !== "client" && !isCoach) {
@@ -205,7 +221,7 @@ export default function ScheduleScreen() {
             <View style={[styles.timeBlock, { backgroundColor: blockColor(slot.start) }]}><Text style={styles.timeBlockTime}>{formatTimeLocalized(slot.start, language)}–{formatTimeLocalized(slot.end, language)}</Text><Text style={styles.timeBlockClient}>{clientName}</Text></View>
             <View style={styles.clientRow}><Avatar initials={initials(clientName)} accent="#b7e4dd" size={36} /><View style={styles.clientCopy}><Text style={[styles.clientName, { color: colors.foreground }]}>{clientName}</Text><Text style={[styles.clientMeta, { color: colors.muted }]}>{service?.name ?? t("session")}</Text></View></View>
             <View style={[styles.capacityPanel, { borderColor: colors.border, backgroundColor: colors.surface }]}><View><Text style={[styles.capacityValue, { color: colors.foreground }]}>{concurrent}</Text><Text style={[styles.capacityLabel, { color: colors.muted }]}>{t("concurrentBooked")}</Text></View><View style={styles.capacityRight}><Text style={[styles.capacityValue, { color: "#ff82b7" }]}>{remaining}</Text><Text style={[styles.capacityLabel, { color: colors.muted }]}>{t("remainingCapacity")}</Text></View></View>
-            {booking.status === "Confirmed" ? <View style={styles.coachActions}><Pressable onPress={async () => { const result = await markAttendance(booking.id, "Completed"); Alert.alert(result.success ? t("attendanceSaved") : t("couldNotUpdateShift"), result.success ? result.message : result.error); }} style={[styles.attendanceButton, { backgroundColor: `${colors.success}18` }]}><Text style={[styles.attendanceButtonText, { color: colors.success }]}>{t("markDone")}</Text></Pressable><Pressable onPress={async () => { const result = await markAttendance(booking.id, "No-show"); Alert.alert(result.success ? t("attendanceSaved") : t("couldNotUpdateShift"), result.success ? result.message : result.error); }} style={[styles.attendanceButton, { backgroundColor: `${colors.error}14` }]}><Text style={[styles.attendanceButtonText, { color: colors.error }]}>{t("noShow")}</Text></Pressable></View> : null}
+            {booking.status === "Confirmed" ? <View style={styles.coachActions}><Pressable onPress={() => handleAttendance(booking.id, "Completed")} style={[styles.attendanceButton, { backgroundColor: `${colors.success}18` }]}><Text style={[styles.attendanceButtonText, { color: colors.success }]}>{t("markDone")}</Text></Pressable><Pressable onPress={() => handleAttendance(booking.id, "No-show")} style={[styles.attendanceButton, { backgroundColor: `${colors.error}14` }]}><Text style={[styles.attendanceButtonText, { color: colors.error }]}>{t("noShow")}</Text></Pressable></View> : null}
           </SurfaceCard>;
         }
 
@@ -217,6 +233,37 @@ export default function ScheduleScreen() {
         </SurfaceCard>;
       })}
     </ScrollView>
+
+    <Modal
+      transparent
+      visible={attendanceFeedback !== null}
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={() => setAttendanceFeedback(null)}
+    >
+      <View style={styles.sheetBackdrop}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("close")}
+          onPress={() => setAttendanceFeedback(null)}
+          style={styles.backdropDismiss}
+        />
+        {attendanceFeedback ? <View style={[styles.confirmationSheet, { borderColor: colors.border }]}>
+          <View style={[styles.confirmationIcon, { backgroundColor: attendanceFeedback.success ? `${colors.success}24` : `${colors.error}24` }]}>
+            <Text style={[styles.confirmationIconText, { color: attendanceFeedback.success ? colors.success : colors.error }]}>{attendanceFeedback.success ? "✓" : "!"}</Text>
+          </View>
+          <Text style={[styles.confirmationTitle, { color: colors.foreground }]}>{attendanceFeedback.title}</Text>
+          <Text style={[styles.confirmationMessage, { color: colors.muted }]}>{attendanceFeedback.message}</Text>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => setAttendanceFeedback(null)}
+            style={({ pressed }) => [styles.confirmationButton, { backgroundColor: attendanceFeedback.success ? "#e8f7ef" : "#ffe9e7" }, pressed && styles.confirmationButtonPressed]}
+          >
+            <Text style={[styles.confirmationButtonText, { color: attendanceFeedback.success ? "#123d29" : "#6f1814" }]}>{t("close")}</Text>
+          </Pressable>
+        </View> : null}
+      </View>
+    </Modal>
   </ScreenContainer>;
 }
 
@@ -229,5 +276,6 @@ const styles = StyleSheet.create({
   daySummaryHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 4 }, summaryEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, summaryTitle: { fontSize: 20, fontWeight: "800", marginTop: 3 }, summaryCount: { fontSize: 12, fontWeight: "800", marginBottom: 2 },
   bookingCard: { padding: 17, gap: 15 }, coachBookingCard: { padding: 16, gap: 12 }, bookingTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }, bookingTime: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 }, bookingDuration: { fontSize: 12, fontWeight: "600", letterSpacing: 0 }, bookingDate: { fontSize: 10, fontWeight: "800", letterSpacing: 1.1, marginTop: 4 }, bookingRule: { height: 1 }, bookingMain: { flexDirection: "row", alignItems: "center", gap: 11 }, bookingCopy: { flex: 1, gap: 3 }, bookingService: { fontSize: 15, fontWeight: "800" }, bookingCoach: { fontSize: 12 }, bookingLocation: { fontSize: 11, marginTop: 2 }, openIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#282130" }, openIconText: { color: "#bba4ff", fontSize: 20 }, actionRow: { flexDirection: "row", alignItems: "center", gap: 9 }, actionFill: { flex: 1 }, windowNote: { flex: 1, minHeight: 44, borderRadius: 14, justifyContent: "center", paddingHorizontal: 12, backgroundColor: "#151518" }, windowText: { fontSize: 11, fontWeight: "700", lineHeight: 16 }, cancelButton: { minHeight: 44, borderWidth: 1, borderRadius: 14, paddingHorizontal: 15, justifyContent: "center" }, cancelText: { fontSize: 12, fontWeight: "800" },
   timeBlock: { borderRadius: 12, padding: 11, gap: 4 }, timeBlockTime: { color: "#f7f7f8", fontSize: 14, fontWeight: "900" }, timeBlockClient: { color: "rgba(255,255,255,0.82)", fontSize: 12, fontWeight: "700" }, clientRow: { flexDirection: "row", alignItems: "center", gap: 10 }, clientCopy: { flex: 1 }, clientName: { fontSize: 14, fontWeight: "900" }, clientMeta: { fontSize: 11, marginTop: 3 }, capacityPanel: { borderWidth: 1, borderRadius: 14, padding: 12, flexDirection: "row", justifyContent: "space-between" }, capacityRight: { alignItems: "flex-end" }, capacityValue: { fontSize: 20, fontWeight: "900" }, capacityLabel: { fontSize: 11, marginTop: 2 }, coachActions: { flexDirection: "row", gap: 8 }, attendanceButton: { borderRadius: 10, paddingHorizontal: 11, paddingVertical: 8 }, attendanceButtonText: { fontSize: 11, fontWeight: "900" },
+  sheetBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, backgroundColor: "rgba(4, 5, 7, 0.72)" }, backdropDismiss: { ...StyleSheet.absoluteFillObject }, confirmationSheet: { width: "100%", maxWidth: 340, borderRadius: 26, borderWidth: 1, paddingHorizontal: 22, paddingTop: 25, paddingBottom: 18, alignItems: "center", backgroundColor: "#1d1d21", shadowColor: "#000000", shadowOpacity: 0.42, shadowRadius: 28, shadowOffset: { width: 0, height: 14 }, elevation: 12 }, confirmationIcon: { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", marginBottom: 17 }, confirmationIconText: { fontSize: 29, lineHeight: 33, fontWeight: "800" }, confirmationTitle: { fontSize: 20, lineHeight: 25, fontWeight: "800", textAlign: "center", letterSpacing: -0.3 }, confirmationMessage: { marginTop: 8, fontSize: 14, lineHeight: 20, textAlign: "center" }, confirmationButton: { alignSelf: "stretch", minHeight: 46, borderRadius: 14, marginTop: 23, alignItems: "center", justifyContent: "center" }, confirmationButtonPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] }, confirmationButtonText: { fontSize: 15, fontWeight: "800" },
   emptyCard: { padding: 22, gap: 10, alignItems: "flex-start" }, emptyTitle: { fontSize: 18, fontWeight: "800" }, emptyMessage: { fontSize: 13, lineHeight: 19, marginBottom: 4 }, pressed: { opacity: 0.7 },
 });
