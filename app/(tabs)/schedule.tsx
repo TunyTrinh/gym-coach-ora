@@ -1,4 +1,4 @@
-import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
@@ -33,7 +33,7 @@ function statusLabel(status: string, t: (key: any) => string) {
   return status;
 }
 
-type AttendanceFeedback = {
+type FeedbackSheet = {
   success: boolean;
   title: string;
   message: string;
@@ -49,7 +49,9 @@ export default function ScheduleScreen() {
   const [now, setNow] = useState(() => new Date());
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => startOfLocalDay(new Date()));
-  const [attendanceFeedback, setAttendanceFeedback] = useState<AttendanceFeedback | null>(null);
+  const [feedbackSheet, setFeedbackSheet] = useState<FeedbackSheet | null>(null);
+  const [cancellationBookingId, setCancellationBookingId] = useState<string | null>(null);
+  const [cancellationBusy, setCancellationBusy] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
@@ -96,27 +98,35 @@ export default function ScheduleScreen() {
   };
 
   const handleCancel = (bookingId: string) => {
-    Alert.alert(t("cancelBookingPrompt"), t("cancelBookingBody"), [
-      { text: t("keepBooking"), style: "cancel" },
-      {
-        text: t("cancelBooking"),
-        style: "destructive",
-        onPress: async () => {
-          const result = await cancelBooking(bookingId, "Plans changed");
-          Alert.alert(result.success ? t("bookingCancelled") : t("couldNotCancel"), result.success ? result.message : result.error);
-        },
-      },
-    ]);
+    setCancellationBookingId(bookingId);
+  };
+
+  const confirmCancellation = async () => {
+    const bookingId = cancellationBookingId;
+    if (!bookingId || cancellationBusy) return;
+    setCancellationBusy(true);
+    const result = await cancelBooking(bookingId, "Plans changed");
+    setCancellationBusy(false);
+    setCancellationBookingId(null);
+    setFeedbackSheet({
+      success: result.success,
+      title: result.success ? t("bookingCancelled") : t("couldNotCancel"),
+      message: (result.success ? result.message : result.error) ?? t("couldNotCancel"),
+    });
   };
 
   const handleCheckIn = async (bookingId: string) => {
     const result = await checkInBooking(bookingId);
-    Alert.alert(result.success ? t("checkedInAlert") : t("checkInUnavailable"), result.success ? result.message : result.error);
+    setFeedbackSheet({
+      success: result.success,
+      title: result.success ? t("checkedInAlert") : t("checkInUnavailable"),
+      message: (result.success ? result.message : result.error) ?? t("checkInUnavailable"),
+    });
   };
 
   const handleAttendance = async (bookingId: string, status: "Completed" | "No-show") => {
     const result = await markAttendance(bookingId, status);
-    setAttendanceFeedback({
+    setFeedbackSheet({
       success: result.success,
       title: result.success ? t("attendanceSaved") : t("couldNotUpdateShift"),
       message: (result.success ? result.message : result.error) ?? t("couldNotUpdateShift"),
@@ -236,30 +246,72 @@ export default function ScheduleScreen() {
 
     <Modal
       transparent
-      visible={attendanceFeedback !== null}
+      visible={cancellationBookingId !== null}
       animationType="fade"
       statusBarTranslucent
-      onRequestClose={() => setAttendanceFeedback(null)}
+      onRequestClose={() => { if (!cancellationBusy) setCancellationBookingId(null); }}
+    >
+      <View style={styles.sheetBackdrop}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t("keepBooking")}
+          onPress={() => { if (!cancellationBusy) setCancellationBookingId(null); }}
+          style={styles.backdropDismiss}
+        />
+        <View style={[styles.confirmationSheet, { borderColor: colors.border }]}>
+          <View style={[styles.confirmationIcon, { backgroundColor: `${colors.error}24` }]}>
+            <Text style={[styles.confirmationIconText, { color: colors.error }]}>!</Text>
+          </View>
+          <Text style={[styles.confirmationTitle, { color: colors.foreground }]}>{t("cancelBookingPrompt")}</Text>
+          <Text style={[styles.confirmationMessage, { color: colors.muted }]}>{t("cancelBookingBody")}</Text>
+          <View style={styles.confirmationActions}>
+            <Pressable
+              accessibilityRole="button"
+              disabled={cancellationBusy}
+              onPress={() => setCancellationBookingId(null)}
+              style={({ pressed }) => [styles.confirmationSecondaryButton, { borderColor: colors.border }, (pressed || cancellationBusy) && styles.confirmationButtonPressed]}
+            >
+              <Text style={[styles.confirmationSecondaryText, { color: colors.foreground }]}>{t("keepBooking")}</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              disabled={cancellationBusy}
+              onPress={() => void confirmCancellation()}
+              style={({ pressed }) => [styles.confirmationDestructiveButton, (pressed || cancellationBusy) && styles.confirmationButtonPressed]}
+            >
+              <Text style={styles.confirmationDestructiveText}>{cancellationBusy ? t("loading") : t("cancelBooking")}</Text>
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Modal>
+
+    <Modal
+      transparent
+      visible={feedbackSheet !== null}
+      animationType="fade"
+      statusBarTranslucent
+      onRequestClose={() => setFeedbackSheet(null)}
     >
       <View style={styles.sheetBackdrop}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t("close")}
-          onPress={() => setAttendanceFeedback(null)}
+          onPress={() => setFeedbackSheet(null)}
           style={styles.backdropDismiss}
         />
-        {attendanceFeedback ? <View style={[styles.confirmationSheet, { borderColor: colors.border }]}>
-          <View style={[styles.confirmationIcon, { backgroundColor: attendanceFeedback.success ? `${colors.success}24` : `${colors.error}24` }]}>
-            <Text style={[styles.confirmationIconText, { color: attendanceFeedback.success ? colors.success : colors.error }]}>{attendanceFeedback.success ? "✓" : "!"}</Text>
+        {feedbackSheet ? <View style={[styles.confirmationSheet, { borderColor: colors.border }]}>
+          <View style={[styles.confirmationIcon, { backgroundColor: feedbackSheet.success ? `${colors.success}24` : `${colors.error}24` }]}>
+            <Text style={[styles.confirmationIconText, { color: feedbackSheet.success ? colors.success : colors.error }]}>{feedbackSheet.success ? "✓" : "!"}</Text>
           </View>
-          <Text style={[styles.confirmationTitle, { color: colors.foreground }]}>{attendanceFeedback.title}</Text>
-          <Text style={[styles.confirmationMessage, { color: colors.muted }]}>{attendanceFeedback.message}</Text>
+          <Text style={[styles.confirmationTitle, { color: colors.foreground }]}>{feedbackSheet.title}</Text>
+          <Text style={[styles.confirmationMessage, { color: colors.muted }]}>{feedbackSheet.message}</Text>
           <Pressable
             accessibilityRole="button"
-            onPress={() => setAttendanceFeedback(null)}
-            style={({ pressed }) => [styles.confirmationButton, { backgroundColor: attendanceFeedback.success ? "#e8f7ef" : "#ffe9e7" }, pressed && styles.confirmationButtonPressed]}
+            onPress={() => setFeedbackSheet(null)}
+            style={({ pressed }) => [styles.confirmationButton, { backgroundColor: feedbackSheet.success ? "#e8f7ef" : "#ffe9e7" }, pressed && styles.confirmationButtonPressed]}
           >
-            <Text style={[styles.confirmationButtonText, { color: attendanceFeedback.success ? "#123d29" : "#6f1814" }]}>{t("close")}</Text>
+            <Text style={[styles.confirmationButtonText, { color: feedbackSheet.success ? "#123d29" : "#6f1814" }]}>{t("close")}</Text>
           </Pressable>
         </View> : null}
       </View>
@@ -276,6 +328,6 @@ const styles = StyleSheet.create({
   daySummaryHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 4 }, summaryEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, summaryTitle: { fontSize: 20, fontWeight: "800", marginTop: 3 }, summaryCount: { fontSize: 12, fontWeight: "800", marginBottom: 2 },
   bookingCard: { padding: 17, gap: 15 }, coachBookingCard: { padding: 16, gap: 12 }, bookingTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 12 }, bookingTime: { fontSize: 20, fontWeight: "900", letterSpacing: -0.5 }, bookingDuration: { fontSize: 12, fontWeight: "600", letterSpacing: 0 }, bookingDate: { fontSize: 10, fontWeight: "800", letterSpacing: 1.1, marginTop: 4 }, bookingRule: { height: 1 }, bookingMain: { flexDirection: "row", alignItems: "center", gap: 11 }, bookingCopy: { flex: 1, gap: 3 }, bookingService: { fontSize: 15, fontWeight: "800" }, bookingCoach: { fontSize: 12 }, bookingLocation: { fontSize: 11, marginTop: 2 }, openIcon: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", backgroundColor: "#282130" }, openIconText: { color: "#bba4ff", fontSize: 20 }, actionRow: { flexDirection: "row", alignItems: "center", gap: 9 }, actionFill: { flex: 1 }, windowNote: { flex: 1, minHeight: 44, borderRadius: 14, justifyContent: "center", paddingHorizontal: 12, backgroundColor: "#151518" }, windowText: { fontSize: 11, fontWeight: "700", lineHeight: 16 }, cancelButton: { minHeight: 44, borderWidth: 1, borderRadius: 14, paddingHorizontal: 15, justifyContent: "center" }, cancelText: { fontSize: 12, fontWeight: "800" },
   timeBlock: { borderRadius: 12, padding: 11, gap: 4 }, timeBlockTime: { color: "#f7f7f8", fontSize: 14, fontWeight: "900" }, timeBlockClient: { color: "rgba(255,255,255,0.82)", fontSize: 12, fontWeight: "700" }, clientRow: { flexDirection: "row", alignItems: "center", gap: 10 }, clientCopy: { flex: 1 }, clientName: { fontSize: 14, fontWeight: "900" }, clientMeta: { fontSize: 11, marginTop: 3 }, capacityPanel: { borderWidth: 1, borderRadius: 14, padding: 12, flexDirection: "row", justifyContent: "space-between" }, capacityRight: { alignItems: "flex-end" }, capacityValue: { fontSize: 20, fontWeight: "900" }, capacityLabel: { fontSize: 11, marginTop: 2 }, coachActions: { flexDirection: "row", gap: 8 }, attendanceButton: { borderRadius: 10, paddingHorizontal: 11, paddingVertical: 8 }, attendanceButtonText: { fontSize: 11, fontWeight: "900" },
-  sheetBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, backgroundColor: "rgba(4, 5, 7, 0.72)" }, backdropDismiss: { ...StyleSheet.absoluteFillObject }, confirmationSheet: { width: "100%", maxWidth: 340, borderRadius: 26, borderWidth: 1, paddingHorizontal: 22, paddingTop: 25, paddingBottom: 18, alignItems: "center", backgroundColor: "#1d1d21", shadowColor: "#000000", shadowOpacity: 0.42, shadowRadius: 28, shadowOffset: { width: 0, height: 14 }, elevation: 12 }, confirmationIcon: { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", marginBottom: 17 }, confirmationIconText: { fontSize: 29, lineHeight: 33, fontWeight: "800" }, confirmationTitle: { fontSize: 20, lineHeight: 25, fontWeight: "800", textAlign: "center", letterSpacing: -0.3 }, confirmationMessage: { marginTop: 8, fontSize: 14, lineHeight: 20, textAlign: "center" }, confirmationButton: { alignSelf: "stretch", minHeight: 46, borderRadius: 14, marginTop: 23, alignItems: "center", justifyContent: "center" }, confirmationButtonPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] }, confirmationButtonText: { fontSize: 15, fontWeight: "800" },
+  sheetBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, backgroundColor: "rgba(4, 5, 7, 0.72)" }, backdropDismiss: { ...StyleSheet.absoluteFillObject }, confirmationSheet: { width: "100%", maxWidth: 340, borderRadius: 26, borderWidth: 1, paddingHorizontal: 22, paddingTop: 25, paddingBottom: 18, alignItems: "center", backgroundColor: "#1d1d21", shadowColor: "#000000", shadowOpacity: 0.42, shadowRadius: 28, shadowOffset: { width: 0, height: 14 }, elevation: 12 }, confirmationIcon: { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", marginBottom: 17 }, confirmationIconText: { fontSize: 29, lineHeight: 33, fontWeight: "800" }, confirmationTitle: { fontSize: 20, lineHeight: 25, fontWeight: "800", textAlign: "center", letterSpacing: -0.3 }, confirmationMessage: { marginTop: 8, fontSize: 14, lineHeight: 20, textAlign: "center" }, confirmationActions: { alignSelf: "stretch", gap: 10, marginTop: 23 }, confirmationSecondaryButton: { minHeight: 46, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#26262b" }, confirmationSecondaryText: { fontSize: 15, fontWeight: "800" }, confirmationDestructiveButton: { minHeight: 46, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: "#ffe9e7" }, confirmationDestructiveText: { color: "#6f1814", fontSize: 15, fontWeight: "800" }, confirmationButton: { alignSelf: "stretch", minHeight: 46, borderRadius: 14, marginTop: 23, alignItems: "center", justifyContent: "center" }, confirmationButtonPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] }, confirmationButtonText: { fontSize: 15, fontWeight: "800" },
   emptyCard: { padding: 22, gap: 10, alignItems: "flex-start" }, emptyTitle: { fontSize: 18, fontWeight: "800" }, emptyMessage: { fontSize: 13, lineHeight: 19, marginBottom: 4 }, pressed: { opacity: 0.7 },
 });

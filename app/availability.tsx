@@ -1,6 +1,6 @@
 import { router } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Alert, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 
 import { GhostButton, PrimaryButton, ScreenHeader, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
@@ -16,6 +16,8 @@ const wheelHours = Array.from({ length: 12 }, (_, index) => String(index + 1));
 const wheelMinutes = ["00", "15", "30", "45"];
 const wheelPeriods = ["AM", "PM"];
 const rowHeight = 44;
+
+type AvailabilityFeedback = { success: boolean; title: string; message: string };
 
 function localDayString(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
@@ -79,6 +81,7 @@ export default function AvailabilityScreen() {
   const [selectedCoachId, setSelectedCoachId] = useState(snapshot.coaches[0]?.id ?? "");
   const [showCreate, setShowCreate] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [availabilityFeedback, setAvailabilityFeedback] = useState<AvailabilityFeedback | null>(null);
 
   const windows = useMemo(() => snapshot.availabilityShifts
     .filter((window) => (isAdmin ? window.coachId === selectedCoachId : window.coachId === "coach-maya"))
@@ -95,7 +98,11 @@ export default function AvailabilityScreen() {
     const result = await setAvailabilityStatus(window.id, status);
     setBusy(false);
     if (result.success) haptic.success(); else haptic.error();
-    Alert.alert(result.success ? t("shiftUpdated") : t("couldNotUpdateShift"), result.success ? result.message ?? t("availabilityUpdated") : result.error);
+    setAvailabilityFeedback({
+      success: result.success,
+      title: result.success ? t("shiftUpdated") : t("couldNotUpdateShift"),
+      message: (result.success ? result.message ?? t("availabilityUpdated") : result.error) ?? t("couldNotUpdateShift"),
+    });
   };
 
   if (!isCoach && !isAdmin) {
@@ -114,7 +121,35 @@ export default function AvailabilityScreen() {
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         renderItem={({ item }) => <WindowCard window={item} bookedCount={bookedCount(item.id)} language={language} t={t} colors={colors} busy={busy} onBlock={() => updateStatus(item, "Blocked")} onOpen={() => updateStatus(item, "Available")} />}
       />
-      <CreateAvailabilitySheet visible={showCreate} coachId={selectedCoachId} language={language} t={t} busy={busy} onClose={() => setShowCreate(false)} onCreate={async (input) => { setBusy(true); const result = await createAvailability(input); setBusy(false); if (result.success) { haptic.success(); setShowCreate(false); Alert.alert(t("availabilityPublished"), result.message ?? t("membersCanBook")); } else { haptic.error(); Alert.alert(t("couldNotPublish"), localizeAvailabilityError(result.error, t)); } }} />
+      <CreateAvailabilitySheet
+        visible={showCreate}
+        coachId={selectedCoachId}
+        language={language}
+        t={t}
+        busy={busy}
+        onClose={() => setShowCreate(false)}
+        onValidationError={(message) => {
+          haptic.error();
+          setAvailabilityFeedback({ success: false, title: t("couldNotPublish"), message });
+        }}
+        onCreate={async (input) => {
+          setBusy(true);
+          const result = await createAvailability(input);
+          setBusy(false);
+          if (result.success) {
+            haptic.success();
+            setShowCreate(false);
+          } else {
+            haptic.error();
+          }
+          setAvailabilityFeedback({
+            success: result.success,
+            title: result.success ? t("availabilityPublished") : t("couldNotPublish"),
+            message: result.success ? result.message ?? t("membersCanBook") : localizeAvailabilityError(result.error, t),
+          });
+        }}
+      />
+      <AvailabilityFeedbackSheet feedback={availabilityFeedback} onClose={() => setAvailabilityFeedback(null)} />
     </ScreenContainer>
   );
 }
@@ -131,7 +166,7 @@ function WindowCard({ window, bookedCount, language, t, colors, busy, onBlock, o
   return <SurfaceCard style={styles.windowCard}><View style={styles.windowTop}><View style={styles.windowCopy}><Text style={[styles.windowDate, { color: colors.foreground }]}>{formatDateLocalized(window.start, language, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</Text><Text style={[styles.windowTime, { color: colors.foreground }]}>{formatTimeLocalized(window.start, language)}–{formatTimeLocalized(window.end, language)}</Text></View><StatusBadge label={isOpen ? t("available") : t("blocked")} tone={isOpen ? "success" : "warning"} /></View><Text style={[styles.windowMeta, { color: colors.muted }]}>{window.location}{window.note ? ` · ${window.note}` : ""}</Text><View style={[styles.capacityPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.capacityValue, { color: colors.foreground }]}>{bookedCount}</Text><Text style={[styles.capacityLabel, { color: colors.muted }]}>{t("sessionsBooked")}</Text></View><View style={styles.capacityRight}><Text style={[styles.capacityValue, { color: "#ff82b7" }]}>{window.maximumCapacity}</Text><Text style={[styles.capacityLabel, { color: colors.muted }]}>{t("clientsAtATime")}</Text></View></View><Text style={[styles.windowHint, { color: colors.muted }]}>{t("continuousWindowHint")}</Text><View style={styles.cardAction}>{isOpen ? <GhostButton title={busy ? t("updating") : t("blockTime")} onPress={onBlock} /> : <PrimaryButton title={busy ? t("updating") : t("makeAvailable")} onPress={onOpen} disabled={busy} />}</View></SurfaceCard>;
 }
 
-function CreateAvailabilitySheet({ visible, coachId, language, t, busy, onClose, onCreate }: { visible: boolean; coachId: string; language: "en" | "vi"; t: (key: any) => string; busy: boolean; onClose: () => void; onCreate: (input: AvailabilityCreateInput) => Promise<void> }) {
+function CreateAvailabilitySheet({ visible, coachId, language, t, busy, onClose, onValidationError, onCreate }: { visible: boolean; coachId: string; language: "en" | "vi"; t: (key: any) => string; busy: boolean; onClose: () => void; onValidationError: (message: string) => void; onCreate: (input: AvailabilityCreateInput) => Promise<void> }) {
   const colors = useColors();
   const [today] = useState(() => new Date());
   const dates = useMemo(() => Array.from({ length: 10 }, (_, index) => addDays(today, index)), [today]);
@@ -153,13 +188,19 @@ function CreateAvailabilitySheet({ visible, coachId, language, t, busy, onClose,
   const savePicker = () => { if (activeTimeField === "start") setStartTime(timeDraft); if (activeTimeField === "end") setEndTime(timeDraft); setActiveTimeField(null); };
   const publish = () => {
     const start = minutesOf(startTime); const end = minutesOf(endTime);
-    if (start === null || end === null) { haptic.error(); Alert.alert(t("couldNotPublish"), t("chooseValidTime")); return; }
-    if (violatesTodayLeadTime) { haptic.error(); Alert.alert(t("couldNotPublish"), t("availabilityLeadTimeError")); return; }
-    if (end <= start) { haptic.error(); Alert.alert(t("couldNotPublish"), t("endAfterStart")); return; }
-    if (!location.trim()) { haptic.error(); Alert.alert(t("couldNotPublish"), t("location")); return; }
+    if (start === null || end === null) { onValidationError(t("chooseValidTime")); return; }
+    if (violatesTodayLeadTime) { onValidationError(t("availabilityLeadTimeError")); return; }
+    if (end <= start) { onValidationError(t("endAfterStart")); return; }
+    if (!location.trim()) { onValidationError(t("location")); return; }
     void onCreate({ coachId, startDate: date, startTime, endTime, maximumCapacity: capacity, location: location.trim(), note: note.trim() || undefined });
   };
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.modalBackdrop}><ScrollView style={[styles.sheet, { backgroundColor: "#151518", borderColor: colors.border }]} contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}><View style={styles.sheetHandle} /><Text style={styles.sheetEyebrow}>{t("publishFreeTime")}</Text><Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t("addAvailability")}</Text><Text style={[styles.sheetCopy, { color: colors.muted }]}>{t("continuousWindowHint")}</Text><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("availabilityDate")}</Text><FlatList horizontal data={dates} keyExtractor={(item) => item.toISOString()} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateRail} renderItem={({ item }) => <Pressable onPress={() => setDate(localDayString(item))} style={({ pressed }) => [styles.datePill, { borderColor: date === localDayString(item) ? "#f04488" : colors.border, backgroundColor: date === localDayString(item) ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.datePillText, { color: date === localDayString(item) ? "#ff82b7" : colors.muted }]}>{formatDateLocalized(item, language, { weekday: "short", day: "numeric" })}</Text></Pressable>} /><TimeChoice label={t("starts")} value={formatAvailabilityTime(startTime, language)} onPress={() => openPicker("start")} />{violatesTodayLeadTime ? <Text style={styles.leadTimeWarning}>{t("availabilityLeadTime")}</Text> : null}<TimeChoice label={t("ends")} value={formatAvailabilityTime(endTime, language)} onPress={() => openPicker("end")} /><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("maxConcurrentClients")}</Text><Text style={[styles.fieldHint, { color: colors.muted }]}>{t("maxConcurrentHint")}</Text><CapacityStepper value={capacity} onChange={setCapacity} /><Field label={t("location")} value={location} onChangeText={setLocation} /><Pressable onPress={() => setShowMore((value) => !value)} style={({ pressed }) => [styles.moreRow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><View><Text style={[styles.moreTitle, { color: colors.foreground }]}>{t("moreOptions")}</Text><Text style={[styles.moreCopy, { color: colors.muted }]}>{t("noteOptional")}</Text></View><Text style={styles.moreToggle}>{showMore ? t("hide") : t("show")}</Text></Pressable>{showMore ? <Field label={t("noteOptional")} value={note} onChangeText={setNote} /> : null}<View style={styles.sheetActions}><GhostButton title={t("cancel")} onPress={onClose} /><View style={styles.createAction}><PrimaryButton title={busy ? t("publishing") : t("publish")} disabled={busy} onPress={publish} /></View></View></ScrollView>{activeTimeField ? <View style={styles.timePickerBackdrop}><View style={[styles.timePickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><View style={styles.timePickerHeader}><Pressable onPress={() => setActiveTimeField(null)} style={styles.timePickerAction}><Text style={styles.timePickerActionText}>{t("cancel")}</Text></Pressable><Text style={[styles.timePickerTitle, { color: colors.foreground }]}>{activeTimeField === "start" ? t("starts") : t("ends")}</Text><Pressable onPress={savePicker} style={styles.timePickerAction}><Text style={styles.timePickerActionText}>{t("save")}</Text></Pressable></View><TimeWheelPicker value={timeDraft} onChange={setTimeDraft} colors={colors} /></View></View> : null}</View></Modal>;
+}
+
+function AvailabilityFeedbackSheet({ feedback, onClose }: { feedback: AvailabilityFeedback | null; onClose: () => void }) {
+  const colors = useColors();
+  const { t } = useLanguage();
+  return <Modal transparent visible={feedback !== null} animationType="fade" statusBarTranslucent onRequestClose={onClose}><View style={styles.feedbackBackdrop}><Pressable accessibilityRole="button" accessibilityLabel={t("close")} onPress={onClose} style={styles.feedbackDismiss} />{feedback ? <View style={[styles.feedbackCard, { borderColor: colors.border }]}><View style={[styles.feedbackIcon, { backgroundColor: feedback.success ? `${colors.success}24` : `${colors.error}24` }]}><Text style={[styles.feedbackIconText, { color: feedback.success ? colors.success : colors.error }]}>{feedback.success ? "✓" : "!"}</Text></View><Text style={[styles.feedbackTitle, { color: colors.foreground }]}>{feedback.title}</Text><Text style={[styles.feedbackMessage, { color: colors.muted }]}>{feedback.message}</Text><Pressable accessibilityRole="button" onPress={onClose} style={({ pressed }) => [styles.feedbackButton, { backgroundColor: feedback.success ? "#e8f7ef" : "#ffe9e7" }, pressed && styles.feedbackButtonPressed]}><Text style={[styles.feedbackButtonText, { color: feedback.success ? "#123d29" : "#6f1814" }]}>{t("close")}</Text></Pressable></View> : null}</View></Modal>;
 }
 
 function TimeChoice({ label, value, onPress }: { label: string; value: string; onPress: () => void }) { const colors = useColors(); return <View style={styles.timeField}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{label}</Text><Pressable onPress={onPress} style={({ pressed }) => [styles.timeChoice, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.timeChoiceValue, { color: colors.foreground }]}>{value}</Text><Text style={[styles.timeChoiceHint, { color: colors.muted }]}>›</Text></Pressable></View>; }
@@ -197,5 +238,6 @@ function WheelColumn({ options, selectedIndex, onChange, colors }: { options: st
 function TimeWheelPicker({ value, onChange, colors }: { value: string; onChange: (value: string) => void; colors: ReturnType<typeof useColors> }) { const parts = timeParts(value); const update = (field: "hour" | "minute" | "period", next: string) => { const all = { ...parts, [field]: next }; onChange(fromParts(all.hour, all.minute, all.period)); }; return <View style={styles.wheelPicker}><View pointerEvents="none" style={[styles.wheelFrame, { borderColor: colors.border }]} /><View style={styles.wheelColumns}><WheelColumn options={wheelHours} selectedIndex={wheelHours.indexOf(parts.hour)} onChange={(index) => update("hour", wheelHours[index])} colors={colors} /><Text style={[styles.wheelSeparator, { color: colors.muted }]}>:</Text><WheelColumn options={wheelMinutes} selectedIndex={wheelMinutes.indexOf(parts.minute)} onChange={(index) => update("minute", wheelMinutes[index])} colors={colors} /><WheelColumn options={wheelPeriods} selectedIndex={wheelPeriods.indexOf(parts.period)} onChange={(index) => update("period", wheelPeriods[index])} colors={colors} /></View></View>; }
 
 const styles = StyleSheet.create({
+  feedbackBackdrop: { flex: 1, alignItems: "center", justifyContent: "center", paddingHorizontal: 28, backgroundColor: "rgba(4, 5, 7, 0.72)" }, feedbackDismiss: { ...StyleSheet.absoluteFillObject }, feedbackCard: { width: "100%", maxWidth: 340, borderRadius: 26, borderWidth: 1, paddingHorizontal: 22, paddingTop: 25, paddingBottom: 18, alignItems: "center", backgroundColor: "#1d1d21", shadowColor: "#000000", shadowOpacity: 0.42, shadowRadius: 28, shadowOffset: { width: 0, height: 14 }, elevation: 12 }, feedbackIcon: { width: 54, height: 54, borderRadius: 27, alignItems: "center", justifyContent: "center", marginBottom: 17 }, feedbackIconText: { fontSize: 29, lineHeight: 33, fontWeight: "800" }, feedbackTitle: { fontSize: 20, lineHeight: 25, fontWeight: "800", textAlign: "center", letterSpacing: -0.3 }, feedbackMessage: { marginTop: 8, fontSize: 14, lineHeight: 20, textAlign: "center" }, feedbackButton: { alignSelf: "stretch", minHeight: 46, borderRadius: 14, marginTop: 23, alignItems: "center", justifyContent: "center" }, feedbackButtonPressed: { opacity: 0.82, transform: [{ scale: 0.98 }] }, feedbackButtonText: { fontSize: 15, fontWeight: "800" },
   content: { paddingTop: 10, paddingBottom: 40 }, header: { gap: 15, paddingBottom: 16 }, adminPicker: { gap: 8 }, coachRail: { gap: 8 }, coachPill: { borderRadius: 15, borderWidth: 1, paddingHorizontal: 14, paddingVertical: 10 }, coachPillText: { fontSize: 12, fontWeight: "800" }, sectionLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4 }, separator: { height: 10 }, windowCard: { gap: 11, padding: 16 }, windowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }, windowCopy: { flex: 1 }, windowDate: { fontSize: 16, fontWeight: "900" }, windowTime: { fontSize: 14, fontWeight: "800", marginTop: 4 }, windowMeta: { fontSize: 12, lineHeight: 18 }, capacityPanel: { borderWidth: 1, borderRadius: 14, padding: 12, flexDirection: "row", justifyContent: "space-between" }, capacityRight: { alignItems: "flex-end" }, capacityValue: { fontSize: 20, fontWeight: "900" }, capacityLabel: { fontSize: 11, marginTop: 2 }, windowHint: { fontSize: 11, lineHeight: 16 }, cardAction: { alignSelf: "flex-start" }, emptyCard: { gap: 10, padding: 20 }, emptyTitle: { fontSize: 18, fontWeight: "900" }, emptyCopy: { fontSize: 13, lineHeight: 19 }, restricted: { paddingTop: 10, gap: 18 }, restrictedCard: { gap: 12, padding: 19 }, restrictedTitle: { fontSize: 20, fontWeight: "900" }, restrictedCopy: { fontSize: 13, lineHeight: 20 }, modalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.68)" }, sheet: { borderTopLeftRadius: 30, borderTopRightRadius: 30, borderWidth: 1, maxHeight: "94%" }, sheetContent: { padding: 20, gap: 12 }, sheetHandle: { width: 38, height: 4, borderRadius: 2, backgroundColor: "#555560", alignSelf: "center", marginBottom: 2 }, sheetEyebrow: { color: "#ff82b7", fontSize: 10, fontWeight: "900", letterSpacing: 1.4 }, sheetTitle: { fontSize: 25, fontWeight: "900", letterSpacing: -0.5 }, sheetCopy: { fontSize: 12, lineHeight: 18 }, fieldLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.1, marginTop: 2 }, fieldHint: { fontSize: 11, lineHeight: 16, marginTop: -7 }, leadTimeWarning: { color: "#ff6b61", fontSize: 11, fontWeight: "700", lineHeight: 16, marginTop: -3 }, dateRail: { gap: 8, paddingRight: 14 }, datePill: { borderRadius: 13, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 }, datePillText: { fontSize: 12, fontWeight: "800" }, timeField: { gap: 7 }, timeChoice: { height: 54, borderRadius: 13, borderWidth: 1, paddingHorizontal: 13, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, timeChoiceValue: { fontSize: 16, fontWeight: "800" }, timeChoiceHint: { fontSize: 24, fontWeight: "700" }, stepper: { borderWidth: 1, borderRadius: 14, height: 54, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, stepButton: { width: 58, height: "100%", justifyContent: "center", alignItems: "center" }, stepText: { fontSize: 25, fontWeight: "500" }, stepValue: { fontSize: 20, fontWeight: "900" }, field: { gap: 7 }, fullInput: { height: 46, borderRadius: 13, borderWidth: 1, paddingHorizontal: 13, fontSize: 15, fontWeight: "700" }, moreRow: { borderWidth: 1, borderRadius: 15, padding: 13, flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12 }, moreTitle: { fontSize: 14, fontWeight: "900" }, moreCopy: { fontSize: 11, marginTop: 3 }, moreToggle: { color: "#ff82b7", fontSize: 11, fontWeight: "900" }, sheetActions: { flexDirection: "row", gap: 10, alignItems: "center", paddingTop: 4 }, createAction: { flex: 1 }, timePickerBackdrop: { ...StyleSheet.absoluteFillObject, justifyContent: "center", padding: 20, backgroundColor: "rgba(0,0,0,0.72)" }, timePickerSheet: { borderRadius: 24, borderWidth: 1, padding: 18, gap: 13 }, timePickerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" }, timePickerAction: { minWidth: 60, paddingVertical: 8 }, timePickerActionText: { color: "#ff82b7", fontSize: 13, fontWeight: "900" }, timePickerTitle: { fontSize: 14, fontWeight: "900" }, wheelPicker: { height: rowHeight * 5, justifyContent: "center" }, wheelFrame: { position: "absolute", left: 0, right: 0, top: rowHeight * 2, height: rowHeight, borderTopWidth: 1, borderBottomWidth: 1, backgroundColor: "rgba(255,255,255,0.07)" }, wheelColumns: { flexDirection: "row", flex: 1, alignItems: "center", justifyContent: "center", gap: 7 }, wheelColumn: { width: 72, height: rowHeight * 5 }, wheelList: { paddingVertical: rowHeight * 2 }, wheelRow: { height: rowHeight, alignItems: "center", justifyContent: "center" }, wheelValue: { fontSize: 19, fontWeight: "800" }, wheelValueSelected: { fontSize: 22, fontWeight: "900", transform: [{ scale: 1.04 }] }, wheelSeparator: { fontSize: 18, fontWeight: "900" }, pressed: { opacity: 0.72, transform: [{ scale: 0.985 }] },
 });
