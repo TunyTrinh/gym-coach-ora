@@ -13,6 +13,7 @@ import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
 import { useLanguage } from "@/lib/language-provider";
+import { isLocalTestMode } from "@/lib/local-test-mode";
 import { createLocalDateRail, formatLocalClock, isSameLocalDay } from "@/lib/scheduler";
 import { trpc } from "@/lib/trpc";
 import { getBookingSlot, getCoach, type AvailabilityShift, type GymSnapshot } from "@/shared/gym";
@@ -56,6 +57,7 @@ function clockValue(date: Date) {
 
 function AdminBookingsCalendar() {
   const { user } = useAuth();
+  const { snapshot } = useGym();
   const { language, t } = useLanguage();
   const colors = useColors();
   const [selectedDate, setSelectedDate] = useState(() => startOfLocalDay(new Date()));
@@ -64,11 +66,17 @@ function AdminBookingsCalendar() {
   const monthStart = startOfMonth(visibleMonth);
   const monthEnd = addMonths(monthStart, 1);
   const monthDays = buildMonthGrid(monthStart);
-  const rooms = trpc.admin.listRooms.useQuery(undefined, { enabled: user?.role === "admin" });
+  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
+  const hasAuthenticatedAdmin = user?.role === "admin";
+  const isPreviewAdmin = isLocalTestMode() && role === "admin" && !hasAuthenticatedAdmin;
+  const rooms = trpc.admin.listRooms.useQuery(undefined, { enabled: hasAuthenticatedAdmin });
   const schedule = trpc.admin.roomSchedule.useQuery(
     { roomId: selectedRoomId ?? 0, from: monthStart.toISOString(), to: monthEnd.toISOString() },
-    { enabled: user?.role === "admin" && Boolean(selectedRoomId) },
+    { enabled: hasAuthenticatedAdmin && Boolean(selectedRoomId) },
   );
+
+  const previewRooms = isPreviewAdmin ? [{ id: -1, name: "Coachora Gym", maximumCapacity: 0 }] : [];
+  const roomOptions = rooms.data?.length ? rooms.data : previewRooms;
 
   const roomWindows = schedule.data?.windows ?? [];
   const roomBookings = schedule.data?.bookings ?? [];
@@ -84,22 +92,22 @@ function AdminBookingsCalendar() {
   const selectedWindows = roomWindows.filter((window) => isSameLocalDay(new Date(window.startAt), selectedDate));
 
   useEffect(() => {
-    if (!selectedRoomId && rooms.data?.[0]) setSelectedRoomId(rooms.data[0].id);
-  }, [rooms.data, selectedRoomId]);
+    if (!selectedRoomId && roomOptions[0]) setSelectedRoomId(roomOptions[0].id);
+  }, [roomOptions, selectedRoomId]);
 
-  if (user?.role !== "admin") return null;
+  if (role !== "admin") return null;
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.adminBookingsContent} showsVerticalScrollIndicator={false}>
       <ScreenHeader title={t("adminBookingsCalendar")} subtitle={t("adminBookingsCalendarBody")} label={t("admin").toUpperCase()} />
       <Text style={[styles.stepLabel, { color: colors.muted }]}>{t("selectRoom").toUpperCase()}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.adminRoomRail}>
-        {rooms.isLoading ? <ActivityIndicator color="#ff82b7" /> : rooms.data?.map((room) => <Pressable key={room.id} onPress={() => setSelectedRoomId(room.id)} style={({ pressed }) => [styles.adminRoomPill, { borderColor: room.id === selectedRoomId ? "#f04488" : colors.border, backgroundColor: room.id === selectedRoomId ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}>
+        {rooms.isLoading ? <ActivityIndicator color="#ff82b7" /> : roomOptions.map((room) => <Pressable key={room.id} onPress={() => setSelectedRoomId(room.id)} style={({ pressed }) => [styles.adminRoomPill, { borderColor: room.id === selectedRoomId ? "#f04488" : colors.border, backgroundColor: room.id === selectedRoomId ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}>
           <Text style={[styles.adminRoomName, { color: room.id === selectedRoomId ? "#ff82b7" : colors.foreground }]}>{room.name}</Text>
           <Text style={[styles.adminRoomMeta, { color: colors.muted }]}>{room.maximumCapacity} {t("clients").toLowerCase()}</Text>
         </Pressable>)}
       </ScrollView>
-      {!rooms.isLoading && !rooms.data?.length ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noRooms")}</Text></SurfaceCard> : null}
+      {!rooms.isLoading && !roomOptions.length ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noRooms")}</Text></SurfaceCard> : null}
       {selectedRoomId ? <><View style={styles.monthCalendarHeading}><Text style={[styles.stepLabel, { color: colors.muted }]}>{t("chooseDay").toUpperCase()}</Text><View style={styles.monthNavigation}><Pressable accessibilityLabel={t("previousMonth")} onPress={() => setVisibleMonth((month) => addMonths(month, -1))} style={({ pressed }) => [styles.monthArrow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><Text style={[styles.monthArrowText, { color: colors.foreground }]}>‹</Text></Pressable><Text style={[styles.monthTitle, { color: colors.foreground }]}>{formatDateLocalized(monthStart.toISOString(), language, { month: "long", year: "numeric" })}</Text><Pressable accessibilityLabel={t("nextMonth")} onPress={() => setVisibleMonth((month) => addMonths(month, 1))} style={({ pressed }) => [styles.monthArrow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><Text style={[styles.monthArrowText, { color: colors.foreground }]}>›</Text></Pressable></View></View>
         <View style={styles.monthWeekdays}>{monthDays.slice(0, 7).map((day) => <Text key={day.toISOString()} style={[styles.monthWeekday, { color: colors.muted }]}>{new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en-US", { weekday: "narrow" }).format(day).toUpperCase()}</Text>)}</View><View style={styles.monthGrid}>{monthDays.map((day) => { const active = isSameLocalDay(day, selectedDate); const inMonth = day.getMonth() === monthStart.getMonth(); const activity = dailyActivity.get(localDayKey(day)) ?? { open: 0, booked: 0 }; return <Pressable key={day.toISOString()} onPress={() => { setSelectedDate(startOfLocalDay(day)); if (!inMonth) setVisibleMonth(startOfMonth(day)); }} style={({ pressed }) => [styles.monthDay, { borderColor: active ? "#f04488" : colors.border, backgroundColor: active ? "#2b1f2a" : colors.surface, opacity: inMonth ? 1 : 0.42 }, pressed && styles.pressed]}><Text style={[styles.monthDayNumber, { color: active ? "#ff82b7" : colors.foreground }]}>{day.getDate()}</Text>{activity.open || activity.booked ? <View style={styles.monthActivity}><View style={[styles.monthDot, { backgroundColor: "#32d77b" }]} /><Text style={[styles.monthActivityCount, { color: colors.muted }]}>{activity.open}</Text><View style={[styles.monthDot, { backgroundColor: "#f04488" }]} /><Text style={[styles.monthActivityCount, { color: colors.muted }]}>{activity.booked}</Text></View> : <View style={styles.monthActivitySpacer} />}</Pressable>; })}</View>
         <SpectrumCard style={styles.activitySummary} intensity="muted"><Text style={styles.activityDate}>{formatDateLocalized(selectedDate.toISOString(), language, { weekday: "long", month: "short", day: "numeric" })}</Text><View style={styles.activityStats}><View style={styles.activityStat}><Text style={styles.activityNumber}>{selectedActivity.open}</Text><Text style={styles.activityLabel}>{t("openAvailabilityCount")}</Text></View><View style={styles.activityDivider} /><View style={styles.activityStat}><Text style={styles.activityNumber}>{selectedActivity.booked}</Text><Text style={styles.activityLabel}>{t("bookedSessionCount")}</Text></View></View></SpectrumCard>
@@ -113,7 +121,7 @@ export default function BookScreen() {
   const { user } = useAuth();
   const { snapshot, bookAvailability } = useGym();
   const { language, t } = useLanguage();
-  const role = user?.role ?? snapshot.member.role;
+  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
   const [now, setNow] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(0);
   const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);

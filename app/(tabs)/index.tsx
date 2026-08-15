@@ -8,6 +8,7 @@ import { useNetworkStatus } from "@/hooks/use-network-status";
 import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { useLanguage } from "@/lib/language-provider";
+import { isLocalTestMode } from "@/lib/local-test-mode";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
 import { getBookingSlot, getCoach, getService } from "@/shared/gym";
 
@@ -16,8 +17,8 @@ import { useAuth } from "@/hooks/use-auth";
 export default function HomeScreen() {
   const reducedMotion = useReducedMotion();
   const { user } = useAuth();
-  const role = user?.role || "client";
   const { snapshot, upcomingBookings, unreadCount } = useGym();
+  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? "client";
   const { language, t } = useLanguage();
   const isOnline = useNetworkStatus();
   const nextBooking = upcomingBookings[0];

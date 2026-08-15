@@ -10,6 +10,7 @@ import { intervalsOverlap } from "@/lib/availability-shifts";
 import { addMonths, buildMonthGrid, isSameLocalDay, localDayKey, startOfLocalDay, startOfMonth } from "@/lib/calendar";
 import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
+import { isLocalTestMode } from "@/lib/local-test-mode";
 import { formatDateLocalized, formatTimeLocalized, localeFor } from "@/lib/i18n";
 import { getBookingSlot, getCoach, getService } from "@/shared/gym";
 
@@ -44,7 +45,7 @@ export default function ScheduleScreen() {
   const { user } = useAuth();
   const { snapshot, upcomingBookings, cancelBooking, checkInBooking, markAttendance } = useGym();
   const { language, t } = useLanguage();
-  const role = user?.role ?? snapshot.member.role;
+  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
   const isCoach = role === "coach";
   const [now, setNow] = useState(() => new Date());
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));

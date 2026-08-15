@@ -202,3 +202,4 @@
 - [x] Show each selected room’s daily open-availability and booked-session activity on the month calendar
 - [x] Validate Admin calendar navigation and mobile layout in English and Vietnamese
 - [x] Fix the blank Admin rendering state and duplicate User tab label after the Admin navigation update
+- [x] Make the development-preview role switch immediately apply the matching Admin navigation and screens

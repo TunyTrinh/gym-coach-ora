@@ -16,7 +16,7 @@ export default function ProfileScreen() {
   const { user, logout } = useAuth();
   const { snapshot, updateRole, resetDemoData } = useGym();
   const { language, setLanguage, t } = useLanguage();
-  const role = user?.role ?? snapshot.member.role;
+  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [showMore, setShowMore] = useState(false);

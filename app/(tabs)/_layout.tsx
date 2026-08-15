@@ -8,6 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
+import { isLocalTestMode } from "@/lib/local-test-mode";
 
 export default function TabLayout() {
   const colors = useColors();
@@ -15,7 +16,7 @@ export default function TabLayout() {
   const { user } = useAuth();
   const { snapshot } = useGym();
   const { t } = useLanguage();
-  const role = user?.role ?? snapshot.member.role ?? "client";
+  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role ?? "client";
 
   const bottomPadding = Platform.OS === "web" ? 12 : Math.max(insets.bottom, 8);
   const tabBarHeight = 62 + bottomPadding;

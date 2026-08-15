@@ -11,6 +11,7 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { useLanguage } from "@/lib/language-provider";
+import { isLocalTestMode } from "@/lib/local-test-mode";
 import type { HealthMeasurementInput, HealthMeasurementKey, HealthMeasurementRecord } from "@/shared/gym";
 
 const metrics: { key: HealthMeasurementKey; label: string; shortLabel: string; unit: string; accent: string }[] = [
@@ -30,7 +31,7 @@ export default function ProgressScreen() {
   const { user } = useAuth();
   const { snapshot, saveMeasurement } = useGym();
   const { t } = useLanguage();
-  const role = user?.role ?? snapshot.member.role;
+  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
   const [metricKey, setMetricKey] = useState<HealthMeasurementKey>("weightKg");
   const [showForm, setShowForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
