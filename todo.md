@@ -197,3 +197,7 @@
 - [x] Remove the Client booking screen’s available-time count
 - [x] Show a localized in-app reason when booking is rejected for overlap, duplicate session, capacity, or time-window rules
 - [x] Add regression coverage and validate Client booking feedback behavior
+- [x] Simplify Admin bottom navigation to Schedule, Book, User, and Profile
+- [x] Replace the Admin room calendar’s horizontal day strip with a full selectable month calendar
+- [x] Show each selected room’s daily open-availability and booked-session activity on the month calendar
+- [x] Validate Admin calendar navigation and mobile layout in English and Vietnamese
