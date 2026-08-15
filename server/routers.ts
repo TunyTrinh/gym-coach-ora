@@ -100,7 +100,7 @@ export const appRouter = router({
     listActiveGyms: adminProcedure.query(() => listActiveGyms()),
     listRooms: adminProcedure.query(() => listRooms()),
     createRoom: adminProcedure
-      .input(z.object({ gymId: z.number().int().positive(), name: z.string().trim().min(2).max(128), address: z.string().trim().min(2).max(2_000), description: z.string().trim().min(2).max(4_000), maximumCapacity: z.number().int().min(1).max(500) }))
+      .input(z.object({ gymId: z.number().int().positive().optional(), name: z.string().trim().min(2).max(128), address: z.string().trim().min(2).max(2_000), description: z.string().trim().min(2).max(4_000), maximumCapacity: z.number().int().min(1).max(500) }))
       .mutation(({ ctx, input }) => createGymRoom({ ...input, actorUserId: ctx.user.id })),
     updateRoom: adminProcedure
       .input(z.object({ roomId: z.number().int().positive(), gymId: z.number().int().positive(), name: z.string().trim().min(2).max(128), address: z.string().trim().min(2).max(2_000), description: z.string().trim().min(2).max(4_000), maximumCapacity: z.number().int().min(1).max(500), active: z.boolean() }))

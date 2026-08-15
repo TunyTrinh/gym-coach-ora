@@ -184,22 +184,38 @@ export async function listRooms(input: { activeOnly?: boolean } = {}) {
   return db.select({ id: gymRooms.id, externalId: gymRooms.externalId, gymId: gymRooms.gymId, name: gymRooms.name, address: gymRooms.address, description: gymRooms.description, maximumCapacity: gymRooms.maximumCapacity, active: gymRooms.active }).from(gymRooms).where(input.activeOnly ? eq(gymRooms.active, true) : undefined);
 }
 
-export async function createGymRoom(input: { gymId: number; name: string; address: string; description: string; maximumCapacity: number; actorUserId: number }) {
+export async function createGymRoom(input: { gymId?: number; name: string; address: string; description: string; maximumCapacity: number; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
   const name = input.name.trim();
   const nameNormalized = normalizeRoomName(name);
   if (!nameNormalized) throw new Error("Enter a room name.");
   return db.transaction(async (tx: any) => {
-    const gym = await tx.select({ id: gyms.id }).from(gyms).where(and(eq(gyms.id, input.gymId), eq(gyms.active, true))).limit(1);
-    if (!gym[0]) throw new Error("Select an active gym for this room.");
-    const existing = await tx.select({ id: gymRooms.id }).from(gymRooms).where(and(eq(gymRooms.gymId, input.gymId), eq(gymRooms.nameNormalized, nameNormalized))).limit(1);
+    let gymId = input.gymId;
+    if (gymId) {
+      const selectedGym = await tx.select({ id: gyms.id }).from(gyms).where(and(eq(gyms.id, gymId), eq(gyms.active, true))).limit(1);
+      if (!selectedGym[0]) throw new Error("The selected gym is no longer active.");
+    } else {
+      const activeGym = await tx.select({ id: gyms.id }).from(gyms).where(eq(gyms.active, true)).limit(1);
+      if (activeGym[0]) {
+        gymId = activeGym[0].id;
+      } else {
+        const externalId = `gym-room-default-${randomUUID()}`;
+        await tx.insert(gyms).values({ externalId, name: "Coachora Gym", address: input.address.trim(), timezone: "UTC", active: true });
+        const createdGym = await tx.select({ id: gyms.id }).from(gyms).where(eq(gyms.externalId, externalId)).limit(1);
+        if (!createdGym[0]) throw new Error("The default gym could not be created.");
+        gymId = createdGym[0].id;
+      }
+    }
+    if (!gymId) throw new Error("A gym could not be resolved for this room.");
+    const resolvedGymId = gymId;
+    const existing = await tx.select({ id: gymRooms.id }).from(gymRooms).where(and(eq(gymRooms.gymId, resolvedGymId), eq(gymRooms.nameNormalized, nameNormalized))).limit(1);
     if (existing[0]) throw new Error("A room with this name already exists at this gym.");
     const externalId = `room-${randomUUID()}`;
-    await tx.insert(gymRooms).values({ externalId, gymId: input.gymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, active: true });
+    await tx.insert(gymRooms).values({ externalId, gymId: resolvedGymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, active: true });
     const room = await tx.select({ id: gymRooms.id }).from(gymRooms).where(eq(gymRooms.externalId, externalId)).limit(1);
     if (!room[0]) throw new Error("Room could not be created.");
-    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "CREATE_GYM_ROOM", details: `Created room ${name} (${room[0].id}) at gym ${input.gymId} with capacity ${input.maximumCapacity}.` });
+    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "CREATE_GYM_ROOM", details: `Created room ${name} (${room[0].id}) at gym ${resolvedGymId} with capacity ${input.maximumCapacity}.` });
     return { id: room[0].id };
   });
 }
