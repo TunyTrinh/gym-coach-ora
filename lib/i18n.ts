@@ -315,6 +315,7 @@ export const translations = {
     client: "Client",
     gymAdmin: "Gym Admin",
     clients: "Clients",
+    user: "User",
     users: "Users",
 
     availability: "Availability",
@@ -737,6 +738,7 @@ export const translations = {
     client: "Thành viên",
     gymAdmin: "Quản trị viên",
     clients: "Thành viên",
+    user: "Người dùng",
     users: "Người dùng",
 
     availability: "Lịch trống",

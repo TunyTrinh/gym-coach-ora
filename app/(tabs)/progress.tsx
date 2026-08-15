@@ -10,6 +10,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
+import { useLanguage } from "@/lib/language-provider";
 import type { HealthMeasurementInput, HealthMeasurementKey, HealthMeasurementRecord } from "@/shared/gym";
 
 const metrics: { key: HealthMeasurementKey; label: string; shortLabel: string; unit: string; accent: string }[] = [
@@ -28,6 +29,7 @@ export default function ProgressScreen() {
   const colors = useColors();
   const { user } = useAuth();
   const { snapshot, saveMeasurement } = useGym();
+  const { t } = useLanguage();
   const role = user?.role ?? snapshot.member.role;
   const [metricKey, setMetricKey] = useState<HealthMeasurementKey>("weightKg");
   const [showForm, setShowForm] = useState(false);
@@ -58,13 +60,14 @@ export default function ProgressScreen() {
   };
 
   if (role !== "client") {
+    const isAdmin = role === "admin";
     return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
       <View style={styles.restricted}>
-        <ScreenHeader title="Staff tools" subtitle="Health progress is private to each client." label={role === "admin" ? "ADMIN" : "COACH"} />
+        <ScreenHeader title={isAdmin ? t("users") : "Staff tools"} subtitle={isAdmin ? t("coachAccountsBody") : "Health progress is private to each client."} label={isAdmin ? t("admin").toUpperCase() : "COACH"} />
         <SurfaceCard style={styles.restrictedCard}>
-          <Text style={[styles.restrictedTitle, { color: colors.foreground }]}>Manage availability</Text>
-          <Text style={[styles.restrictedCopy, { color: colors.muted }]}>Publish or manage coach time from the staff workspace.</Text>
-          <PrimaryButton title="Open availability" onPress={() => router.replace("/book")} />
+          <Text style={[styles.restrictedTitle, { color: colors.foreground }]}>{isAdmin ? t("coachAccounts") : "Manage availability"}</Text>
+          <Text style={[styles.restrictedCopy, { color: colors.muted }]}>{isAdmin ? t("coachAccountsBody") : "Publish or manage coach time from the staff workspace."}</Text>
+          <PrimaryButton title={isAdmin ? t("coachAccounts") : "Open availability"} onPress={() => router.replace(isAdmin ? "/admin" : "/book")} />
         </SurfaceCard>
       </View>
     </ScreenContainer>;

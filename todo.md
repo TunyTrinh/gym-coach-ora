@@ -201,3 +201,4 @@
 - [x] Replace the Admin room calendar’s horizontal day strip with a full selectable month calendar
 - [x] Show each selected room’s daily open-availability and booked-session activity on the month calendar
 - [x] Validate Admin calendar navigation and mobile layout in English and Vietnamese
+- [x] Fix the blank Admin rendering state and duplicate User tab label after the Admin navigation update

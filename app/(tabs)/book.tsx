@@ -81,7 +81,7 @@ function AdminBookingsCalendar() {
     dailyActivity.set(key, current);
   });
   const selectedActivity = dailyActivity.get(localDayKey(selectedDate)) ?? { open: 0, booked: 0 };
-  const selectedWindows = roomWindows.filter((window) => isSameLocalDay(window.startAt, selectedDate));
+  const selectedWindows = roomWindows.filter((window) => isSameLocalDay(new Date(window.startAt), selectedDate));
 
   useEffect(() => {
     if (!selectedRoomId && rooms.data?.[0]) setSelectedRoomId(rooms.data[0].id);
