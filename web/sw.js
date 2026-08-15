@@ -1,4 +1,4 @@
-const CACHE_NAME = "gymflow-shell-20260815142235";
+const CACHE_NAME = "gymflow-shell-20260815142923";
 const APP_SHELL = ["/", "/offline.html", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 self.addEventListener("install", (event) => {

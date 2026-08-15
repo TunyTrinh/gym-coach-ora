@@ -208,3 +208,4 @@
 - [x] Require Coaches to select an active room when publishing availability and sync it to the Admin room calendar
 - [x] Fix Client booking room visibility so the Admin calendar resolves the same managed room identifier
 - [x] Allow the managed preview Admin role to open Admin management routes without weakening production authorization
+- [x] Keep the Admin bottom navigation visible when opening Coach access and Room management

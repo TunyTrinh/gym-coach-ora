@@ -31,5 +31,7 @@ export default function TabLayout() {
     <Tabs.Screen name="progress" options={{ title: isCoach ? t("clients") : isAdmin ? t("user") : t("progress"), tabBarIcon: ({ color }) => <IconSymbol size={22} name={isCoach || isAdmin ? "person.2.fill" : "chart.line.uptrend.xyaxis"} color={color} /> }} />
     <Tabs.Screen name="profile" options={{ title: t("profile"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.fill" color={color} /> }} />
     <Tabs.Screen name="history" options={{ href: null }} />
+    <Tabs.Screen name="admin" options={{ href: null }} />
+    <Tabs.Screen name="rooms" options={{ href: null }} />
   </Tabs>;
 }
