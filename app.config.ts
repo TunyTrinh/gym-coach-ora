@@ -30,8 +30,8 @@ const env = {
   // App branding - update these values directly (do not use env vars)
   appName: "Coachora",
   appSlug: "gym-coach-booking-pwa",
-  // Durable platform reference for the supplied Coachora logo.
-  logoUrl: "https://files.manuscdn.com/user_upload_by_module/session_file/310519663887412756/lLucOwQgASqqgIum.png",
+  // Use the original Coachora logo retained in assets/images/coachora-icon.png.
+  logoUrl: "",
   scheme: schemeFromBundleId,
   iosBundleId: bundleId,
   androidPackage: bundleId,

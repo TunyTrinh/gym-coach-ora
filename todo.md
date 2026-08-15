@@ -161,3 +161,4 @@
 - [x] Preserve Client, Coach, and Admin role access after sign-in and add verified logout
 - [x] Configure the required Google OAuth deployment settings so production sign-in can start
 - [x] Replace Coachora mobile and PWA icon assets with the supplied Coachora logo
+- [x] Restore the original Coachora logo already retained in the codebase across mobile and PWA branding assets
