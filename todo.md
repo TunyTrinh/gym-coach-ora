@@ -185,3 +185,8 @@
 - [x] Add Admin-only Coach grant, revoke, and disable controls with audit logs for every role change
 - [x] Preserve Coach profiles through Google sign-in and enforce revocation on backend-protected procedures
 - [x] Add authorization, email-verification, revocation, and role-permission regression coverage
+- [x] Add Admin-managed gym rooms with name, address, description, and maximum concurrent capacity
+- [x] Add Admin-only room creation and update controls from Profile
+- [x] Add a room-selected Admin schedule calendar that shows availability, booking, attendance, and participating clients
+- [x] Enforce room capacity and Admin-only access on backend room-management and schedule APIs
+- [x] Add bilingual EN/VI room and Admin schedule localization plus regression coverage

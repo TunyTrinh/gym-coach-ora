@@ -1,10 +1,14 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, gt, inArray, lt, or } from "drizzle-orm";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import { createPool, type Pool } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
-import { auditLogs, coachAuthorizations, coaches, gyms, InsertUser, users } from "../drizzle/schema";
+import { auditLogs, availabilityShifts, bookings, coachAuthorizations, coaches, gymRooms, gyms, InsertUser, timeSlots, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
 import { normalizeGoogleEmail } from "./google-authorization";
+
+export function normalizeRoomName(value: string) {
+  return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
+}
 
 let _db: MySql2Database | null = null;
 let _pool: Pool | null = null;
@@ -172,6 +176,62 @@ export async function listActiveGyms() {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
   return db.select({ id: gyms.id, name: gyms.name, address: gyms.address }).from(gyms).where(eq(gyms.active, true));
+}
+
+export async function listRooms(input: { activeOnly?: boolean } = {}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  return db.select({ id: gymRooms.id, externalId: gymRooms.externalId, gymId: gymRooms.gymId, name: gymRooms.name, address: gymRooms.address, description: gymRooms.description, maximumCapacity: gymRooms.maximumCapacity, active: gymRooms.active }).from(gymRooms).where(input.activeOnly ? eq(gymRooms.active, true) : undefined);
+}
+
+export async function createGymRoom(input: { gymId: number; name: string; address: string; description: string; maximumCapacity: number; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const name = input.name.trim();
+  const nameNormalized = normalizeRoomName(name);
+  if (!nameNormalized) throw new Error("Enter a room name.");
+  return db.transaction(async (tx: any) => {
+    const gym = await tx.select({ id: gyms.id }).from(gyms).where(and(eq(gyms.id, input.gymId), eq(gyms.active, true))).limit(1);
+    if (!gym[0]) throw new Error("Select an active gym for this room.");
+    const existing = await tx.select({ id: gymRooms.id }).from(gymRooms).where(and(eq(gymRooms.gymId, input.gymId), eq(gymRooms.nameNormalized, nameNormalized))).limit(1);
+    if (existing[0]) throw new Error("A room with this name already exists at this gym.");
+    const externalId = `room-${randomUUID()}`;
+    await tx.insert(gymRooms).values({ externalId, gymId: input.gymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, active: true });
+    const room = await tx.select({ id: gymRooms.id }).from(gymRooms).where(eq(gymRooms.externalId, externalId)).limit(1);
+    if (!room[0]) throw new Error("Room could not be created.");
+    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "CREATE_GYM_ROOM", details: `Created room ${name} (${room[0].id}) at gym ${input.gymId} with capacity ${input.maximumCapacity}.` });
+    return { id: room[0].id };
+  });
+}
+
+export async function updateGymRoom(input: { roomId: number; gymId: number; name: string; address: string; description: string; maximumCapacity: number; active: boolean; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const name = input.name.trim();
+  const nameNormalized = normalizeRoomName(name);
+  if (!nameNormalized) throw new Error("Enter a room name.");
+  return db.transaction(async (tx: any) => {
+    const room = await tx.select().from(gymRooms).where(eq(gymRooms.id, input.roomId)).limit(1);
+    if (!room[0]) throw new Error("Room not found.");
+    const conflicts = await tx.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(eq(availabilityShifts.roomId, input.roomId), gt(availabilityShifts.maximumCapacity, input.maximumCapacity), gt(availabilityShifts.endAt, new Date()), inArray(availabilityShifts.status, ["available", "booked", "blocked"]))).limit(1);
+    if (conflicts[0]) throw new Error("Increase this room capacity or update its future availability windows first.");
+    const duplicate = await tx.select({ id: gymRooms.id }).from(gymRooms).where(and(eq(gymRooms.gymId, input.gymId), eq(gymRooms.nameNormalized, nameNormalized))).limit(1);
+    if (duplicate[0] && duplicate[0].id !== input.roomId) throw new Error("A room with this name already exists at this gym.");
+    await tx.update(gymRooms).set({ gymId: input.gymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, active: input.active }).where(eq(gymRooms.id, input.roomId));
+    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "UPDATE_GYM_ROOM", details: `Updated room ${input.roomId}; active=${input.active}, capacity=${input.maximumCapacity}.` });
+    return { success: true as const };
+  });
+}
+
+export async function getAdminRoomSchedule(input: { roomId: number; from: Date; to: Date }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const room = await db.select().from(gymRooms).where(eq(gymRooms.id, input.roomId)).limit(1);
+  if (!room[0]) throw new Error("Room not found.");
+  const roomMatch = or(eq(availabilityShifts.roomId, input.roomId), eq(availabilityShifts.location, room[0].name));
+  const windows = await db.select({ id: availabilityShifts.externalId, startAt: availabilityShifts.startAt, endAt: availabilityShifts.endAt, status: availabilityShifts.status, maximumCapacity: availabilityShifts.maximumCapacity, location: availabilityShifts.location, note: availabilityShifts.note, coachName: coaches.fullName }).from(availabilityShifts).innerJoin(coaches, eq(availabilityShifts.coachId, coaches.id)).where(and(roomMatch, lt(availabilityShifts.startAt, input.to), gt(availabilityShifts.endAt, input.from)));
+  const bookingRows = await db.select({ id: bookings.externalId, status: bookings.status, checkInTime: bookings.checkInTime, clientName: users.name, startAt: timeSlots.startAt, endAt: timeSlots.endAt, availabilityId: availabilityShifts.externalId }).from(bookings).innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).innerJoin(users, eq(bookings.memberUserId, users.id)).where(and(roomMatch, lt(timeSlots.startAt, input.to), gt(timeSlots.endAt, input.from)));
+  return { room: room[0], windows, bookings: bookingRows };
 }
 
 export async function listCoachAccounts() {

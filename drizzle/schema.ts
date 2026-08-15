@@ -28,6 +28,24 @@ export const gyms = mysqlTable("gyms", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 
+/** An Admin-managed physical training room within a gym. */
+export const gymRooms = mysqlTable("gymRooms", {
+  id: int("id").autoincrement().primaryKey(),
+  externalId: varchar("externalId", { length: 64 }).notNull().unique(),
+  gymId: int("gymId").notNull(),
+  name: varchar("name", { length: 128 }).notNull(),
+  nameNormalized: varchar("nameNormalized", { length: 128 }).notNull(),
+  address: text("address").notNull(),
+  description: text("description").notNull(),
+  maximumCapacity: int("maximumCapacity").notNull(),
+  active: boolean("active").default(true).notNull(),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+}, (table) => ({
+  gymRoomNameUnique: uniqueIndex("gym_rooms_gym_name_unique").on(table.gymId, table.nameNormalized),
+  gymRoomActiveIndex: index("gym_rooms_gym_active_idx").on(table.gymId, table.active),
+}));
+
 export const coaches = mysqlTable("coaches", {
   id: int("id").autoincrement().primaryKey(),
   externalId: varchar("externalId", { length: 64 }).notNull().unique(),
@@ -69,6 +87,7 @@ export const timeSlots = mysqlTable("timeSlots", {
   externalId: varchar("externalId", { length: 64 }).notNull().unique(),
   gymId: int("gymId").notNull(),
   coachId: int("coachId"),
+  roomId: int("roomId"),
   serviceTypeId: int("serviceTypeId").notNull(),
   startAt: timestamp("startAt").notNull(),
   endAt: timestamp("endAt").notNull(),
@@ -85,6 +104,7 @@ export const availabilityShifts = mysqlTable("availabilityShifts", {
   externalId: varchar("externalId", { length: 64 }).notNull().unique(),
   gymId: int("gymId").notNull(),
   coachId: int("coachId").notNull(),
+  roomId: int("roomId"),
   serviceTypeId: int("serviceTypeId").notNull(),
   startAt: timestamp("startAt").notNull(),
   endAt: timestamp("endAt").notNull(),
@@ -102,6 +122,7 @@ export const availabilityShifts = mysqlTable("availabilityShifts", {
 }, (table) => ({
   coachStartIndex: index("availability_shifts_coach_start_idx").on(table.coachId, table.startAt),
   statusStartIndex: index("availability_shifts_status_start_idx").on(table.status, table.startAt),
+  roomStartIndex: index("availability_shifts_room_start_idx").on(table.roomId, table.startAt),
 }));
 
 export const bookings = mysqlTable("bookings", {

@@ -52,6 +52,7 @@ export interface AvailabilityShift {
   id: string;
   gymId: string;
   coachId: string;
+  roomId?: string;
   serviceTypeId: string;
   start: string;
   end: string;
@@ -75,6 +76,7 @@ export interface AvailabilityCreateInput {
   startTime: string;
   endTime: string;
   maximumCapacity: number;
+  roomId?: string | number;
   location: string;
   note?: string;
 }

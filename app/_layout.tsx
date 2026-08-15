@@ -73,6 +73,7 @@ export default function RootLayout() {
                     <Stack.Screen name="coach" options={{ presentation: "modal" }} />
                     <Stack.Screen name="availability" options={{ presentation: "modal" }} />
                     <Stack.Screen name="admin" options={{ presentation: "modal" }} />
+                    <Stack.Screen name="rooms" options={{ presentation: "modal" }} />
                     <Stack.Screen name="oauth/callback" />
                   </Stack>
                   <StatusBar style="light" />

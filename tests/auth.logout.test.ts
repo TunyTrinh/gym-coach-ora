@@ -80,5 +80,7 @@ describe("auth.logout", () => {
 
     await expect(caller.admin.listCoachAccounts()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.changeCoachAccess({ coachId: 1, status: "disabled" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.listRooms()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.createRoom({ gymId: 1, name: "Studio A", address: "Level 2", description: "Mobility", maximumCapacity: 12 })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

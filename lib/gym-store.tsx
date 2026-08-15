@@ -263,7 +263,7 @@ export function GymProvider({ children }: PropsWithChildren) {
     const timestamp = Date.now();
     setSnapshot((current) => {
       const serviceTypeId = String(input.serviceTypeId ?? current.services[0]?.id ?? "service-strength");
-      const nextWindow = { id: `availability-${timestamp}`, gymId: current.gyms[0]?.id ?? "gym-peak", coachId, serviceTypeId, start: window.start, end: window.end, maximumCapacity: input.maximumCapacity, location: input.location, note: input.note, status: "Available" as const, createdBy: current.member.id };
+      const nextWindow = { id: `availability-${timestamp}`, gymId: current.gyms[0]?.id ?? "gym-peak", coachId, roomId: input.roomId ? String(input.roomId) : undefined, serviceTypeId, start: window.start, end: window.end, maximumCapacity: input.maximumCapacity, location: input.location, note: input.note, status: "Available" as const, createdBy: current.member.id };
       return { ...current, availabilityShifts: [...current.availabilityShifts, nextWindow], notifications: [{ id: `note-${timestamp}`, type: "announcement", title: "Availability published", message: "Your continuous availability window is open for booking.", createdAt: iso(new Date()), read: false, priority: "Normal", audience: "coach" }, ...current.notifications] };
     });
     return { success: true, message: "Your continuous availability window is now open for booking." };
