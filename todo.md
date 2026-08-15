@@ -194,3 +194,6 @@
 - [x] Redesign the Admin Bookings tab as a room-selected calendar with open availability and booked-session counts
 - [x] Add Admin-only room activity calendar queries and bilingual daily booking-summary labels
 - [x] Validate room activity counts, Admin permissions, calendar states, and production build
+- [x] Remove the Client booking screen’s available-time count
+- [x] Show a localized in-app reason when booking is rejected for overlap, duplicate session, capacity, or time-window rules
+- [x] Add regression coverage and validate Client booking feedback behavior

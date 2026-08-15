@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Alert, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native";
+import { ActivityIndicator, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native";
 
 import AvailabilityScreen from "@/app/availability";
 import { Avatar, GhostButton, PrimaryButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
@@ -7,6 +7,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { intervalFitsAvailability, intervalsOverlap } from "@/lib/availability-shifts";
+import { bookingFailureTranslationKey } from "@/lib/booking-feedback";
 import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
@@ -24,6 +25,7 @@ const clientWheelPeriods = ["AM", "PM"];
 
 type TimeOption = { start: Date; end: Date; remaining: number; availabilityShiftId: string };
 type Translation = ReturnType<typeof useLanguage>["t"];
+type BookingFeedback = { title: string; message: string; tone: "success" | "error" };
 
 function buildStartTimes(window: AvailabilityShift, duration: number, now: Date, snapshot: GymSnapshot): TimeOption[] {
   const start = new Date(window.start);
@@ -110,6 +112,7 @@ export default function BookScreen() {
   const [timeDraft, setTimeDraft] = useState("09:00");
   const [timeError, setTimeError] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [bookingFeedback, setBookingFeedback] = useState<BookingFeedback | null>(null);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
@@ -188,16 +191,24 @@ export default function BookScreen() {
   const handleBook = async () => {
     if (!selectedBookingWindow || !selectedOption) return;
     setBusy(true);
-    const result = await bookAvailability(selectedBookingWindow.id, selectedOption.start.toISOString(), duration);
-    setBusy(false);
-    if (result.success) {
-      haptic.success();
-      setShowReview(false);
-      setSelectedStart(null);
-      Alert.alert(t("youreBooked"), result.message);
-    } else {
+    try {
+      const result = await bookAvailability(selectedBookingWindow.id, selectedOption.start.toISOString(), duration);
+      if (result.success) {
+        haptic.success();
+        setShowReview(false);
+        setSelectedStart(null);
+        setBookingFeedback({ title: t("youreBooked"), message: result.message ?? t("bookingConfirmedToast"), tone: "success" });
+      } else {
+        haptic.error();
+        setShowReview(false);
+        setBookingFeedback({ title: t("couldntBook"), message: t(bookingFailureTranslationKey(result.error)), tone: "error" });
+      }
+    } catch {
       haptic.error();
-      Alert.alert(t("couldntBook"), result.error);
+      setShowReview(false);
+      setBookingFeedback({ title: t("couldntBook"), message: t("bookingUnavailable"), tone: "error" });
+    } finally {
+      setBusy(false);
     }
   };
 
@@ -251,7 +262,6 @@ export default function BookScreen() {
 
           <View style={styles.timeHeading}>
             <Text style={[styles.stepLabel, { color: colors.muted }]}>4. {t("chooseStartTime")}</Text>
-            <Text style={[styles.timeCount, { color: colors.muted }]}>{timeOptions.length} {t("availableCount")}</Text>
           </View>
           {timeOptions.length ? <Pressable onPress={openTimePicker} style={({ pressed }) => [styles.timeChoice, { backgroundColor: colors.surface, borderColor: selectedOption ? "#f04488" : colors.border }, pressed && styles.pressed]}>
             <View>
@@ -273,6 +283,7 @@ export default function BookScreen() {
       </ScrollView>
 
       <BookingReview visible={showReview} window={selectedBookingWindow} option={selectedOption} duration={duration} colors={colors} language={language} t={t} busy={busy} onClose={() => setShowReview(false)} onBook={handleBook} />
+      <BookingFeedbackSheet feedback={bookingFeedback} colors={colors} t={t} onClose={() => setBookingFeedback(null)} />
       <DurationPicker visible={showDurationPicker} value={durationDraft} colors={colors} t={t} onChange={setDurationDraft} onClose={() => setShowDurationPicker(false)} onSave={saveCustomDuration} />
       <StartTimePicker visible={showTimePicker} value={timeDraft} colors={colors} t={t} error={timeError} onChange={setTimeDraft} onClose={() => setShowTimePicker(false)} onSave={saveStartTime} />
     </ScreenContainer>
@@ -293,6 +304,11 @@ function AvailabilityCard({ window, selected, snapshot, language, t, colors, onP
 
 function BookingReview({ visible, window, option, duration, colors, language, t, busy, onClose, onBook }: { visible: boolean; window: AvailabilityShift | null; option: TimeOption | null; duration: number; colors: ReturnType<typeof useColors>; language: "en" | "vi"; t: Translation; busy: boolean; onClose: () => void; onBook: () => void }) {
   return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.modalBackdrop}><View style={[styles.sheet, { backgroundColor: "#151518", borderColor: colors.border }]}><View style={styles.sheetHandle} /><Text style={styles.sheetEyebrow}>{t("finalStep")}</Text><Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t("confirmSessionTime")}</Text>{window && option ? <><Text style={[styles.sheetDate, { color: colors.foreground }]}>{formatDateLocalized(option.start.toISOString(), language)}</Text><Text style={[styles.sheetTime, { color: colors.foreground }]}>{formatTimeLocalized(option.start, language)}–{formatTimeLocalized(option.end, language)}</Text><Text style={[styles.sheetMeta, { color: colors.muted }]}>{duration} {t("minutes")} · {window.location} · {option.remaining} {t("remainingCapacity")}</Text></> : null}<Text style={[styles.policyText, { color: colors.muted }]}>{t("sessionMustFit")}</Text><View style={styles.sheetActions}><GhostButton title={t("back")} onPress={onClose} /><View style={styles.confirmWrap}><PrimaryButton title={busy ? t("publishing") : t("confirmBookingTitle")} onPress={onBook} disabled={busy} /></View></View></View></View></Modal>;
+}
+
+function BookingFeedbackSheet({ feedback, colors, t, onClose }: { feedback: BookingFeedback | null; colors: ReturnType<typeof useColors>; t: Translation; onClose: () => void }) {
+  const success = feedback?.tone === "success";
+  return <Modal visible={Boolean(feedback)} transparent animationType="fade" onRequestClose={onClose}><View style={styles.modalBackdrop}><View style={[styles.resultSheet, { backgroundColor: "#151518", borderColor: success ? "#32d77b" : "#f04488" }]}><View style={[styles.resultIcon, { backgroundColor: success ? "#173629" : "#3a1f2b" }]}><Text style={[styles.resultIconText, { color: success ? "#5ce49a" : "#ff82b7" }]}>{success ? "✓" : "!"}</Text></View><Text style={[styles.resultTitle, { color: colors.foreground }]}>{feedback?.title}</Text><Text style={[styles.resultMessage, { color: colors.muted }]}>{feedback?.message}</Text><View style={styles.resultAction}><PrimaryButton title={t("bookingFeedbackDone")} onPress={onClose} /></View></View></View></Modal>;
 }
 
 function DurationPicker({ visible, value, colors, t, onChange, onClose, onSave }: { visible: boolean; value: number; colors: ReturnType<typeof useColors>; t: Translation; onChange: (value: number) => void; onClose: () => void; onSave: () => void }) {
@@ -409,6 +425,12 @@ const styles = StyleSheet.create({
   sheetMeta: { fontSize: 12, lineHeight: 18 },
   policyText: { fontSize: 12, lineHeight: 18, marginTop: 4 },
   sheetActions: { flexDirection: "row", gap: 10, alignItems: "center", marginTop: 3 },
+  resultSheet: { width: "88%", maxWidth: 420, borderRadius: 24, borderWidth: 1, padding: 24, alignItems: "center" },
+  resultIcon: { width: 50, height: 50, borderRadius: 25, justifyContent: "center", alignItems: "center", marginBottom: 14 },
+  resultIconText: { fontSize: 26, fontWeight: "900" },
+  resultTitle: { fontSize: 20, fontWeight: "900", textAlign: "center" },
+  resultMessage: { fontSize: 14, lineHeight: 21, textAlign: "center", marginTop: 8 },
+  resultAction: { width: "100%", marginTop: 20 },
   pickerBackdrop: { flex: 1, justifyContent: "center", padding: 20, backgroundColor: "rgba(0,0,0,0.72)" },
   pickerSheet: { borderRadius: 24, borderWidth: 1, padding: 18, gap: 13 },
   pickerHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
