@@ -2,7 +2,8 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
 import type { Express, Request, Response } from "express";
 import { randomBytes } from "node:crypto";
 import { parse as parseCookie } from "cookie";
-import { getLocalUserByUsername, getUserByOpenId, updateUserLastSignedIn, upsertUser } from "../db";
+import { getLocalUserByUsername, getUserByOpenId, syncVerifiedGoogleUser, updateUserLastSignedIn } from "../db";
+import { hasVerifiedGoogleIdentity, isAdminLocalAccount } from "../google-authorization";
 import { isValidLocalPassword, isValidLocalUsername, normalizeLocalUsername, verifyLocalPassword } from "../local-credentials";
 import { getSessionCookieOptions } from "./cookies";
 import { ENV } from "./env";
@@ -11,37 +12,6 @@ import { sdk } from "./sdk";
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
   return typeof value === "string" ? value : undefined;
-}
-
-async function syncUser(userInfo: {
-  openId?: string | null;
-  name?: string | null;
-  email?: string | null;
-  loginMethod?: string | null;
-  platform?: string | null;
-}) {
-  if (!userInfo.openId) {
-    throw new Error("openId missing from user info");
-  }
-
-  const lastSignedIn = new Date();
-  await upsertUser({
-    openId: userInfo.openId,
-    name: userInfo.name || null,
-    email: userInfo.email ?? null,
-    loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-    lastSignedIn,
-  });
-  const saved = await getUserByOpenId(userInfo.openId);
-  return (
-    saved ?? {
-      openId: userInfo.openId,
-      name: userInfo.name,
-      email: userInfo.email,
-      loginMethod: userInfo.loginMethod ?? null,
-      lastSignedIn,
-    }
-  );
 }
 
 function buildUserResponse(
@@ -127,7 +97,7 @@ export function registerOAuthRoutes(app: Express) {
       const user = await getLocalUserByUsername(username);
       const passwordHash = user?.passwordHash;
       const validPassword = passwordHash ? await verifyLocalPassword(password, passwordHash) : false;
-      if (!user || !validPassword) {
+      if (!user || !validPassword || !isAdminLocalAccount(user)) {
         invalidCredentials();
         return;
       }
@@ -192,10 +162,12 @@ export function registerOAuthRoutes(app: Express) {
         headers: { Authorization: `Bearer ${token.access_token}` },
       });
       if (!profileResponse.ok) throw new Error("Google profile request failed");
-      const profile = await profileResponse.json() as { sub?: string; name?: string; email?: string };
-      if (!profile.sub) throw new Error("Google profile identifier missing");
-
-      const user = await syncUser({ openId: `google:${profile.sub}`, name: profile.name ?? null, email: profile.email ?? null, loginMethod: "google", platform: "google" });
+      const profile = await profileResponse.json() as { sub?: string; name?: string; email?: string; email_verified?: boolean };
+      if (!hasVerifiedGoogleIdentity(profile)) {
+        res.status(403).json({ error: "A verified Google email is required to sign in." });
+        return;
+      }
+      const user = await syncVerifiedGoogleUser({ openId: `google:${profile.sub}`, name: profile.name ?? null, email: profile.email });
       const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name || "GymFlow member", expiresInMs: ONE_YEAR_MS });
       res.clearCookie(GOOGLE_STATE_COOKIE, googleStateCookieOptions(req));
       res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(req), maxAge: ONE_YEAR_MS });
@@ -207,69 +179,11 @@ export function registerOAuthRoutes(app: Express) {
   });
 
   app.get("/api/oauth/callback", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
-
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
-      return;
-    }
-
-    try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-      await syncUser(userInfo);
-      const sessionToken = await sdk.createSessionToken(userInfo.openId!, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-      // Redirect to the frontend URL (Expo web on port 8081)
-      // Cookie is set with parent domain so it works across both 3000 and 8081 subdomains
-      const frontendUrl =
-        process.env.EXPO_WEB_PREVIEW_URL ||
-        process.env.EXPO_PACKAGER_PROXY_URL ||
-        "http://localhost:8081";
-      res.redirect(302, frontendUrl);
-    } catch (error) {
-      console.error("[OAuth] Callback failed", error);
-      res.status(500).json({ error: "OAuth callback failed" });
-    }
+    res.status(410).json({ error: "This sign-in route is unavailable. Use Google Sign-In." });
   });
 
   app.get("/api/oauth/mobile", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
-
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
-      return;
-    }
-
-    try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-      const user = await syncUser(userInfo);
-
-      const sessionToken = await sdk.createSessionToken(userInfo.openId!, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-      res.json({
-        app_session_id: sessionToken,
-        user: buildUserResponse(user),
-      });
-    } catch (error) {
-      console.error("[OAuth] Mobile exchange failed", error);
-      res.status(500).json({ error: "OAuth mobile exchange failed" });
-    }
+    res.status(410).json({ error: "This sign-in route is unavailable. Use Google Sign-In." });
   });
 
   app.post("/api/auth/logout", (req: Request, res: Response) => {

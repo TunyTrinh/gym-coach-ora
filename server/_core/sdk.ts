@@ -282,6 +282,11 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
+    const isAdminLocalUser = user.loginMethod === "local" && user.role === "admin";
+    if (user.loginMethod !== "google" && !isAdminLocalUser) {
+      throw ForbiddenError("Google sign-in is required for Client and Coach access");
+    }
+
     await db.upsertUser({
       openId: user.openId,
       lastSignedIn: signedInAt,

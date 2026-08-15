@@ -4,8 +4,8 @@ import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { bookGymSlot, cancelGymBooking, getGymSnapshot, markGymAttendance } from "./gym-store";
-import { createLocalCoachAccount, getDb, listActiveGyms, listClientAccounts, listCoachAccounts, promoteClientToCoach } from "./db";
-import { hashLocalPassword, isValidLocalPassword, isValidLocalUsername, normalizeLocalUsername } from "./local-credentials";
+import { getAuthorizedCoachIdForUser, getDb, grantCoachGoogleAccess, listActiveGyms, listCoachAccounts, setCoachGoogleAccess } from "./db";
+import { isValidGoogleEmail, normalizeGoogleEmail } from "./google-authorization";
 import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, notifications, serviceTypes, timeSlots, users } from "../drizzle/schema";
 import { and, eq, gt, gte, inArray, lt, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
@@ -46,9 +46,9 @@ async function managedCoachId(db: any, actor: { id: number; role: string }, requ
     return requestedCoachId;
   }
   if (actor.role !== "coach") throw new Error("Coach access is required to manage availability.");
-  const ownCoach = await db.select({ id: coaches.id }).from(coaches).where(eq(coaches.userId, actor.id)).limit(1);
-  if (!ownCoach[0]) throw new Error("Your coach profile is unavailable.");
-  return ownCoach[0].id;
+  const ownCoachId = await getAuthorizedCoachIdForUser(db, actor.id);
+  if (!ownCoachId) throw new Error("Your Coach access is inactive or revoked.");
+  return ownCoachId;
 }
 
 async function canManageShift(db: any, actor: { id: number; role: string }, shiftId: string) {
@@ -97,57 +97,22 @@ export const appRouter = router({
   admin: router({
     listCoachAccounts: adminProcedure.query(() => listCoachAccounts()),
     listActiveGyms: adminProcedure.query(() => listActiveGyms()),
-    listClientAccounts: adminProcedure.query(() => listClientAccounts()),
-    createCoach: adminProcedure
+    authorizeCoach: adminProcedure
       .input(z.object({
-        username: z.string().trim().min(3).max(64),
-        password: z.string().min(10).max(128),
+        email: z.string().trim().min(3).max(320),
         fullName: z.string().trim().min(2).max(255),
         specialty: z.string().trim().min(2).max(255),
         gymId: z.number().int().positive(),
+        coachId: z.number().int().positive().optional(),
       }))
       .mutation(async ({ ctx, input }) => {
-        const username = normalizeLocalUsername(input.username);
-        if (!isValidLocalUsername(username)) {
-          throw new Error("Use 3–64 lowercase letters, numbers, dots, hyphens, or underscores for the username.");
-        }
-        if (!isValidLocalPassword(input.password)) {
-          throw new Error("The initial password must be 10–128 characters.");
-        }
-        return createLocalCoachAccount({
-          username,
-          passwordHash: await hashLocalPassword(input.password),
-          fullName: input.fullName,
-          specialty: input.specialty,
-          gymId: input.gymId,
-          actorUserId: ctx.user.id,
-        });
+        const email = normalizeGoogleEmail(input.email);
+        if (!isValidGoogleEmail(email)) throw new Error("Enter a valid Google email address.");
+        return grantCoachGoogleAccess({ ...input, email, actorUserId: ctx.user.id });
       }),
-    promoteClient: adminProcedure
-      .input(z.object({
-        userId: z.number().int().positive(),
-        fullName: z.string().trim().min(2).max(255),
-        specialty: z.string().trim().min(2).max(255),
-        gymId: z.number().int().positive(),
-      }))
-      .mutation(({ ctx, input }) => promoteClientToCoach({ ...input, actorUserId: ctx.user.id })),
-    updateRole: protectedProcedure
-      .input(z.object({ userId: z.number(), role: z.enum(["client", "coach", "admin"]) }))
-      .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new Error("Unauthorized: Admin access required.");
-        }
-        const db = await getDb();
-        if (!db) throw new Error("Database unavailable");
-        await db.update(users).set({ role: input.role }).where(eq(users.id, input.userId));
-        await db.insert(auditLogs).values({
-          actorUserId: ctx.user.id,
-          action: "UPDATE_ROLE",
-          targetUserId: input.userId,
-          details: `Role updated to ${input.role}`,
-        });
-        return { success: true };
-      }),
+    changeCoachAccess: adminProcedure
+      .input(z.object({ coachId: z.number().int().positive(), status: z.enum(["revoked", "disabled"]) }))
+      .mutation(({ ctx, input }) => setCoachGoogleAccess({ ...input, actorUserId: ctx.user.id })),
     assignClient: protectedProcedure
       .input(z.object({ coachId: z.number(), clientUserId: z.number() }))
       .mutation(async ({ ctx, input }) => {

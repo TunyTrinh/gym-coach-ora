@@ -17,6 +17,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
     id: 1,
     openId: "sample-user",
     email: "sample@example.com",
+    emailNormalized: "sample@example.com",
     name: "Sample User",
     loginMethod: "manus",
     passwordHash: null,
@@ -77,6 +78,7 @@ describe("auth.logout", () => {
     const { ctx } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
 
-    await expect(caller.admin.listClientAccounts()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.listCoachAccounts()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.changeCoachAccess({ coachId: 1, status: "disabled" })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

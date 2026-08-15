@@ -5,13 +5,16 @@ export const users = mysqlTable("users", {
   openId: varchar("openId", { length: 64 }).notNull().unique(),
   name: text("name"),
   email: varchar("email", { length: 320 }),
+  emailNormalized: varchar("emailNormalized", { length: 320 }),
   loginMethod: varchar("loginMethod", { length: 64 }),
   passwordHash: varchar("passwordHash", { length: 255 }),
   role: mysqlEnum("role", ["client", "coach", "admin"]).default("client").notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
   lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
-});
+}, (table) => ({
+  normalizedEmailIndex: uniqueIndex("users_email_normalized_unique").on(table.emailNormalized),
+}));
 
 export const gyms = mysqlTable("gyms", {
   id: int("id").autoincrement().primaryKey(),
@@ -34,6 +37,15 @@ export const coaches = mysqlTable("coaches", {
   specialty: varchar("specialty", { length: 255 }).notNull(),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export const coachAuthorizations = mysqlTable("coachAuthorizations", {
+  id: int("id").autoincrement().primaryKey(),
+  coachId: int("coachId").notNull().unique(),
+  normalizedEmail: varchar("normalizedEmail", { length: 320 }).notNull().unique(),
+  status: mysqlEnum("status", ["authorized", "revoked", "disabled"]).default("authorized").notNull(),
+  authorizedAt: timestamp("authorizedAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 });
 

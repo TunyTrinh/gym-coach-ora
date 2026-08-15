@@ -2,8 +2,9 @@ import { and, eq } from "drizzle-orm";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import { createPool, type Pool } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
-import { auditLogs, coaches, gyms, InsertUser, users } from "../drizzle/schema";
+import { auditLogs, coachAuthorizations, coaches, gyms, InsertUser, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
+import { normalizeGoogleEmail } from "./google-authorization";
 
 let _db: MySql2Database | null = null;
 let _pool: Pool | null = null;
@@ -74,6 +75,12 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
     textFields.forEach(assignNullable);
 
+    if (user.email !== undefined) {
+      const emailNormalized = user.email ? normalizeGoogleEmail(user.email) : null;
+      values.emailNormalized = emailNormalized;
+      updateSet.emailNormalized = emailNormalized;
+    }
+
     if (user.lastSignedIn !== undefined) {
       values.lastSignedIn = user.lastSignedIn;
       updateSet.lastSignedIn = user.lastSignedIn;
@@ -123,7 +130,7 @@ export async function createLocalUser(input: {
   username: string;
   passwordHash: string;
   name: string;
-  role: "client" | "coach" | "admin";
+  role: "admin";
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
@@ -136,6 +143,7 @@ export async function createLocalUser(input: {
     openId,
     name: input.name,
     email: input.username,
+    emailNormalized: normalizeGoogleEmail(input.username),
     loginMethod: "local",
     passwordHash: input.passwordHash,
     role: input.role,
@@ -153,6 +161,13 @@ export async function updateUserLastSignedIn(userId: number) {
   await db.update(users).set({ lastSignedIn: new Date() }).where(eq(users.id, userId));
 }
 
+export async function getUserByNormalizedEmail(email: string) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const result = await db.select().from(users).where(eq(users.emailNormalized, normalizeGoogleEmail(email))).limit(1);
+  return result[0];
+}
+
 export async function listActiveGyms() {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
@@ -168,9 +183,13 @@ export async function listCoachAccounts() {
     fullName: coaches.fullName,
     specialty: coaches.specialty,
     gymId: coaches.gymId,
-    username: users.email,
+    email: coachAuthorizations.normalizedEmail,
     active: coaches.active,
-  }).from(coaches).leftJoin(users, eq(coaches.userId, users.id)).where(eq(coaches.active, true));
+    authorizationStatus: coachAuthorizations.status,
+    linkedEmail: users.email,
+  }).from(coaches)
+    .leftJoin(coachAuthorizations, eq(coachAuthorizations.coachId, coaches.id))
+    .leftJoin(users, eq(coaches.userId, users.id));
 }
 
 export async function listClientAccounts() {
@@ -179,86 +198,97 @@ export async function listClientAccounts() {
   return db.select({ id: users.id, name: users.name, username: users.email }).from(users).where(eq(users.role, "client"));
 }
 
-export async function createLocalCoachAccount(input: {
-  username: string;
-  passwordHash: string;
+export async function grantCoachGoogleAccess(input: {
+  email: string;
   fullName: string;
   specialty: string;
   gymId: number;
   actorUserId: number;
+  coachId?: number;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
-
-  return db.transaction(async (tx: any) => {
-    const gym = await tx.select({ id: gyms.id }).from(gyms).where(and(eq(gyms.id, input.gymId), eq(gyms.active, true))).limit(1);
-    if (!gym[0]) throw new Error("Select an active gym for this Coach account.");
-
-    const openId = `local:${input.username}`;
-    const existing = await tx.select({ id: users.id }).from(users).where(eq(users.openId, openId)).limit(1);
-    if (existing[0]) throw new Error("That username is already in use.");
-
-    await tx.insert(users).values({
-      openId,
-      name: input.fullName,
-      email: input.username,
-      loginMethod: "local",
-      passwordHash: input.passwordHash,
-      role: "coach",
-      lastSignedIn: new Date(),
-    });
-    const user = await tx.select({ id: users.id }).from(users).where(eq(users.openId, openId)).limit(1);
-    if (!user[0]) throw new Error("Coach account could not be created.");
-
-    const externalId = `coach-${randomUUID()}`;
-    await tx.insert(coaches).values({
-      externalId,
-      gymId: input.gymId,
-      userId: user[0].id,
-      fullName: input.fullName,
-      specialty: input.specialty,
-      active: true,
-    });
-    await tx.insert(auditLogs).values({
-      actorUserId: input.actorUserId,
-      action: "CREATE_COACH_ACCOUNT",
-      targetUserId: user[0].id,
-      details: `Created Coach account ${input.username} for gym ${input.gymId}.`,
-    });
-
-    return { accountId: user[0].id, coachId: externalId };
-  });
-}
-
-export async function promoteClientToCoach(input: {
-  userId: number;
-  fullName: string;
-  specialty: string;
-  gymId: number;
-  actorUserId: number;
-}) {
-  const db = await getDb();
-  if (!db) throw new Error("Database unavailable");
-
   return db.transaction(async (tx: any) => {
     const gym = await tx.select({ id: gyms.id }).from(gyms).where(and(eq(gyms.id, input.gymId), eq(gyms.active, true))).limit(1);
     if (!gym[0]) throw new Error("Select an active gym for this Coach profile.");
-    const user = await tx.select({ id: users.id, role: users.role }).from(users).where(eq(users.id, input.userId)).limit(1);
-    if (!user[0] || user[0].role !== "client") throw new Error("Only an existing Client account can be promoted to Coach.");
-    const existingCoach = await tx.select({ id: coaches.id }).from(coaches).where(eq(coaches.userId, input.userId)).limit(1);
-    if (existingCoach[0]) throw new Error("This Client already has a Coach profile.");
-
-    await tx.update(users).set({ role: "coach", name: input.fullName }).where(eq(users.id, input.userId));
-    const externalId = `coach-${randomUUID()}`;
-    await tx.insert(coaches).values({ externalId, gymId: input.gymId, userId: input.userId, fullName: input.fullName, specialty: input.specialty, active: true });
-    await tx.insert(auditLogs).values({
-      actorUserId: input.actorUserId,
-      action: "PROMOTE_CLIENT_TO_COACH",
-      targetUserId: input.userId,
-      details: `Promoted Client ${input.userId} to Coach at gym ${input.gymId}.`,
-    });
-    return { accountId: input.userId, coachId: externalId };
+    const normalizedEmail = normalizeGoogleEmail(input.email);
+    const matchingUser = await tx.select({ id: users.id, loginMethod: users.loginMethod }).from(users).where(eq(users.emailNormalized, normalizedEmail)).limit(1);
+    if (matchingUser[0] && matchingUser[0].loginMethod !== "google") throw new Error("This email is already used by a non-Google account.");
+    let coachId = input.coachId;
+    if (coachId) {
+      const coach = await tx.select({ id: coaches.id, userId: coaches.userId }).from(coaches).where(eq(coaches.id, coachId)).limit(1);
+      if (!coach[0]) throw new Error("Coach profile not found.");
+      if (coach[0].userId && matchingUser[0] && coach[0].userId !== matchingUser[0].id) throw new Error("This Coach profile is already linked to another Google account.");
+      await tx.update(coaches).set({ gymId: input.gymId, fullName: input.fullName, specialty: input.specialty, active: true, userId: matchingUser[0]?.id ?? coach[0].userId }).where(eq(coaches.id, coachId));
+      const existingAuthorization = await tx.select({ id: coachAuthorizations.id }).from(coachAuthorizations).where(eq(coachAuthorizations.coachId, coachId)).limit(1);
+      if (existingAuthorization[0]) await tx.update(coachAuthorizations).set({ normalizedEmail, status: "authorized" }).where(eq(coachAuthorizations.id, existingAuthorization[0].id));
+      else await tx.insert(coachAuthorizations).values({ coachId, normalizedEmail, status: "authorized" });
+    } else {
+      const existingAuthorization = await tx.select({ id: coachAuthorizations.id }).from(coachAuthorizations).where(eq(coachAuthorizations.normalizedEmail, normalizedEmail)).limit(1);
+      if (existingAuthorization[0]) throw new Error("This Google email is already authorized for another Coach profile.");
+      const externalId = `coach-${randomUUID()}`;
+      await tx.insert(coaches).values({ externalId, gymId: input.gymId, userId: matchingUser[0]?.id ?? null, fullName: input.fullName, specialty: input.specialty, active: true });
+      const coach = await tx.select({ id: coaches.id }).from(coaches).where(eq(coaches.externalId, externalId)).limit(1);
+      if (!coach[0]) throw new Error("Coach profile could not be created.");
+      coachId = coach[0].id;
+      await tx.insert(coachAuthorizations).values({ coachId, normalizedEmail, status: "authorized" });
+    }
+    if (!coachId) throw new Error("Coach profile could not be authorized.");
+    if (matchingUser[0]) await tx.update(users).set({ role: "coach", name: input.fullName }).where(eq(users.id, matchingUser[0].id));
+    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: input.coachId ? "AUTHORIZE_COACH_GOOGLE_EMAIL" : "GRANT_COACH_GOOGLE_ACCESS", targetUserId: matchingUser[0]?.id ?? null, details: `Authorized ${normalizedEmail} for Coach profile ${coachId} at gym ${input.gymId}.` });
+    return { coachId, email: normalizedEmail };
   });
+}
+
+export async function setCoachGoogleAccess(input: { coachId: number; status: "revoked" | "disabled"; actorUserId: number }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  return db.transaction(async (tx: any) => {
+    const coach = await tx.select({ id: coaches.id, userId: coaches.userId }).from(coaches).where(eq(coaches.id, input.coachId)).limit(1);
+    if (!coach[0]) throw new Error("Coach profile not found.");
+    const authorization = await tx.select({ id: coachAuthorizations.id }).from(coachAuthorizations).where(eq(coachAuthorizations.coachId, input.coachId)).limit(1);
+    if (!authorization[0]) throw new Error("This Coach profile has no Google authorization to change.");
+    await tx.update(coachAuthorizations).set({ status: input.status }).where(eq(coachAuthorizations.id, authorization[0].id));
+    await tx.update(coaches).set({ active: false }).where(eq(coaches.id, input.coachId));
+    if (coach[0].userId) await tx.update(users).set({ role: "client" }).where(eq(users.id, coach[0].userId));
+    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: input.status === "revoked" ? "REVOKE_COACH_GOOGLE_ACCESS" : "DISABLE_COACH_GOOGLE_ACCESS", targetUserId: coach[0].userId, details: `${input.status} Coach profile ${input.coachId}; existing Coach data was retained.` });
+    return { success: true as const };
+  });
+}
+
+export async function syncVerifiedGoogleUser(input: { openId: string; name: string | null; email: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const normalizedEmail = normalizeGoogleEmail(input.email);
+  return db.transaction(async (tx: any) => {
+    const existingByOpenId = await tx.select().from(users).where(eq(users.openId, input.openId)).limit(1);
+    const existingByEmail = await tx.select().from(users).where(eq(users.emailNormalized, normalizedEmail)).limit(1);
+    if (existingByEmail[0] && existingByEmail[0].openId !== input.openId) throw new Error("A separate account already uses this Google email.");
+    const authorization = await tx.select({ coachId: coachAuthorizations.coachId, status: coachAuthorizations.status }).from(coachAuthorizations).where(eq(coachAuthorizations.normalizedEmail, normalizedEmail)).limit(1);
+    const authorizedCoach = authorization[0]?.status === "authorized" ? authorization[0] : null;
+    const priorRole = existingByOpenId[0]?.role;
+    const role = priorRole === "admin" ? "admin" : authorizedCoach ? "coach" : "client";
+    await tx.insert(users).values({ openId: input.openId, name: input.name, email: normalizedEmail, emailNormalized: normalizedEmail, loginMethod: "google", role, lastSignedIn: new Date() }).onDuplicateKeyUpdate({ set: { name: input.name, email: normalizedEmail, emailNormalized: normalizedEmail, loginMethod: "google", role, lastSignedIn: new Date() } });
+    const user = await tx.select().from(users).where(eq(users.openId, input.openId)).limit(1);
+    if (!user[0]) throw new Error("Google user could not be saved.");
+    if (authorizedCoach) {
+      await tx.update(coaches).set({ userId: user[0].id, active: true }).where(eq(coaches.id, authorizedCoach.coachId));
+      if (role === "coach" && priorRole !== "coach") {
+        await tx.insert(auditLogs).values({
+          actorUserId: user[0].id,
+          action: "APPLY_COACH_GOOGLE_AUTHORIZATION",
+          targetUserId: user[0].id,
+          details: `Applied verified Google Coach authorization for ${normalizedEmail} to Coach profile ${authorizedCoach.coachId}.`,
+        });
+      }
+    }
+    return user[0];
+  });
+}
+
+export async function getAuthorizedCoachIdForUser(db: any, userId: number) {
+  const result = await db.select({ id: coaches.id }).from(coaches).innerJoin(coachAuthorizations, eq(coachAuthorizations.coachId, coaches.id)).where(and(eq(coaches.userId, userId), eq(coaches.active, true), eq(coachAuthorizations.status, "authorized"))).limit(1);
+  return result[0]?.id;
 }
 
 // TODO: add feature queries here as your schema grows.

@@ -180,3 +180,8 @@
 - [x] Add an Admin-only Coach account creation form, Client promotion, server-side validation, and audit logging
 - [x] Add regression tests and validate local login plus Admin Coach-account creation
 - [x] Keep the local-account username/password form hidden until the user taps the bilingual account sign-in link
+- [x] Restrict local username/password sign-in to the protected Admin account only
+- [x] Authorize Coach access by normalized verified Google email without creating duplicate accounts
+- [x] Add Admin-only Coach grant, revoke, and disable controls with audit logs for every role change
+- [x] Preserve Coach profiles through Google sign-in and enforce revocation on backend-protected procedures
+- [x] Add authorization, email-verification, revocation, and role-permission regression coverage
