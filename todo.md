@@ -204,3 +204,4 @@
 - [x] Fix the blank Admin rendering state and duplicate User tab label after the Admin navigation update
 - [x] Make the development-preview role switch immediately apply the matching Admin navigation and screens
 - [x] Align the Admin room calendar size and day-cell layout with Client and Coach calendars
+- [x] Re-verify Admin-controlled Coach Google-email authorization, revocation, and role enforcement end to end
