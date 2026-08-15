@@ -6,8 +6,11 @@ import { PrimaryButton, ScreenHeader, SpectrumCard, SurfaceCard } from "@/compon
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
+import { buildAdminPreviewRoomCalendar } from "@/lib/admin-room-preview";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
+import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
+import { isLocalTestMode } from "@/lib/local-test-mode";
 import { trpc } from "@/lib/trpc";
 
 type RoomForm = { roomId?: number; gymId: number | null; name: string; address: string; description: string; maximumCapacity: string; active: boolean };
@@ -17,6 +20,7 @@ const addDays = (value: Date, days: number) => new Date(value.getFullYear(), val
 
 export default function RoomsScreen() {
   const { user } = useAuth();
+  const { snapshot } = useGym();
   const { t, language } = useLanguage();
   const colors = useColors();
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
@@ -67,8 +71,23 @@ export default function RoomsScreen() {
     }
     return map;
   }, [schedule.data?.bookings]);
+  const isAuthenticatedAdmin = user?.role === "admin";
+  const isPreviewAdmin = !isAuthenticatedAdmin && isLocalTestMode() && snapshot.member.role === "admin";
+  const previewCalendar = useMemo(() => buildAdminPreviewRoomCalendar(snapshot), [snapshot]);
 
-  if (user?.role !== "admin") return <ScreenContainer className="px-5" edges={["top", "bottom", "left", "right"]}><View style={styles.restricted}><ScreenHeader title={t("rooms")} subtitle={t("adminAccessRequired")} label={t("restricted")} /><PrimaryButton title={t("back")} onPress={() => router.back()} /></View></ScreenContainer>;
+  if (!isAuthenticatedAdmin && !isPreviewAdmin) return <ScreenContainer className="px-5" edges={["top", "bottom", "left", "right"]}><View style={styles.restricted}><ScreenHeader title={t("rooms")} subtitle={t("adminAccessRequired")} label={t("restricted")} /><PrimaryButton title={t("back")} onPress={() => router.back()} /></View></ScreenContainer>;
+
+  if (isPreviewAdmin) return <ScreenContainer className="px-5" edges={["top", "bottom", "left", "right"]}>
+    <View style={styles.topBar}><Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t("back")} style={styles.backButton}><Text style={styles.backText}>‹ {t("back")}</Text></Pressable></View>
+    <FlatList
+      data={previewCalendar.rooms}
+      keyExtractor={(item) => item.id}
+      contentContainerStyle={styles.content}
+      ListHeaderComponent={<View style={styles.header}><ScreenHeader title={t("rooms")} subtitle={t("roomsBody")} label={t("admin")} /><SpectrumCard style={styles.hero}><Text style={styles.heroEyebrow}>{t("admin").toUpperCase()}</Text><Text style={styles.heroTitle}>{t("adminPreviewTitle")}</Text><Text style={styles.heroBody}>{t("adminPreviewReadOnly")}</Text></SpectrumCard><Text style={[styles.sectionLabel, { color: colors.muted }]}>{t("selectRoom").toUpperCase()}</Text></View>}
+      ListEmptyComponent={<SurfaceCard style={styles.empty}><Text style={[styles.emptyText, { color: colors.muted }]}>{t("noRooms")}</Text></SurfaceCard>}
+      renderItem={({ item }) => { const windows = previewCalendar.windows.filter((window) => window.roomId === item.id); const bookings = previewCalendar.bookings.filter((booking) => windows.some((window) => window.id === booking.availabilityId)); return <SurfaceCard style={styles.roomInfo}><View style={styles.roomInfoCopy}><Text style={[styles.roomName, { color: colors.foreground }]}>{item.name}</Text><Text style={[styles.roomMeta, { color: colors.muted }]}>{windows.length} {t("openAvailabilityCount").toLowerCase()} · {bookings.length} {t("bookedSessionCount").toLowerCase()}</Text><Text style={styles.capacity}>{item.maximumCapacity} {t("clientsInRoom").toLowerCase()}</Text></View></SurfaceCard>; }}
+    />
+  </ScreenContainer>;
 
   return <ScreenContainer className="px-5" edges={["top", "bottom", "left", "right"]}>
     <View style={styles.topBar}><Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t("back")} style={styles.backButton}><Text style={styles.backText}>‹ {t("back")}</Text></Pressable></View>
