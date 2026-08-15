@@ -172,3 +172,4 @@
 - [x] Allow the managed Preview panel to bypass the login gate automatically while enforcing Google Sign-In on the public website and production app builds
 - [x] Replace the static offline banner with real online/offline network status
 - [x] Make the web PWA installation card invoke the browser install prompt when available and show platform-appropriate fallback guidance otherwise
+- [ ] Diagnose why the public deployment serves an earlier static web bundle after a successful backend publication and correct the release path

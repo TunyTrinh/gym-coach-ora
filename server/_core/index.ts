@@ -119,6 +119,9 @@ async function startServer() {
         res.status(404).json({ error: "API route not found" });
         return;
       }
+      // The HTML entry selects the hashed JavaScript bundle. Never allow a
+      // proxy, browser, or older service worker to retain it across releases.
+      res.setHeader("Cache-Control", "no-cache, no-store, max-age=0, must-revalidate");
       res.sendFile(path.join(staticDir, "index.html"));
     });
   }
