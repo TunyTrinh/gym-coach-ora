@@ -165,3 +165,5 @@
 - [x] Apply the exact supplied full Coachora logo to splash and web branding surfaces
 - [x] Apply a matching square crop from the supplied Coachora logo to launcher and PWA icon surfaces
 - [x] Replace the login screen’s legacy logo treatment with the supplied full Coachora mark
+- [ ] Verify the public deployment serves the latest Coachora login-screen logo and resolve any stale cache path
+- [ ] Inspect the public HTML and JavaScript bundle for the active sign-in logo reference, then correct any deployment-specific branding mismatch
