@@ -1,4 +1,4 @@
-import { boolean, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { boolean, date, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -43,13 +43,26 @@ export const gymRooms = mysqlTable("gymRooms", {
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   gymRoomNameUnique: uniqueIndex("gym_rooms_gym_name_unique").on(table.gymId, table.nameNormalized),
-  gymRoomActiveIndex: index("gym_rooms_gym_active_idx").on(table.gymId, table.active),
+	gymRoomActiveIndex: index("gym_rooms_gym_active_idx").on(table.gymId, table.active),
+}));
+
+/** An Admin-recorded temporary closure for one physical room on one calendar date. */
+export const roomClosures = mysqlTable("roomClosures", {
+	id: int("id").autoincrement().primaryKey(),
+	roomId: int("roomId").notNull(),
+	closureDate: date("closureDate", { mode: "string" }).notNull(),
+	reason: text("reason"),
+	createdBy: int("createdBy").notNull(),
+	createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+	roomClosureDateUnique: uniqueIndex("room_closures_room_date_unique").on(table.roomId, table.closureDate),
+	roomClosureDateIndex: index("room_closures_date_idx").on(table.closureDate),
 }));
 
 export const coaches = mysqlTable("coaches", {
   id: int("id").autoincrement().primaryKey(),
   externalId: varchar("externalId", { length: 64 }).notNull().unique(),
-  gymId: int("gymId").notNull(),
+  gymId: int("gymId"),
   userId: int("userId"),
   fullName: varchar("fullName", { length: 255 }).notNull(),
   specialty: varchar("specialty", { length: 255 }).notNull(),

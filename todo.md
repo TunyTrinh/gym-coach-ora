@@ -209,3 +209,14 @@
 - [x] Fix Client booking room visibility so the Admin calendar resolves the same managed room identifier
 - [x] Allow the managed preview Admin role to open Admin management routes without weakening production authorization
 - [x] Keep the Admin bottom navigation visible when opening Coach access and Room management
+- [x] Add typed-name Admin confirmation before deleting a Coach or room
+- [x] Demote deleted Coach accounts to Client while retaining their user and booking history
+- [x] Notify affected Clients when an Admin removes a Coach
+- [x] Notify affected Coaches and Clients when an Admin removes a room
+- [x] Add room active/inactive notification handling for people with shifts today
+- [x] Add calendar-based temporary room closures that notify affected Coach and Client bookings
+- [x] Make the Admin Coach authorization form’s gym assignment optional
+- [x] Default Coach availability to the assigned gym’s active room while allowing selection of any active room
+- [x] Repair Admin room deletion so exact typed room-name confirmation opens and completes the protected deletion flow
+- [x] Make the Admin room delete action visible and reachable from the selected room’s Edit room flow
+- [x] Normalize Create room button enabled and disabled styling with clear bilingual validation feedback

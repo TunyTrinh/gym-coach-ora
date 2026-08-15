@@ -78,7 +78,7 @@ export function Avatar({ initials, accent, size = 44 }: { initials: string; acce
 export function PrimaryButton({ title, onPress, icon, disabled = false }: { title: string; onPress: () => void; icon?: any; disabled?: boolean }) {
   const reducedMotion = useReducedMotion();
   const handlePress = () => { haptic.light(); onPress(); };
-  return <Pressable onPress={handlePress} disabled={disabled} accessibilityRole="button" accessibilityLabel={title} style={({ pressed }) => [styles.primaryButton, disabled && styles.disabledButton, pressed && !disabled && (reducedMotion ? styles.pressed : styles.buttonPressed)]}>
+  return <Pressable onPress={handlePress} disabled={disabled} accessibilityRole="button" accessibilityLabel={title} accessibilityState={{ disabled }} style={({ pressed }) => [styles.primaryButton, disabled && styles.disabledButton, pressed && !disabled && (reducedMotion ? styles.pressed : styles.buttonPressed)]}>
     {!disabled ? <SpectrumFill /> : null}
     <View style={styles.buttonContent}>{icon ? <IconSymbol name={icon} size={18} color="#ffffff" /> : null}<Text style={styles.primaryButtonText}>{title}</Text></View>
   </Pressable>;
@@ -124,7 +124,7 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 11, fontWeight: "800", letterSpacing: 0.15 },
   avatar: { alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
   avatarText: { color: "#0d0d0f", fontWeight: "800" },
-  primaryButton: { minHeight: 52, borderRadius: 16, overflow: "hidden", justifyContent: "center" },
+  primaryButton: { minHeight: 52, borderRadius: 16, overflow: "hidden", justifyContent: "center", backgroundColor: "#d64b84" },
   disabledButton: { backgroundColor: "#303036" },
   buttonContent: { minHeight: 52, paddingHorizontal: 18, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   primaryButtonText: { color: "#ffffff", fontSize: 15, fontWeight: "800" },

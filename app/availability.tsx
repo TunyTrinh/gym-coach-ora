@@ -11,6 +11,7 @@ import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
 import { isLocalTestMode } from "@/lib/local-test-mode";
 import { trpc } from "@/lib/trpc";
+import { defaultAvailabilityRoomId } from "@/lib/availability-room-default";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
 import { getBookingSlot, type AvailabilityCreateInput, type AvailabilityShift } from "@/shared/gym";
 
@@ -20,7 +21,7 @@ const wheelPeriods = ["AM", "PM"];
 const rowHeight = 44;
 
 type AvailabilityFeedback = { success: boolean; title: string; message: string };
-type RoomOption = { id: string | number; name: string; maximumCapacity: number };
+type RoomOption = { id: string | number; name: string; maximumCapacity: number; defaultGym?: boolean };
 
 const previewRooms: RoomOption[] = [
   { id: "preview-studio-a", name: "Studio A", maximumCapacity: 8 },
@@ -96,7 +97,7 @@ export default function AvailabilityScreen() {
   const [availabilityFeedback, setAvailabilityFeedback] = useState<AvailabilityFeedback | null>(null);
   const roomOptions = useMemo<RoomOption[]>(() => previewMode
     ? previewRooms
-    : (activeRoomsQuery.data ?? []).map((room) => ({ id: room.id, name: room.name, maximumCapacity: room.maximumCapacity })), [activeRoomsQuery.data, previewMode]);
+    : (activeRoomsQuery.data ?? []).map((room) => ({ id: room.id, name: room.name, maximumCapacity: room.maximumCapacity, defaultGym: room.defaultGym })), [activeRoomsQuery.data, previewMode]);
 
   const windows = useMemo(() => snapshot.availabilityShifts
     .filter((window) => (isAdmin ? window.coachId === selectedCoachId : window.coachId === "coach-maya"))
@@ -212,9 +213,10 @@ function CreateAvailabilitySheet({ visible, coachId, language, t, busy, rooms, o
   const violatesTodayLeadTime = isToday && selectedStart.getTime() < Date.now() + 30 * 60_000;
 
   useEffect(() => {
-    if (!selectedRoom && rooms[0]) setRoomId(rooms[0].id);
+    const preferredRoomId = defaultAvailabilityRoomId(rooms, roomId);
+    if (preferredRoomId !== roomId) setRoomId(preferredRoomId);
     if (selectedRoom && capacity > selectedRoom.maximumCapacity) setCapacity(selectedRoom.maximumCapacity);
-  }, [capacity, rooms, selectedRoom]);
+  }, [capacity, roomId, rooms, selectedRoom]);
 
   const openPicker = (field: "start" | "end") => { setTimeDraft(field === "start" ? startTime : endTime); setActiveTimeField(field); };
   const savePicker = () => { if (activeTimeField === "start") setStartTime(timeDraft); if (activeTimeField === "end") setEndTime(timeDraft); setActiveTimeField(null); };
