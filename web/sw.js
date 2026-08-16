@@ -1,4 +1,4 @@
-const CACHE_NAME = "coachora-shell-54933974f2d5ca55270a";
+const CACHE_NAME = "coachora-shell-b84a7d2704a27f168913";
 const APP_SHELL = ["/", "/offline.html", "/manifest.json", "/release.json", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png"];
 
 function isCacheableAsset(requestUrl) {

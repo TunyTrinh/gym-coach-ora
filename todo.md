@@ -44,3 +44,13 @@
 - [x] Verify environment-specific domains, secrets, and database targets remain isolated while schema/migrations stay identical
 - [ ] Publish the unified checkpoint, then validate Preview and public PWA UI, authentication, permissions, APIs, migrations, booking, localization, and cache updates against the promoted artifact
 - [x] Report root causes, consolidation outcomes, remaining environment boundaries, and test evidence
+
+- [x] Verify why the public PWA still serves a different release after publishing checkpoint `4ce10929`
+- [x] Compare live public release manifest, bundle hash, Preview checkpoint, and service-worker state
+- [x] Trace whether the remaining difference is stale public deployment, public host routing, runtime auth state, or browser cache
+- [x] Apply and validate the minimal corrective action without deleting code or production data
+- [x] Report the exact remaining cause and the public verification result
+- [x] Remove Preview’s seeded room-calendar data path from normal app behavior
+- [x] Make both Preview and public PWA room screens read the same authoritative database-backed room APIs
+- [x] Preserve demo fixtures only behind an explicit developer-only opt-in, not host-based default behavior
+- [x] Validate the signed-out entry state and room-data source consistently in Preview and public PWA
