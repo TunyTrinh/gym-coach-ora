@@ -8,7 +8,7 @@
     "dev:server": "cross-env NODE_ENV=development tsx watch server/_core/index.ts",
     "dev:metro": "cross-env NODE_OPTIONS=--max-old-space-size=1024 EXPO_USE_METRO_WORKSPACE_ROOT=1 npx expo start --web --max-workers 1 --port ${EXPO_PORT:-8081}",
     "build": "pnpm build:web && esbuild server/_core/index.ts --platform=node --packages=external --bundle --format=esm --outdir=dist",
-    "build:web": "rm -rf web && npx expo export --platform web --output-dir web && BUILD_ID=$(date -u +%Y%m%d%H%M%S) && sed -i \"s/__BUILD_ID__/${BUILD_ID}/g\" web/sw.js",
+    "build:web": "rm -rf web && npx expo export --platform web --output-dir web && node scripts/stamp-pwa-release.mjs web",
     "start": "NODE_ENV=production node dist/index.js",
     "db:migrate": "drizzle-kit migrate",
     "check": "node scripts/typecheck.mjs",

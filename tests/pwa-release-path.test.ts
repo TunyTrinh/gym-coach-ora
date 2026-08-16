@@ -14,6 +14,14 @@ describe("PWA release path", () => {
     const packageJson = JSON.parse(readFileSync(resolve(process.cwd(), "package.json"), "utf8")) as {
       scripts: Record<string, string>;
     };
-    expect(packageJson.scripts["build:web"]).toContain("s/__BUILD_ID__/${BUILD_ID}/g");
+    expect(packageJson.scripts["build:web"]).toContain("scripts/stamp-pwa-release.mjs web");
+  });
+
+  it("generates a release manifest through the same export path", () => {
+    const script = readFileSync(resolve(process.cwd(), "scripts/stamp-pwa-release.mjs"), "utf8");
+    const releaseTemplate = readFileSync(resolve(process.cwd(), "public/release.json"), "utf8");
+    expect(script).toContain("release.json");
+    expect(script).toContain("sourceRevision");
+    expect(releaseTemplate).toContain("__BUILD_ID__");
   });
 });

@@ -38,3 +38,9 @@
 - [ ] Validate responsive behavior, app workflows, privacy/security, bundle metrics, and non-destructive staging load behavior with evidence
 - [ ] Produce an evidence-based production and App Store readiness report with unresolved decisions explicitly identified
 - [x] Add deterministic database-schedule adapter regression coverage and validate linting, type checks, 59 tests, and the production web export
+- [x] Audit Preview versus public PWA source commit, release configuration, build artifacts, environment settings, API origins, feature flags, schema migrations, and cache behavior
+- [x] Identify and consolidate confirmed duplicate Preview/PWA UI, service, type, validation, translation, and business-rule paths
+- [x] Establish one tested build artifact and release manifest for Preview and public PWA delivery
+- [x] Verify environment-specific domains, secrets, and database targets remain isolated while schema/migrations stay identical
+- [ ] Publish the unified checkpoint, then validate Preview and public PWA UI, authentication, permissions, APIs, migrations, booking, localization, and cache updates against the promoted artifact
+- [x] Report root causes, consolidation outcomes, remaining environment boundaries, and test evidence

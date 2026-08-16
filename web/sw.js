@@ -1,9 +1,10 @@
-const CACHE_NAME = "coachora-shell-20260816163319";
-const APP_SHELL = ["/", "/offline.html", "/manifest.json", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png"];
+const CACHE_NAME = "coachora-shell-54933974f2d5ca55270a";
+const APP_SHELL = ["/", "/offline.html", "/manifest.json", "/release.json", "/favicon-32.png", "/apple-touch-icon.png", "/icon-192.png", "/icon-512.png"];
 
 function isCacheableAsset(requestUrl) {
   return requestUrl.pathname.startsWith("/_expo/")
     || requestUrl.pathname === "/manifest.json"
+    || requestUrl.pathname === "/release.json"
     || requestUrl.pathname === "/offline.html"
     || /\.(?:css|js|png|svg|ico|woff2?)$/i.test(requestUrl.pathname);
 }
