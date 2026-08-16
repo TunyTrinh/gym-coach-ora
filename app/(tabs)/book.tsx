@@ -67,7 +67,7 @@ function AdminBookingsCalendar() {
   const monthStart = startOfMonth(visibleMonth);
   const monthEnd = addMonths(monthStart, 1);
   const monthDays = buildMonthGrid(monthStart);
-  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
+  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? "client";
   const hasAuthenticatedAdmin = user?.role === "admin";
   const isPreviewAdmin = isLocalTestMode() && role === "admin" && !hasAuthenticatedAdmin;
   const previewCalendar = useMemo(() => isPreviewAdmin ? buildAdminPreviewRoomCalendar(snapshot) : null, [isPreviewAdmin, snapshot]);
@@ -129,7 +129,8 @@ export default function BookScreen() {
   const { user } = useAuth();
   const { snapshot, bookAvailability } = useGym();
   const { language, t } = useLanguage();
-  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
+  const previewMode = isLocalTestMode();
+  const role = previewMode ? snapshot.member.role : user?.role ?? "client";
   const [now, setNow] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(0);
   const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);
@@ -144,6 +145,46 @@ export default function BookScreen() {
   const [timeError, setTimeError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [bookingFeedback, setBookingFeedback] = useState<BookingFeedback | null>(null);
+  const availabilityRange = useMemo(() => {
+    const start = startOfLocalDay(now);
+    const end = new Date(start);
+    end.setDate(end.getDate() + 8);
+    return { dateStart: start.toISOString(), dateEnd: end.toISOString() };
+  }, [now]);
+  const productionAvailability = trpc.availability.bookableAll.useQuery(availabilityRange, { enabled: !previewMode && role === "client" });
+  const productionBooking = trpc.availability.book.useMutation();
+  const utils = trpc.useUtils();
+  const activeSnapshot = useMemo(() => {
+    if (previewMode) return snapshot;
+    const serverWindows = productionAvailability.data ?? [];
+    const coachById = new Map<number, { id: string; fullName: string; specialty: string; initials: string; accent: string; active: boolean }>();
+    for (const window of serverWindows) {
+      if (!coachById.has(window.coachId)) {
+        const initials = window.coachName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "C";
+        coachById.set(window.coachId, { id: String(window.coachId), fullName: window.coachName, specialty: window.coachSpecialty, initials, accent: "#9660bd", active: true });
+      }
+    }
+    return {
+      ...snapshot,
+      member: { ...snapshot.member, id: user?.id ? `member-${user.id}` : "member-anonymous", fullName: user?.name?.trim() || "Coachora member", email: user?.email ?? "", initials: user?.name?.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "CM", role },
+      coaches: [...coachById.values()],
+      availabilityShifts: serverWindows.map((window) => ({
+        id: window.id,
+        gymId: "database-gym",
+        coachId: String(window.coachId),
+        roomId: window.roomId ? String(window.roomId) : undefined,
+        serviceTypeId: String(window.serviceTypeId),
+        start: new Date(window.startAt).toISOString(),
+        end: new Date(window.endAt).toISOString(),
+        maximumCapacity: window.maximumCapacity,
+        location: window.location,
+        note: window.note ?? undefined,
+        status: "Available" as const,
+        createdBy: "database",
+      })),
+      bookings: [],
+    };
+  }, [previewMode, productionAvailability.data, role, snapshot, user]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
@@ -153,10 +194,10 @@ export default function BookScreen() {
   const days = createLocalDateRail(now, 7);
   const selectedDate = days[selectedDay] ?? days[0];
   const windows = useMemo(
-    () => snapshot.availabilityShifts
+    () => activeSnapshot.availabilityShifts
       .filter((window) => window.status === "Available" && isSameLocalDay(new Date(window.start), selectedDate) && new Date(window.end) > now)
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()),
-    [now, selectedDate, snapshot.availabilityShifts],
+    [activeSnapshot.availabilityShifts, now, selectedDate],
   );
   const selectedWindow = windows.find((window) => window.id === selectedWindowId) ?? null;
   const selectedCoachWindows = useMemo(
@@ -164,8 +205,8 @@ export default function BookScreen() {
     [selectedWindow, windows],
   );
   const timeOptions = useMemo(
-    () => selectedCoachWindows.flatMap((window) => buildStartTimes(window, duration, now, snapshot)),
-    [duration, now, selectedCoachWindows, snapshot],
+    () => selectedCoachWindows.flatMap((window) => buildStartTimes(window, duration, now, activeSnapshot)),
+    [activeSnapshot, duration, now, selectedCoachWindows],
   );
   const selectedOption = timeOptions.find((option) => option.start.getTime() === selectedStart?.getTime()) ?? null;
   const selectedBookingWindow = selectedOption
@@ -223,8 +264,16 @@ export default function BookScreen() {
     if (!selectedBookingWindow || !selectedOption) return;
     setBusy(true);
     try {
-      const result = await bookAvailability(selectedBookingWindow.id, selectedOption.start.toISOString(), duration);
+      const result = previewMode
+        ? await bookAvailability(selectedBookingWindow.id, selectedOption.start.toISOString(), duration)
+        : await productionBooking.mutateAsync({ windowId: selectedBookingWindow.id, startAt: selectedOption.start.toISOString(), durationMinutes: duration })
+          .then(() => ({ success: true as const, message: "You’re booked. Your session is now in My Schedule." }))
+          .catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "That time is no longer available." }));
       if (result.success) {
+        if (!previewMode) {
+          await utils.availability.bookableAll.invalidate();
+          await utils.member.schedule.invalidate();
+        }
         haptic.success();
         setShowReview(false);
         setSelectedStart(null);
@@ -271,7 +320,7 @@ export default function BookScreen() {
             contentContainerStyle={styles.dateStrip}
             renderItem={({ item: day, index }) => {
               const active = selectedDay === index;
-              const hasAvailability = snapshot.availabilityShifts.some((window) => window.status === "Available" && isSameLocalDay(new Date(window.start), day) && new Date(window.end) > now);
+              const hasAvailability = activeSnapshot.availabilityShifts.some((window) => window.status === "Available" && isSameLocalDay(new Date(window.start), day) && new Date(window.end) > now);
               return <Pressable onPress={() => setSelectedDay(index)} style={({ pressed }) => [styles.dateCard, { backgroundColor: active ? "#2b1f2a" : colors.surface, borderColor: active ? "#f04488" : colors.border }, pressed && styles.pressed]}>
                 <Text style={[styles.dateWeekday, { color: active ? "#ff82b7" : colors.muted }]}>{isSameLocalDay(day, now) ? t("today").toUpperCase() : new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en-US", { weekday: "short" }).format(day).toUpperCase()}</Text>
                 <Text style={[styles.dateNumber, { color: colors.foreground }]}>{day.getDate()}</Text>
@@ -282,7 +331,7 @@ export default function BookScreen() {
           <Text style={[styles.stepLabel, { color: colors.muted }]}>2. {t("chooseAvailability")}</Text>
         </View>
 
-        {windows.length ? <View style={styles.windowList}>{windows.map((window) => <AvailabilityCard key={window.id} window={window} selected={selectedWindowId === window.id} snapshot={snapshot} language={language} t={t} colors={colors} onPress={() => { setSelectedWindowId(window.id); setSelectedStart(null); }} />)}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noSlotsAvailable")}</Text></SurfaceCard>}
+        {productionAvailability.isLoading && !previewMode ? <ActivityIndicator color="#ff82b7" style={styles.activityLoading} /> : windows.length ? <View style={styles.windowList}>{windows.map((window) => <AvailabilityCard key={window.id} window={window} selected={selectedWindowId === window.id} snapshot={activeSnapshot} language={language} t={t} colors={colors} onPress={() => { setSelectedWindowId(window.id); setSelectedStart(null); }} />)}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noSlotsAvailable")}</Text></SurfaceCard>}
 
         {selectedWindow ? <View style={styles.bookingPanel}>
           <Text style={[styles.stepLabel, { color: colors.muted }]}>3. {t("sessionDuration")}</Text>

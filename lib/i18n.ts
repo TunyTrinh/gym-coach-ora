@@ -889,12 +889,18 @@ export const translations = {
   },
 } as const;
 
-export const LANGUAGE_STORAGE_KEY = "gymflow_language_pref";
+export const LANGUAGE_STORAGE_KEY = "coachora.language";
+const LEGACY_LANGUAGE_STORAGE_KEY = "gymflow_language_pref";
 
 export async function getStoredLanguage(): Promise<LanguageCode> {
   try {
     const value = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
     if (value === "vi" || value === "en") return value;
+    const legacyValue = await AsyncStorage.getItem(LEGACY_LANGUAGE_STORAGE_KEY);
+    if (legacyValue === "vi" || legacyValue === "en") {
+      await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, legacyValue);
+      return legacyValue;
+    }
   } catch {
     // Keep English as a safe fallback when storage is unavailable.
   }

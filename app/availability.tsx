@@ -86,12 +86,19 @@ export default function AvailabilityScreen() {
   const { snapshot, createAvailability, setAvailabilityStatus } = useGym();
   const { language, t } = useLanguage();
   const previewMode = isLocalTestMode();
-  const role = previewMode ? snapshot.member.role : user?.role;
+  const role = previewMode ? snapshot.member.role : user?.role ?? "client";
   const isAdmin = role === "admin";
   const isCoach = role === "coach";
-  const activeRoomsQuery = trpc.availability.rooms.useQuery(undefined, { enabled: !previewMode && Boolean(user) && (user?.role === "coach" || user?.role === "admin") });
-  const createServerAvailability = trpc.availability.create.useMutation();
   const [selectedCoachId, setSelectedCoachId] = useState(snapshot.coaches[0]?.id ?? "");
+  const activeRoomsQuery = trpc.availability.rooms.useQuery(undefined, { enabled: !previewMode && Boolean(user) && (user?.role === "coach" || user?.role === "admin") });
+  const productionCoaches = trpc.catalog.coaches.useQuery(undefined, { enabled: !previewMode && isAdmin });
+  const serverWindows = trpc.availability.mine.useQuery(
+    isAdmin && selectedCoachId ? { coachId: Number(selectedCoachId) } : undefined,
+    { enabled: !previewMode && (isCoach || (isAdmin && Boolean(selectedCoachId))) },
+  );
+  const createServerAvailability = trpc.availability.create.useMutation();
+  const setServerAvailabilityStatus = trpc.availability.setStatus.useMutation();
+  const utils = trpc.useUtils();
   const [showCreate, setShowCreate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [availabilityFeedback, setAvailabilityFeedback] = useState<AvailabilityFeedback | null>(null);
@@ -99,19 +106,42 @@ export default function AvailabilityScreen() {
     ? previewRooms
     : (activeRoomsQuery.data ?? []).map((room) => ({ id: room.id, name: room.name, maximumCapacity: room.maximumCapacity, defaultGym: room.defaultGym })), [activeRoomsQuery.data, previewMode]);
 
-  const windows = useMemo(() => snapshot.availabilityShifts
-    .filter((window) => (isAdmin ? window.coachId === selectedCoachId : window.coachId === "coach-maya"))
-    .filter((window) => new Date(window.end).getTime() > Date.now())
-    .sort((left, right) => new Date(left.start).getTime() - new Date(right.start).getTime()), [isAdmin, selectedCoachId, snapshot.availabilityShifts]);
+  useEffect(() => {
+    if (!previewMode && isAdmin && !selectedCoachId && productionCoaches.data?.[0]) setSelectedCoachId(String(productionCoaches.data[0].id));
+  }, [isAdmin, previewMode, productionCoaches.data, selectedCoachId]);
 
-  const bookedCount = (windowId: string) => snapshot.bookings.filter((booking) => {
-    if (!["Confirmed", "Pending"].includes(booking.status)) return false;
-    return getBookingSlot(snapshot, booking)?.availabilityShiftId === windowId;
-  }).length;
+  const windows = useMemo(() => {
+    if (previewMode) return snapshot.availabilityShifts
+      .filter((window) => (isAdmin ? window.coachId === selectedCoachId : window.coachId === "coach-maya"))
+      .filter((window) => new Date(window.end).getTime() > Date.now())
+      .sort((left, right) => new Date(left.start).getTime() - new Date(right.start).getTime());
+    return (serverWindows.data ?? []).map((window) => ({
+      id: window.externalId,
+      gymId: String(window.gymId),
+      coachId: String(window.coachId),
+      roomId: window.roomId ? String(window.roomId) : undefined,
+      serviceTypeId: String(window.serviceTypeId),
+      start: new Date(window.startAt).toISOString(),
+      end: new Date(window.endAt).toISOString(),
+      maximumCapacity: window.maximumCapacity,
+      location: window.location,
+      note: window.note ?? undefined,
+      status: `${window.status[0].toUpperCase()}${window.status.slice(1)}` as AvailabilityShift["status"],
+      createdBy: String(window.createdBy),
+      updatedBy: window.updatedBy ? String(window.updatedBy) : undefined,
+    })).sort((left, right) => new Date(left.start).getTime() - new Date(right.start).getTime());
+  }, [isAdmin, previewMode, selectedCoachId, serverWindows.data, snapshot.availabilityShifts]);
+
+  const bookedCount = (windowId: string) => previewMode
+    ? snapshot.bookings.filter((booking) => ["Confirmed", "Pending"].includes(booking.status) && getBookingSlot(snapshot, booking)?.availabilityShiftId === windowId).length
+    : Number(serverWindows.data?.find((window) => window.externalId === windowId)?.bookedCount ?? 0);
 
   const updateStatus = async (window: AvailabilityShift, status: "Available" | "Blocked") => {
     setBusy(true);
-    const result = await setAvailabilityStatus(window.id, status);
+    const result = previewMode
+      ? await setAvailabilityStatus(window.id, status)
+      : await setServerAvailabilityStatus.mutateAsync({ shiftId: window.id, status }).then(() => ({ success: true as const, message: status === "Blocked" ? "Availability blocked. Clients can no longer see it." : "Availability reopened for booking." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : t("couldNotUpdateShift") }));
+    if (result.success && !previewMode) await utils.availability.mine.invalidate();
     setBusy(false);
     if (result.success) haptic.success(); else haptic.error();
     setAvailabilityFeedback({
@@ -132,7 +162,7 @@ export default function AvailabilityScreen() {
         keyExtractor={(window) => window.id}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={<View style={styles.header}><ScreenHeader title={t("availability")} subtitle={t("availabilitySubtitle")} label={isAdmin ? t("admin") : t("coachLabel")} />{isAdmin ? <CoachPicker selectedId={selectedCoachId} onSelect={setSelectedCoachId} /> : null}<PrimaryButton title={t("addAvailability")} onPress={() => setShowCreate(true)} /><Text style={[styles.sectionLabel, { color: colors.muted }]}>{t("publishedWindows")}</Text></View>}
+        ListHeaderComponent={<View style={styles.header}><ScreenHeader title={t("availability")} subtitle={t("availabilitySubtitle")} label={isAdmin ? t("admin") : t("coachLabel")} />{isAdmin ? <CoachPicker selectedId={selectedCoachId} onSelect={setSelectedCoachId} coaches={previewMode ? snapshot.coaches : (productionCoaches.data ?? []).map((coach) => ({ id: String(coach.id), fullName: coach.fullName }))} /> : null}<PrimaryButton title={t("addAvailability")} onPress={() => setShowCreate(true)} /><Text style={[styles.sectionLabel, { color: colors.muted }]}>{t("publishedWindows")}</Text></View>}
         ListEmptyComponent={<SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("addFutureTime")}</Text><PrimaryButton title={t("addAvailability")} onPress={() => setShowCreate(true)} /></SurfaceCard>}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         renderItem={({ item }) => <WindowCard window={item} bookedCount={bookedCount(item.id)} language={language} t={t} colors={colors} busy={busy} onBlock={() => updateStatus(item, "Blocked")} onOpen={() => updateStatus(item, "Available")} />}
@@ -154,6 +184,7 @@ export default function AvailabilityScreen() {
           const result = previewMode
             ? await createAvailability(input)
             : await createServerAvailability.mutateAsync({
+              coachId: isAdmin ? Number(selectedCoachId) : undefined,
               startDate: input.startDate,
               startTime: input.startTime,
               endTime: input.endTime,
@@ -161,7 +192,7 @@ export default function AvailabilityScreen() {
               roomId: Number(input.roomId),
               location: input.location,
               note: input.note,
-            }).then(() => ({ success: true, message: t("membersCanBook") })).catch((error: unknown) => ({ success: false, error: error instanceof Error ? error.message : t("couldNotPublish") }));
+            }).then(async () => { await utils.availability.mine.invalidate(); return { success: true, message: t("membersCanBook") }; }).catch((error: unknown) => ({ success: false, error: error instanceof Error ? error.message : t("couldNotPublish") }));
           setBusy(false);
           if (result.success) {
             haptic.success();
@@ -181,11 +212,10 @@ export default function AvailabilityScreen() {
   );
 }
 
-function CoachPicker({ selectedId, onSelect }: { selectedId: string; onSelect: (id: string) => void }) {
+function CoachPicker({ selectedId, onSelect, coaches }: { selectedId: string; onSelect: (id: string) => void; coaches: { id: string; fullName: string }[] }) {
   const colors = useColors();
-  const { snapshot } = useGym();
   const { t } = useLanguage();
-  return <View style={styles.adminPicker}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("selectCoach")}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.coachRail}>{snapshot.coaches.map((coach) => <Pressable key={coach.id} onPress={() => onSelect(coach.id)} style={({ pressed }) => [styles.coachPill, { backgroundColor: selectedId === coach.id ? "#2b1f2a" : colors.surface, borderColor: selectedId === coach.id ? "#f04488" : colors.border }, pressed && styles.pressed]}><Text style={[styles.coachPillText, { color: selectedId === coach.id ? "#ff82b7" : colors.muted }]}>{coach.fullName}</Text></Pressable>)}</ScrollView></View>;
+  return <View style={styles.adminPicker}><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("selectCoach")}</Text><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.coachRail}>{coaches.map((coach) => <Pressable key={coach.id} onPress={() => onSelect(coach.id)} style={({ pressed }) => [styles.coachPill, { backgroundColor: selectedId === coach.id ? "#2b1f2a" : colors.surface, borderColor: selectedId === coach.id ? "#f04488" : colors.border }, pressed && styles.pressed]}><Text style={[styles.coachPillText, { color: selectedId === coach.id ? "#ff82b7" : colors.muted }]}>{coach.fullName}</Text></Pressable>)}</ScrollView></View>;
 }
 
 function WindowCard({ window, bookedCount, language, t, colors, busy, onBlock, onOpen }: { window: AvailabilityShift; bookedCount: number; language: "en" | "vi"; t: (key: any) => string; colors: ReturnType<typeof useColors>; busy: boolean; onBlock: () => void; onOpen: () => void }) {

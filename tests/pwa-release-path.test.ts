@@ -7,7 +7,7 @@ describe("PWA release path", () => {
   it("uses one build-versioned service-worker cache source", () => {
     const source = readFileSync(resolve(process.cwd(), "public/sw.js"), "utf8");
     expect(source.match(/^const CACHE_NAME/gm)).toHaveLength(1);
-    expect(source).toContain('const CACHE_NAME = "gymflow-shell-__BUILD_ID__";');
+    expect(source).toContain('const CACHE_NAME = "coachora-shell-__BUILD_ID__";');
   });
 
   it("uses cache-busting substitution when exporting web assets", () => {

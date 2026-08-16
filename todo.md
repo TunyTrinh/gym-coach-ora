@@ -18,5 +18,23 @@
 - [x] Apply safe, backward-compatible fixes for test configuration and load-test reliability
 - [x] Measure bounded functional, regression, and 1,000-connection health-endpoint behavior without changing confirmed business rules
 - [x] Report verified scalability limits and infrastructure requirements for the requested 1,000-active-user traffic target
-- [ ] Approve migration of client, coach, and admin workflow screens from local demo state to the existing database-backed APIs
+- [x] Approve migration of client, coach, and admin workflow screens from local demo state to the existing database-backed APIs
+- [x] Approve migration of client, coach, and admin workflow screens from local demo state to the existing database-backed APIs
+- [x] Map each Client, Coach, and Admin workflow to its database-backed API, authorization rule, and empty state
+- [x] Move Client booking, schedule, cancellation, and progress data to the authoritative API path outside development preview mode
+- [x] Move Coach availability, schedule, capacity, and attendance data to the authoritative API path outside development preview mode
+- [x] Move Admin room, closure, capacity, and access-management data to the authoritative API path outside development preview mode
+- [x] Remove production fallback to demo roles, hard-coded coach identities, and local booking mutations
+- [ ] Add API contract and synchronized-workflow regression tests for the authoritative data path
 - [ ] Decide whether the availability-booking cancellation cutoff must match the fixed-session cancellation policy
+- [x] Preserve the approved Coachora logo unchanged and derive only required resized icon variants from it
+- [x] Reconcile the live database with all source-controlled migrations and resolve the missing auth-schema columns
+- [x] Resolve signed-out authentication console noise without weakening authentication or permissions
+- [x] Standardize all user-facing product naming and metadata on Coachora
+- [x] Audit and improve visual hierarchy, responsive layouts, semantic headings, accessibility, and client/coach/admin workflows
+- [x] Define and enforce one authoritative production data and business-rule path across app, preview, and PWA
+- [x] Audit and safely optimize source structure, dependencies, bundle budgets, rendering, API boundaries, database queries, and resource limits
+- [x] Harden PWA manifest, service-worker caching, offline behavior, version diagnostics, and install metadata
+- [ ] Validate responsive behavior, app workflows, privacy/security, bundle metrics, and non-destructive staging load behavior with evidence
+- [ ] Produce an evidence-based production and App Store readiness report with unresolved decisions explicitly identified
+- [x] Add deterministic database-schedule adapter regression coverage and validate linting, type checks, 59 tests, and the production web export
