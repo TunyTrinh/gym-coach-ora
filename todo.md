@@ -14,3 +14,9 @@
 - [ ] Connect Google OAuth credentials and resolve the OAuth configuration test returning HTTP 503
 - [ ] Save the final delivery checkpoint
 - [ ] Publish the checkpoint from the WebDev Management UI and verify the generated public domain
+- [x] Audit frontend, backend, API, database, permissions, scheduling, localization, PWA, and deployment code for correctness and duplication
+- [x] Apply safe, backward-compatible fixes for test configuration and load-test reliability
+- [x] Measure bounded functional, regression, and 1,000-connection health-endpoint behavior without changing confirmed business rules
+- [x] Report verified scalability limits and infrastructure requirements for the requested 1,000-active-user traffic target
+- [ ] Approve migration of client, coach, and admin workflow screens from local demo state to the existing database-backed APIs
+- [ ] Decide whether the availability-booking cancellation cutoff must match the fixed-session cancellation policy
