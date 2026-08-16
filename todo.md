@@ -54,3 +54,7 @@
 - [x] Make both Preview and public PWA room screens read the same authoritative database-backed room APIs
 - [x] Preserve demo fixtures only behind an explicit developer-only opt-in, not host-based default behavior
 - [x] Validate the signed-out entry state and room-data source consistently in Preview and public PWA
+- [x] Audit existing Preview debug/authentication mechanisms and protected test-account access
+- [x] Add a Preview-only debug account switcher that uses the real database-backed API contracts
+- [x] Ensure debug account switching is excluded from every deployed public PWA release
+- [x] Validate switched Preview accounts read/write the same authoritative database rules as public PWA sessions

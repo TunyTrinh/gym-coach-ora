@@ -467,6 +467,19 @@ export async function listClientAccounts() {
   return db.select({ id: users.id, name: users.name, username: users.email }).from(users).where(eq(users.role, "client"));
 }
 
+/** Real accounts shown only through the managed Preview debug control. */
+export async function listPreviewDebugAccounts() {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  return db.select({
+    id: users.id,
+    openId: users.openId,
+    name: users.name,
+    email: users.email,
+    role: users.role,
+  }).from(users).orderBy(users.role, users.name);
+}
+
 export async function grantCoachGoogleAccess(input: {
   email: string;
   fullName: string;
