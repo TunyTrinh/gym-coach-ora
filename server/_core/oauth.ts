@@ -1,43 +1,17 @@
 import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
 import type { Express, Request, Response } from "express";
-import { getUserByOpenId, upsertUser } from "../db";
+import { randomBytes } from "node:crypto";
+import { parse as parseCookie } from "cookie";
+import { getLocalUserByUsername, getUserByOpenId, syncVerifiedGoogleUser, updateUserLastSignedIn } from "../db";
+import { hasVerifiedGoogleIdentity, isAdminLocalAccount } from "../google-authorization";
+import { isValidLocalPassword, isValidLocalUsername, normalizeLocalUsername, verifyLocalPassword } from "../local-credentials";
 import { getSessionCookieOptions } from "./cookies";
+import { ENV } from "./env";
 import { sdk } from "./sdk";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
   return typeof value === "string" ? value : undefined;
-}
-
-async function syncUser(userInfo: {
-  openId?: string | null;
-  name?: string | null;
-  email?: string | null;
-  loginMethod?: string | null;
-  platform?: string | null;
-}) {
-  if (!userInfo.openId) {
-    throw new Error("openId missing from user info");
-  }
-
-  const lastSignedIn = new Date();
-  await upsertUser({
-    openId: userInfo.openId,
-    name: userInfo.name || null,
-    email: userInfo.email ?? null,
-    loginMethod: userInfo.loginMethod ?? userInfo.platform ?? null,
-    lastSignedIn,
-  });
-  const saved = await getUserByOpenId(userInfo.openId);
-  return (
-    saved ?? {
-      openId: userInfo.openId,
-      name: userInfo.name,
-      email: userInfo.email,
-      loginMethod: userInfo.loginMethod ?? null,
-      lastSignedIn,
-    }
-  );
 }
 
 function buildUserResponse(
@@ -48,6 +22,7 @@ function buildUserResponse(
         name?: string | null;
         email?: string | null;
         loginMethod?: string | null;
+        role?: "client" | "coach" | "admin";
         lastSignedIn?: Date | null;
       },
 ) {
@@ -57,75 +32,158 @@ function buildUserResponse(
     name: user?.name ?? null,
     email: user?.email ?? null,
     loginMethod: user?.loginMethod ?? null,
+    role: (user as any)?.role ?? "client",
     lastSignedIn: (user?.lastSignedIn ?? new Date()).toISOString(),
   };
 }
 
-export function registerOAuthRoutes(app: Express) {
-  app.get("/api/oauth/callback", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
+const GOOGLE_STATE_COOKIE = "gymflow_google_oauth_state";
+const GOOGLE_STATE_TTL_MS = 10 * 60 * 1000;
+const LOCAL_LOGIN_WINDOW_MS = 60_000;
+const LOCAL_LOGIN_MAX_ATTEMPTS = 5;
+const localLoginAttempts = new Map<string, { count: number; resetAt: number }>();
 
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
+function googleIsConfigured() {
+  return Boolean(ENV.googleClientId && ENV.googleClientSecret && (ENV.googleRedirectUri || ENV.appBaseUrl));
+}
+
+function googleRedirectUri() {
+  return ENV.googleRedirectUri || `${ENV.appBaseUrl.replace(/\/$/, "")}/api/auth/google/callback`;
+}
+
+function selfHostedFrontendUrl() {
+  return ENV.appBaseUrl || process.env.EXPO_WEB_PREVIEW_URL || process.env.EXPO_PACKAGER_PROXY_URL || "http://localhost:8081";
+}
+
+function googleStateCookieOptions(req: Request) {
+  return { ...getSessionCookieOptions(req), sameSite: "lax" as const, maxAge: GOOGLE_STATE_TTL_MS };
+}
+
+function localLoginRateLimitAllows(req: Request) {
+  const key = req.ip || req.socket.remoteAddress || "unknown";
+  const now = Date.now();
+  const current = localLoginAttempts.get(key);
+  if (!current || current.resetAt <= now) {
+    localLoginAttempts.set(key, { count: 1, resetAt: now + LOCAL_LOGIN_WINDOW_MS });
+    return true;
+  }
+  if (current.count >= LOCAL_LOGIN_MAX_ATTEMPTS) return false;
+  current.count += 1;
+  return true;
+}
+
+function clearLocalLoginRateLimit(req: Request) {
+  localLoginAttempts.delete(req.ip || req.socket.remoteAddress || "unknown");
+}
+
+export function registerOAuthRoutes(app: Express) {
+  app.post("/api/auth/local/login", async (req: Request, res: Response) => {
+    if (!localLoginRateLimitAllows(req)) {
+      res.status(429).json({ error: "Too many sign-in attempts. Please wait a minute." });
+      return;
+    }
+
+    const rawUsername = typeof req.body?.username === "string" ? req.body.username : "";
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+    const username = normalizeLocalUsername(rawUsername);
+    const invalidCredentials = () => res.status(401).json({ error: "Username or password is incorrect." });
+
+    if (!isValidLocalUsername(username) || !isValidLocalPassword(password)) {
+      invalidCredentials();
       return;
     }
 
     try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-      await syncUser(userInfo);
-      const sessionToken = await sdk.createSessionToken(userInfo.openId!, {
-        name: userInfo.name || "",
+      const user = await getLocalUserByUsername(username);
+      const passwordHash = user?.passwordHash;
+      const validPassword = passwordHash ? await verifyLocalPassword(password, passwordHash) : false;
+      if (!user || !validPassword || !isAdminLocalAccount(user)) {
+        invalidCredentials();
+        return;
+      }
+
+      await updateUserLastSignedIn(user.id);
+      const sessionToken = await sdk.createSessionToken(user.openId, {
+        name: user.name || "Coachora member",
         expiresInMs: ONE_YEAR_MS,
       });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-      // Redirect to the frontend URL (Expo web on port 8081)
-      // Cookie is set with parent domain so it works across both 3000 and 8081 subdomains
-      const frontendUrl =
-        process.env.EXPO_WEB_PREVIEW_URL ||
-        process.env.EXPO_PACKAGER_PROXY_URL ||
-        "http://localhost:8081";
-      res.redirect(302, frontendUrl);
+      clearLocalLoginRateLimit(req);
+      res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(req), maxAge: ONE_YEAR_MS });
+      res.json({ app_session_id: sessionToken, user: buildUserResponse({ ...user, lastSignedIn: new Date() }) });
     } catch (error) {
-      console.error("[OAuth] Callback failed", error);
-      res.status(500).json({ error: "OAuth callback failed" });
+      console.error("[Local auth] Sign-in failed", error);
+      res.status(503).json({ error: "Sign-in is temporarily unavailable. Please try again." });
     }
   });
 
-  app.get("/api/oauth/mobile", async (req: Request, res: Response) => {
-    const code = getQueryParam(req, "code");
-    const state = getQueryParam(req, "state");
-
-    if (!code || !state) {
-      res.status(400).json({ error: "code and state are required" });
+  app.get("/api/auth/google", (req: Request, res: Response) => {
+    if (!googleIsConfigured()) {
+      res.status(503).json({ error: "Google sign-in has not been configured on this server." });
       return;
     }
+    const state = randomBytes(32).toString("base64url");
+    res.cookie(GOOGLE_STATE_COOKIE, state, googleStateCookieOptions(req));
+    const authorizationUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    authorizationUrl.search = new URLSearchParams({
+      client_id: ENV.googleClientId,
+      redirect_uri: googleRedirectUri(),
+      response_type: "code",
+      scope: "openid email profile",
+      state,
+      prompt: "select_account",
+    }).toString();
+    res.redirect(302, authorizationUrl.toString());
+  });
 
-    try {
-      const tokenResponse = await sdk.exchangeCodeForToken(code, state);
-      const userInfo = await sdk.getUserInfo(tokenResponse.accessToken);
-      const user = await syncUser(userInfo);
-
-      const sessionToken = await sdk.createSessionToken(userInfo.openId!, {
-        name: userInfo.name || "",
-        expiresInMs: ONE_YEAR_MS,
-      });
-
-      const cookieOptions = getSessionCookieOptions(req);
-      res.cookie(COOKIE_NAME, sessionToken, { ...cookieOptions, maxAge: ONE_YEAR_MS });
-
-      res.json({
-        app_session_id: sessionToken,
-        user: buildUserResponse(user),
-      });
-    } catch (error) {
-      console.error("[OAuth] Mobile exchange failed", error);
-      res.status(500).json({ error: "OAuth mobile exchange failed" });
+  app.get("/api/auth/google/callback", async (req: Request, res: Response) => {
+    const code = getQueryParam(req, "code");
+    const state = getQueryParam(req, "state");
+    const storedState = parseCookie(req.headers.cookie ?? "")[GOOGLE_STATE_COOKIE];
+    if (!googleIsConfigured() || !code || !state || !storedState || state !== storedState) {
+      res.status(400).json({ error: "Google sign-in could not be verified. Please start again." });
+      return;
     }
+    try {
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: ENV.googleClientId,
+          client_secret: ENV.googleClientSecret,
+          redirect_uri: googleRedirectUri(),
+          grant_type: "authorization_code",
+        }),
+      });
+      if (!tokenResponse.ok) throw new Error("Google token exchange failed");
+      const token = await tokenResponse.json() as { access_token?: string };
+      if (!token.access_token) throw new Error("Google access token missing");
+      const profileResponse = await fetch("https://openidconnect.googleapis.com/v1/userinfo", {
+        headers: { Authorization: `Bearer ${token.access_token}` },
+      });
+      if (!profileResponse.ok) throw new Error("Google profile request failed");
+      const profile = await profileResponse.json() as { sub?: string; name?: string; email?: string; email_verified?: boolean };
+      if (!hasVerifiedGoogleIdentity(profile)) {
+        res.status(403).json({ error: "A verified Google email is required to sign in." });
+        return;
+      }
+      const user = await syncVerifiedGoogleUser({ openId: `google:${profile.sub}`, name: profile.name ?? null, email: profile.email });
+      const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name || "GymFlow member", expiresInMs: ONE_YEAR_MS });
+      res.clearCookie(GOOGLE_STATE_COOKIE, googleStateCookieOptions(req));
+      res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(req), maxAge: ONE_YEAR_MS });
+      res.redirect(302, selfHostedFrontendUrl());
+    } catch (error) {
+      console.error("[Google OAuth] Callback failed", error);
+      res.status(500).json({ error: "Google sign-in failed. Please try again." });
+    }
+  });
+
+  app.get("/api/oauth/callback", async (req: Request, res: Response) => {
+    res.status(410).json({ error: "This sign-in route is unavailable. Use Google Sign-In." });
+  });
+
+  app.get("/api/oauth/mobile", async (req: Request, res: Response) => {
+    res.status(410).json({ error: "This sign-in route is unavailable. Use Google Sign-In." });
   });
 
   app.post("/api/auth/logout", (req: Request, res: Response) => {

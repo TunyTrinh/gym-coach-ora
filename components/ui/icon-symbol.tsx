@@ -8,34 +8,39 @@ import { OpaqueColorValue, type StyleProp, type TextStyle } from "react-native";
 type IconMapping = Record<SymbolViewProps["name"], ComponentProps<typeof MaterialIcons>["name"]>;
 type IconSymbolName = keyof typeof MAPPING;
 
-/**
- * Add your SF Symbols to Material Icons mappings here.
- * - see Material Icons in the [Icons Directory](https://icons.expo.fyi).
- * - see SF Symbols in the [SF Symbols](https://developer.apple.com/sf-symbols/) app.
- */
 const MAPPING = {
   "house.fill": "home",
-  "paperplane.fill": "send",
-  "chevron.left.forwardslash.chevron.right": "code",
+  "calendar": "calendar-today",
+  "calendar.badge.plus": "event-available",
+  "chart.line.uptrend.xyaxis": "show-chart",
+  "clock": "schedule",
+  "bell.fill": "notifications-none",
+  "bell.badge.fill": "notifications",
+  "person.fill": "person-outline",
+  "person.2.fill": "groups",
+  "dumbbell.fill": "fitness-center",
+  "figure.strengthtraining.traditional": "fitness-center",
+  "figure.yoga": "self-improvement",
+  "checkmark.circle.fill": "check-circle",
+  "checkmark": "check",
+  "xmark": "close",
+  "xmark.circle": "cancel",
   "chevron.right": "chevron-right",
+  "chevron.left": "chevron-left",
+  "arrow.right": "arrow-forward",
+  "location.fill": "location-on",
+  "map": "map",
+  "gearshape.fill": "settings",
+  "rectangle.portrait.and.arrow.right": "logout",
+  "sparkles": "auto-awesome",
+  "info.circle": "info-outline",
+  "wifi.slash": "wifi-off",
+  "slider.horizontal.3": "tune",
+  "plus": "add",
+  "magnifyingglass": "search",
+  "ellipsis": "more-horiz",
 } as IconMapping;
 
-/**
- * An icon component that uses native SF Symbols on iOS, and Material Icons on Android and web.
- * This ensures a consistent look across platforms, and optimal resource usage.
- * Icon `name`s are based on SF Symbols and require manual mapping to Material Icons.
- */
-export function IconSymbol({
-  name,
-  size = 24,
-  color,
-  style,
-}: {
-  name: IconSymbolName;
-  size?: number;
-  color: string | OpaqueColorValue;
-  style?: StyleProp<TextStyle>;
-  weight?: SymbolWeight;
-}) {
+export function IconSymbol({ name, size = 24, color, style }: { name: IconSymbolName; size?: number; color: string | OpaqueColorValue; style?: StyleProp<TextStyle>; weight?: SymbolWeight }) {
   return <MaterialIcons color={color} size={size} name={MAPPING[name]} style={style} />;
 }

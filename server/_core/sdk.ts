@@ -282,6 +282,11 @@ class SDKServer {
       throw ForbiddenError("User not found");
     }
 
+    const isAdminLocalUser = user.loginMethod === "local" && user.role === "admin";
+    if (user.loginMethod !== "google" && !isAdminLocalUser) {
+      throw ForbiddenError("Google sign-in is required for Client and Coach access");
+    }
+
     await db.upsertUser({
       openId: user.openId,
       lastSignedIn: signedInAt,
@@ -307,7 +312,7 @@ function buildCronUser(userInfo: GetUserInfoWithJwtResponse): AuthenticatedUser 
     name: userInfo.name || "Manus Scheduled Task",
     email: null,
     loginMethod: null,
-    role: "user",
+    role: "client",
     createdAt: now,
     updatedAt: now,
     lastSignedIn: now,

@@ -17,9 +17,11 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
     id: 1,
     openId: "sample-user",
     email: "sample@example.com",
+    emailNormalized: "sample@example.com",
     name: "Sample User",
     loginMethod: "manus",
-    role: "user",
+    passwordHash: null,
+    role: "client",
     createdAt: new Date(),
     updatedAt: new Date(),
     lastSignedIn: new Date(),
@@ -29,7 +31,8 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
     user,
     req: {
       protocol: "https",
-      headers: {},
+      hostname: "coachora.example.com",
+      headers: { host: "coachora.example.com" },
     } as TrpcContext["req"],
     res: {
       clearCookie: (name: string, options: Record<string, unknown>) => {
@@ -41,8 +44,7 @@ function createAuthContext(): { ctx: TrpcContext; clearedCookies: CookieCall[] }
   return { ctx, clearedCookies };
 }
 
-// TODO: Remove `.skip` below once you implement user authentication
-describe.skip("auth.logout", () => {
+describe("auth.logout", () => {
   it("clears the session cookie and reports success", async () => {
     const { ctx, clearedCookies } = createAuthContext();
     const caller = appRouter.createCaller(ctx);
@@ -59,5 +61,26 @@ describe.skip("auth.logout", () => {
       httpOnly: true,
       path: "/",
     });
+  });
+
+  it("rejects the private gym snapshot without an authenticated user", async () => {
+    const ctx: TrpcContext = {
+      user: null,
+      req: { protocol: "https", hostname: "coachora.example.com", headers: { host: "coachora.example.com" } } as TrpcContext["req"],
+      res: {} as TrpcContext["res"],
+    };
+    const caller = appRouter.createCaller(ctx);
+
+    await expect(caller.gym.snapshot()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+  });
+
+  it("rejects Admin Coach-account access from a Client session", async () => {
+    const { ctx } = createAuthContext();
+    const caller = appRouter.createCaller(ctx);
+
+    await expect(caller.admin.listCoachAccounts()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.changeCoachAccess({ coachId: 1, status: "disabled" })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.listRooms()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.createRoom({ gymId: 1, name: "Studio A", address: "Level 2", description: "Mobility", maximumCapacity: 12 })).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 });

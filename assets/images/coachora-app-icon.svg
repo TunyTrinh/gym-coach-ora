@@ -1,0 +1,28 @@
+<svg width="100%" viewBox="0 0 300 340" role="img" style="" xmlns="http://www.w3.org/2000/svg"><title style="fill:rgb(0, 0, 0);stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:anthropic-sans, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">App icon Coachora phong cách cao cấp</title><desc style="fill:rgb(0, 0, 0);stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:anthropic-sans, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">Icon ứng dụng hình vuông bo góc kiểu Apple, nền gradient tông ngọc bích sang trọng hồng tím xanh với ánh sáng bóng nhẹ phía trên, ở giữa là biểu tượng monogram chữ C cách điệu màu trắng với một chấm nhỏ, phía dưới icon là tên COACHORA</desc>
+<defs>
+<linearGradient id="jewel" x1="10%" y1="0%" x2="90%" y2="100%">
+<stop offset="0%" stop-color="#72243E"/>
+<stop offset="45%" stop-color="#3C3489"/>
+<stop offset="100%" stop-color="#0C447C"/>
+</linearGradient>
+<radialGradient id="glow" cx="30%" cy="20%" r="60%">
+<stop offset="0%" stop-color="#EF9F27" stop-opacity="0.55"/>
+<stop offset="100%" stop-color="#EF9F27" stop-opacity="0"/>
+</radialGradient>
+<linearGradient id="sheen" x1="0%" y1="0%" x2="0%" y2="100%">
+<stop offset="0%" stop-color="#ffffff" stop-opacity="0.30"/>
+<stop offset="45%" stop-color="#ffffff" stop-opacity="0.04"/>
+<stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+</linearGradient>
+<clipPath id="squircle"><rect x="30" y="30" width="240" height="240" rx="54"/></clipPath>
+</defs>
+<rect x="30" y="30" width="240" height="240" rx="54" fill="url(#jewel)" style="stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:anthropic-sans, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<g clip-path="url(#squircle)" style="fill:rgb(0, 0, 0);stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:anthropic-sans, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto">
+<rect x="30" y="30" width="240" height="240" fill="url(#glow)" style="stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:anthropic-sans, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<rect x="30" y="30" width="240" height="140" fill="url(#sheen)" style="stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:anthropic-sans, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+</g>
+<rect x="30" y="30" width="240" height="240" rx="54" fill="none" stroke="#ffffff" stroke-opacity="0.18" stroke-width="1" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:anthropic-sans, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="150" cy="150" r="55" fill="none" stroke="#ffffff" stroke-width="16" stroke-linecap="round" stroke-dasharray="278 67" style="fill:none;stroke:rgb(255, 255, 255);color:rgb(11, 11, 11);stroke-width:16px;stroke-dasharray:278px, 67px;stroke-linecap:round;stroke-linejoin:miter;opacity:1;font-family:anthropic-sans, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<circle cx="203" cy="150" r="7" fill="#ffffff" style="fill:rgb(255, 255, 255);stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:anthropic-sans, -apple-system, &quot;system-ui&quot;, &quot;Segoe UI&quot;, sans-serif;font-size:16px;font-weight:400;text-anchor:start;dominant-baseline:auto"/>
+<text x="150" y="315" text-anchor="middle" font-family="Anthropic Sans, sans-serif" font-weight="500" font-size="26" fill="var(--text-primary)" letter-spacing="4" style="fill:rgb(11, 11, 11);stroke:none;color:rgb(11, 11, 11);stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;opacity:1;font-family:&quot;Anthropic Sans&quot;, sans-serif;font-size:26px;font-weight:500;text-anchor:middle;dominant-baseline:auto">COACHORA</text>
+</svg>

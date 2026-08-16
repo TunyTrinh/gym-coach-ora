@@ -48,13 +48,14 @@ export function getSessionCookieOptions(
   req: Request,
 ): Pick<CookieOptions, "domain" | "httpOnly" | "path" | "sameSite" | "secure"> {
   const hostname = req.hostname;
-  const domain = getParentDomain(hostname);
+  const selfHosted = process.env.SELF_HOSTED === "true";
+  const domain = selfHosted ? undefined : getParentDomain(hostname);
 
   return {
     domain,
     httpOnly: true,
     path: "/",
-    sameSite: "none",
+    sameSite: selfHosted ? "lax" : "none",
     secure: isSecureRequest(req),
   };
 }

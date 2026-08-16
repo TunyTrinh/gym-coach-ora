@@ -1,143 +1,82 @@
 import * as Api from "@/lib/_core/api";
 import * as Auth from "@/lib/_core/auth";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { Platform } from "react-native";
+import { createContext, createElement, useCallback, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 
-type UseAuthOptions = {
-  autoFetch?: boolean;
+type AuthContextValue = {
+  user: Auth.User | null;
+  loading: boolean;
+  error: Error | null;
+  isAuthenticated: boolean;
+  refresh: () => Promise<void>;
+  logout: () => Promise<void>;
 };
 
-export function useAuth(options?: UseAuthOptions) {
-  const { autoFetch = true } = options ?? {};
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+function normalizedRole(role: unknown): Auth.User["role"] {
+  return role === "coach" || role === "admin" ? role : "client";
+}
+
+function useAuthState(): AuthContextValue {
   const [user, setUser] = useState<Auth.User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchUser = useCallback(async () => {
-    console.log("[useAuth] fetchUser called");
+  const refresh = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
-
-      // Web platform: use cookie-based auth, fetch user from API
-      if (Platform.OS === "web") {
-        console.log("[useAuth] Web platform: fetching user from API...");
-        const apiUser = await Api.getMe();
-        console.log("[useAuth] API user response:", apiUser);
-
-        if (apiUser) {
-          const userInfo: Auth.User = {
-            id: apiUser.id,
-            openId: apiUser.openId,
-            name: apiUser.name,
-            email: apiUser.email,
-            loginMethod: apiUser.loginMethod,
-            lastSignedIn: new Date(apiUser.lastSignedIn),
-          };
-          setUser(userInfo);
-          // Cache user info in localStorage for faster subsequent loads
-          await Auth.setUserInfo(userInfo);
-          console.log("[useAuth] Web user set from API:", userInfo);
-        } else {
-          console.log("[useAuth] Web: No authenticated user from API");
-          setUser(null);
-          await Auth.clearUserInfo();
-        }
+      const apiUser = await Api.getMe();
+      if (!apiUser) {
+        setUser(null);
+        await Auth.clearUserInfo();
         return;
       }
 
-      // Native platform: use token-based auth
-      console.log("[useAuth] Native platform: checking for session token...");
-      const sessionToken = await Auth.getSessionToken();
-      console.log(
-        "[useAuth] Session token:",
-        sessionToken ? `present (${sessionToken.substring(0, 20)}...)` : "missing",
-      );
-      if (!sessionToken) {
-        console.log("[useAuth] No session token, setting user to null");
-        setUser(null);
-        return;
-      }
-
-      // Use cached user info for native (token validates the session)
-      const cachedUser = await Auth.getUserInfo();
-      console.log("[useAuth] Cached user:", cachedUser);
-      if (cachedUser) {
-        console.log("[useAuth] Using cached user info");
-        setUser(cachedUser);
-      } else {
-        console.log("[useAuth] No cached user, setting user to null");
-        setUser(null);
-      }
-    } catch (err) {
-      const error = err instanceof Error ? err : new Error("Failed to fetch user");
-      console.error("[useAuth] fetchUser error:", error);
-      setError(error);
+      const verifiedUser: Auth.User = {
+        id: apiUser.id,
+        openId: apiUser.openId,
+        name: apiUser.name,
+        email: apiUser.email,
+        loginMethod: apiUser.loginMethod,
+        role: normalizedRole(apiUser.role),
+        lastSignedIn: new Date(apiUser.lastSignedIn),
+      };
+      setUser(verifiedUser);
+      await Auth.setUserInfo(verifiedUser);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause : new Error("Unable to verify the current session."));
       setUser(null);
+      await Auth.clearUserInfo();
     } finally {
       setLoading(false);
-      console.log("[useAuth] fetchUser completed, loading:", false);
     }
   }, []);
 
   const logout = useCallback(async () => {
     try {
       await Api.logout();
-    } catch (err) {
-      console.error("[Auth] Logout API call failed:", err);
-      // Continue with logout even if API call fails
     } finally {
       await Auth.removeSessionToken();
       await Auth.clearUserInfo();
       setUser(null);
       setError(null);
+      setLoading(false);
     }
   }, []);
 
-  const isAuthenticated = useMemo(() => Boolean(user), [user]);
+  useEffect(() => { void refresh(); }, [refresh]);
 
-  useEffect(() => {
-    console.log("[useAuth] useEffect triggered, autoFetch:", autoFetch, "platform:", Platform.OS);
-    if (autoFetch) {
-      if (Platform.OS === "web") {
-        // Web: fetch user from API directly (user will login manually if needed)
-        console.log("[useAuth] Web: fetching user from API...");
-        fetchUser();
-      } else {
-        // Native: check for cached user info first for faster initial load
-        Auth.getUserInfo().then((cachedUser) => {
-          console.log("[useAuth] Native cached user check:", cachedUser);
-          if (cachedUser) {
-            console.log("[useAuth] Native: setting cached user immediately");
-            setUser(cachedUser);
-            setLoading(false);
-          } else {
-            // No cached user, check session token
-            fetchUser();
-          }
-        });
-      }
-    } else {
-      console.log("[useAuth] autoFetch disabled, setting loading to false");
-      setLoading(false);
-    }
-  }, [autoFetch, fetchUser]);
+  return useMemo(() => ({ user, loading, error, isAuthenticated: Boolean(user), refresh, logout }), [user, loading, error, refresh, logout]);
+}
 
-  useEffect(() => {
-    console.log("[useAuth] State updated:", {
-      hasUser: !!user,
-      loading,
-      isAuthenticated,
-      error: error?.message,
-    });
-  }, [user, loading, isAuthenticated, error]);
+export function AuthProvider({ children }: PropsWithChildren) {
+  const value = useAuthState();
+  return createElement(AuthContext.Provider, { value }, children);
+}
 
-  return {
-    user,
-    loading,
-    error,
-    isAuthenticated,
-    refresh: fetchUser,
-    logout,
-  };
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (!context) throw new Error("useAuth must be used inside AuthProvider");
+  return context;
 }
