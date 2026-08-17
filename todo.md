@@ -75,3 +75,17 @@
 - [x] Save and report the authenticated end-to-end verification result
 - [ ] Run the same authenticated flow on an installed native build and managed Preview after a device or Preview-session test surface is supplied
 - [ ] Make deployed release manifests retain a verifiable source revision when the deployment build worker lacks Git metadata
+
+- [ ] Commit the verified Coachora changes to the current Git branch
+- [ ] Push the commit to TunyTrinh/gym-coach-ora and verify the remote branch
+
+- [x] Audit the live Coach availability mutation and remove its active-service dependency
+- [x] Make availability-service associations optional without auto-creating or inferring services
+- [x] Add a unified room schedule API with availability, occupancy, remaining capacity, hours, closures, and exact status reasons
+- [x] Add a Coach and Client room-calendar view with active, full, closed, inactive, and out-of-hours states
+- [x] Add standalone room-only gym-access bookings with no Coach or service requirement
+- [x] Make Coach-led and room-only booking capacity checks atomic against the shared room occupancy source of truth
+- [x] Invalidate all affected room, schedule, availability, and booking caches after changes
+- [x] Add complete English and Vietnamese messages for room and booking eligibility outcomes
+- [x] Add regression coverage for no-service Coach availability, room-only booking, capacity, closures, cancellation, and concurrent requests
+- [ ] Complete real end-to-end checks for Coach availability, room-only booking, Coach booking, capacity, closures, Preview, native App, and public PWA

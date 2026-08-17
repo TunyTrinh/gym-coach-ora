@@ -134,6 +134,7 @@ export default function BookScreen() {
   const [now, setNow] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(0);
   const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);
+  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [duration, setDuration] = useState(60);
   const [customDurationSelected, setCustomDurationSelected] = useState(false);
   const [selectedStart, setSelectedStart] = useState<Date | null>(null);
@@ -152,6 +153,7 @@ export default function BookScreen() {
     return { dateStart: start.toISOString(), dateEnd: end.toISOString() };
   }, [now]);
   const productionAvailability = trpc.availability.bookableAll.useQuery(availabilityRange, { enabled: !previewMode && role === "client" });
+  const productionServices = trpc.catalog.services.useQuery(undefined, { enabled: !previewMode && role === "client" });
   const productionBooking = trpc.availability.book.useMutation();
   const utils = trpc.useUtils();
   const activeSnapshot = useMemo(() => {
@@ -173,7 +175,7 @@ export default function BookScreen() {
         gymId: "database-gym",
         coachId: String(window.coachId),
         roomId: window.roomId ? String(window.roomId) : undefined,
-        serviceTypeId: String(window.serviceTypeId),
+        serviceTypeId: window.serviceTypeId ? String(window.serviceTypeId) : undefined,
         start: new Date(window.startAt).toISOString(),
         end: new Date(window.endAt).toISOString(),
         maximumCapacity: window.maximumCapacity,
@@ -215,6 +217,7 @@ export default function BookScreen() {
 
   useEffect(() => {
     setSelectedWindowId(null);
+    setSelectedServiceId(null);
     setSelectedStart(null);
   }, [selectedDay]);
 
@@ -262,11 +265,15 @@ export default function BookScreen() {
 
   const handleBook = async () => {
     if (!selectedBookingWindow || !selectedOption) return;
+    if (!previewMode && !selectedServiceId) {
+      setBookingFeedback({ title: t("couldntBook"), message: t("chooseServiceForBooking"), tone: "error" });
+      return;
+    }
     setBusy(true);
     try {
       const result = previewMode
         ? await bookAvailability(selectedBookingWindow.id, selectedOption.start.toISOString(), duration)
-        : await productionBooking.mutateAsync({ windowId: selectedBookingWindow.id, startAt: selectedOption.start.toISOString(), durationMinutes: duration })
+        : await productionBooking.mutateAsync({ windowId: selectedBookingWindow.id, serviceTypeId: selectedServiceId!, startAt: selectedOption.start.toISOString(), durationMinutes: duration })
           .then(() => ({ success: true as const, message: "You’re booked. Your session is now in My Schedule." }))
           .catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "That time is no longer available." }));
       if (result.success) {
@@ -328,20 +335,23 @@ export default function BookScreen() {
               </Pressable>;
             }}
           />
+          {!previewMode ? <RoomAccessPanel selectedDate={selectedDate} duration={duration} colors={colors} t={t} language={language} onFeedback={setBookingFeedback} /> : null}
           <Text style={[styles.stepLabel, { color: colors.muted }]}>2. {t("chooseAvailability")}</Text>
         </View>
 
         {productionAvailability.isLoading && !previewMode ? <ActivityIndicator color="#ff82b7" style={styles.activityLoading} /> : windows.length ? <View style={styles.windowList}>{windows.map((window) => <AvailabilityCard key={window.id} window={window} selected={selectedWindowId === window.id} snapshot={activeSnapshot} language={language} t={t} colors={colors} onPress={() => { setSelectedWindowId(window.id); setSelectedStart(null); }} />)}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noSlotsAvailable")}</Text></SurfaceCard>}
 
         {selectedWindow ? <View style={styles.bookingPanel}>
-          <Text style={[styles.stepLabel, { color: colors.muted }]}>3. {t("sessionDuration")}</Text>
+          <Text style={[styles.stepLabel, { color: colors.muted }]}>3. {t("service")}</Text>
+          {!previewMode ? productionServices.isLoading ? <ActivityIndicator color="#ff82b7" /> : productionServices.data?.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceRail}>{productionServices.data.map((service) => <Pressable key={service.id} onPress={() => setSelectedServiceId(service.id)} accessibilityRole="button" accessibilityState={{ selected: selectedServiceId === service.id }} style={({ pressed }) => [styles.serviceChip, { borderColor: selectedServiceId === service.id ? "#f04488" : colors.border, backgroundColor: selectedServiceId === service.id ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.serviceName, { color: selectedServiceId === service.id ? "#ff82b7" : colors.foreground }]}>{service.name}</Text><Text style={[styles.serviceMeta, { color: colors.muted }]}>{service.durationMinutes} {t("minutes")}</Text></Pressable>)}</ScrollView> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noActiveServicesForBooking")}</Text></SurfaceCard> : null}
+          <Text style={[styles.stepLabel, { color: colors.muted }]}>4. {t("sessionDuration")}</Text>
           <View style={styles.durationRail}>
             {quickDurations.map((item) => <Pressable key={item} onPress={() => selectQuickDuration(item)} style={({ pressed }) => [styles.durationChip, { borderColor: !customDurationSelected && duration === item ? "#f04488" : colors.border, backgroundColor: !customDurationSelected && duration === item ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.durationText, { color: !customDurationSelected && duration === item ? "#ff82b7" : colors.foreground }]}>{item} {t("minutes")}</Text></Pressable>)}
             <Pressable onPress={openCustomDuration} style={({ pressed }) => [styles.durationChip, { borderColor: customDurationSelected ? "#f04488" : colors.border, backgroundColor: customDurationSelected ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.durationText, { color: customDurationSelected ? "#ff82b7" : colors.foreground }]}>{customDurationSelected ? `${t("otherDuration")} · ${duration}m` : t("otherDuration")}</Text></Pressable>
           </View>
 
           <View style={styles.timeHeading}>
-            <Text style={[styles.stepLabel, { color: colors.muted }]}>4. {t("chooseStartTime")}</Text>
+            <Text style={[styles.stepLabel, { color: colors.muted }]}>5. {t("chooseStartTime")}</Text>
           </View>
           {timeOptions.length ? <Pressable onPress={openTimePicker} style={({ pressed }) => [styles.timeChoice, { backgroundColor: colors.surface, borderColor: selectedOption ? "#f04488" : colors.border }, pressed && styles.pressed]}>
             <View>
@@ -368,6 +378,66 @@ export default function BookScreen() {
       <StartTimePicker visible={showTimePicker} value={timeDraft} colors={colors} t={t} error={timeError} onChange={setTimeDraft} onClose={() => setShowTimePicker(false)} onSave={saveStartTime} />
     </ScreenContainer>
   );
+}
+
+function roomStatusCopy(status: string, t: Translation) {
+  if (status === "full") return t("roomStatusFull");
+  if (status === "temporarily_closed") return t("roomStatusClosed");
+  if (status === "inactive") return t("roomStatusInactive");
+  if (status === "outside_hours") return t("roomStatusOutsideHours");
+  return t("roomStatusAvailable");
+}
+
+function RoomAccessPanel({ selectedDate, duration, colors, t, language, onFeedback }: { selectedDate: Date; duration: number; colors: ReturnType<typeof useColors>; t: Translation; language: "en" | "vi"; onFeedback: (feedback: BookingFeedback) => void }) {
+  const utils = trpc.useUtils();
+  const date = localDayKey(selectedDate);
+  const schedule = trpc.availability.roomSchedule.useQuery({ date });
+  const bookRoom = trpc.availability.bookRoom.useMutation();
+  const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
+  const [time, setTime] = useState("09:00");
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const startAt = useMemo(() => new Date(`${date}T${time}:00`), [date, time]);
+  const preview = trpc.availability.previewRoomCapacity.useQuery(
+    { roomId: selectedRoomId ?? 0, startAt: startAt.toISOString(), durationMinutes: duration },
+    { enabled: selectedRoomId !== null && startAt.getTime() > Date.now() },
+  );
+  const selectedRoom = schedule.data?.rooms.find((room) => room.id === selectedRoomId) ?? null;
+
+  useEffect(() => {
+    if (!selectedRoomId && schedule.data?.rooms.find((room) => room.active)) setSelectedRoomId(schedule.data.rooms.find((room) => room.active)?.id ?? null);
+  }, [schedule.data?.rooms, selectedRoomId]);
+
+  useEffect(() => { setSelectedRoomId(null); }, [date]);
+
+  const confirm = async () => {
+    if (!selectedRoomId || !selectedRoom) return;
+    setBusy(true);
+    try {
+      const result = await bookRoom.mutateAsync({ roomId: selectedRoomId, startAt: startAt.toISOString(), durationMinutes: duration });
+      await Promise.all([utils.availability.roomSchedule.invalidate(), utils.member.schedule.invalidate(), utils.availability.bookableAll.invalidate()]);
+      haptic.success();
+      onFeedback({ title: t("roomAccessConfirmed"), message: `${selectedRoom.name} · ${formatTimeLocalized(result.startAt, language)}–${formatTimeLocalized(result.endAt, language)}`, tone: "success" });
+    } catch (error) {
+      haptic.error();
+      onFeedback({ title: t("couldntBook"), message: error instanceof Error ? t(bookingFailureTranslationKey(error.message)) : t("bookingUnavailable"), tone: "error" });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <SurfaceCard style={styles.roomAccessCard}>
+    <Text style={[styles.roomAccessTitle, { color: colors.foreground }]}>{t("roomAccessBooking")}</Text>
+    <Text style={[styles.roomAccessCopy, { color: colors.muted }]}>{t("roomAccessBookingBody")}</Text>
+    <Text style={[styles.stepLabel, { color: colors.muted }]}>{t("roomScheduleToday").toUpperCase()}</Text>
+    {schedule.isLoading ? <ActivityIndicator color="#ff82b7" /> : schedule.data?.rooms.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomAccessRail}>{schedule.data.rooms.map((room) => {
+      const selected = room.id === selectedRoomId;
+      const available = room.statusReason === "available";
+      return <Pressable key={room.id} onPress={() => setSelectedRoomId(room.id)} accessibilityRole="button" accessibilityState={{ selected }} style={({ pressed }) => [styles.roomAccessPill, { borderColor: selected ? "#f04488" : colors.border, backgroundColor: selected ? "#2b1f2a" : colors.surface, opacity: available ? 1 : 0.72 }, pressed && styles.pressed]}><Text style={[styles.roomAccessName, { color: selected ? "#ff82b7" : colors.foreground }]}>{room.name}</Text><Text style={[styles.roomAccessMeta, { color: colors.muted }]}>{room.openingTime}–{room.closingTime} · {room.maximumCapacity}</Text><Text style={[styles.roomAccessStatus, { color: available ? "#32d77b" : "#ff8b82" }]}>{roomStatusCopy(room.statusReason, t)}</Text></Pressable>;
+    })}</ScrollView> : <Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("roomAccessNoRooms")}</Text>}
+    {selectedRoom ? <><Text style={[styles.stepLabel, { color: colors.muted }]}>{t("roomAccessTime").toUpperCase()}</Text><Pressable onPress={() => setShowTimePicker(true)} style={({ pressed }) => [styles.timeChoice, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.timeChoiceValue, { color: colors.foreground }]}>{formatTimeLocalized(startAt, language)}</Text><Text style={[styles.timeChoiceChevron, { color: colors.muted }]}>›</Text></Pressable><Text style={[styles.roomAccessHours, { color: colors.muted }]}>{t("roomOpeningHours")}: {selectedRoom.openingTime}–{selectedRoom.closingTime}</Text>{preview.isFetching ? <ActivityIndicator color="#ff82b7" /> : preview.data ? <Text style={[styles.roomAccessCapacity, { color: preview.data.remainingCapacity > 0 ? "#32d77b" : "#ff8b82" }]}>{preview.data.remainingCapacity} {t("roomCapacityRemaining")}</Text> : preview.error ? <Text style={styles.roomAccessError}>{preview.error.message.includes("opening hours") ? t("roomTimeOutsideHours") : preview.error.message}</Text> : null}<PrimaryButton title={busy ? t("publishing") : t("roomAccessBooking")} disabled={busy || selectedRoom.statusReason !== "available" || !preview.data || preview.data.remainingCapacity < 1} onPress={confirm} /></> : null}
+    <StartTimePicker visible={showTimePicker} value={time} colors={colors} t={t} error={Boolean(preview.error)} onChange={setTime} onClose={() => setShowTimePicker(false)} onSave={() => setShowTimePicker(false)} />
+  </SurfaceCard>;
 }
 
 function AvailabilityCard({ window, selected, snapshot, language, t, colors, onPress }: { window: AvailabilityShift; selected: boolean; snapshot: GymSnapshot; language: "en" | "vi"; t: Translation; colors: ReturnType<typeof useColors>; onPress: () => void }) {
@@ -478,6 +548,21 @@ const styles = StyleSheet.create({
   windowHint: { fontSize: 11, lineHeight: 16 },
   bookingPanel: { gap: 12, paddingTop: 4 },
   durationRail: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  roomAccessCard: { gap: 10, padding: 16 },
+  roomAccessTitle: { fontSize: 17, fontWeight: "900" },
+  roomAccessCopy: { fontSize: 12, lineHeight: 18 },
+  roomAccessRail: { gap: 8, paddingRight: 14 },
+  roomAccessPill: { width: 160, borderRadius: 14, borderWidth: 1, padding: 11, gap: 3 },
+  roomAccessName: { fontSize: 13, fontWeight: "900" },
+  roomAccessMeta: { fontSize: 10, fontWeight: "700" },
+  roomAccessStatus: { fontSize: 10, fontWeight: "900", marginTop: 2 },
+  roomAccessHours: { fontSize: 11, marginTop: -4 },
+  roomAccessCapacity: { fontSize: 12, fontWeight: "800" },
+  roomAccessError: { color: "#ff8b82", fontSize: 11, fontWeight: "700", lineHeight: 16 },
+  serviceRail: { gap: 8, paddingRight: 14 },
+  serviceChip: { minWidth: 135, borderRadius: 13, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 3 },
+  serviceName: { fontSize: 13, fontWeight: "900" },
+  serviceMeta: { fontSize: 10, fontWeight: "700" },
   durationChip: { borderRadius: 13, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
   durationText: { fontSize: 12, fontWeight: "900" },
   timeHeading: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: 4 },

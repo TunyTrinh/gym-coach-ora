@@ -10,6 +10,7 @@ import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coac
 import { and, asc, eq, gt, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { isRoomEligibleForAvailability } from "../shared/room-eligibility";
+import { roomScheduleStatus } from "../shared/room-status";
 
 const availabilityInput = z.object({
   coachId: z.number().int().positive().optional(),
@@ -56,6 +57,16 @@ function localDayKey(value: Date) {
 }
 
 async function assertRoomOpenForInterval(db: any, roomId: number, startAt: Date, endAt: Date) {
+  const room = await db.select({ id: gymRooms.id, active: gymRooms.active, openingTime: gymRooms.openingTime, closingTime: gymRooms.closingTime }).from(gymRooms).where(eq(gymRooms.id, roomId)).limit(1);
+  if (!room[0] || !room[0].active) throw new Error("This room is no longer available for booking.");
+  if (localDayKey(startAt) !== localDayKey(new Date(endAt.getTime() - 1))) throw new Error("Your complete booking must fit inside one room operating day.");
+  const startMinutes = startAt.getHours() * 60 + startAt.getMinutes();
+  const endMinutes = endAt.getHours() * 60 + endAt.getMinutes();
+  const [openingHour, openingMinute] = room[0].openingTime.split(":").map(Number);
+  const [closingHour, closingMinute] = room[0].closingTime.split(":").map(Number);
+  const openingMinutes = openingHour * 60 + openingMinute;
+  const closingMinutes = closingHour * 60 + closingMinute;
+  if (startMinutes < openingMinutes || endMinutes > closingMinutes) throw new Error("This room is outside its opening hours for the selected time.");
   const closureDates = [...new Set([localDayKey(startAt), localDayKey(new Date(endAt.getTime() - 1))])];
   const closure = await db.select({ closureDate: roomClosures.closureDate }).from(roomClosures).where(and(
     eq(roomClosures.roomId, roomId),
@@ -153,10 +164,10 @@ export const appRouter = router({
         coachName: coaches.fullName,
         serviceName: serviceTypes.name,
         availabilityId: availabilityShifts.externalId,
-      }).from(bookings)
+        }).from(bookings)
         .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
         .leftJoin(coaches, eq(timeSlots.coachId, coaches.id))
-        .innerJoin(serviceTypes, eq(timeSlots.serviceTypeId, serviceTypes.id))
+        .leftJoin(serviceTypes, eq(timeSlots.serviceTypeId, serviceTypes.id))
         .leftJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
         .where(eq(bookings.memberUserId, ctx.user.id))
         .orderBy(asc(timeSlots.startAt));
@@ -246,10 +257,10 @@ export const appRouter = router({
     listActiveGyms: adminProcedure.query(() => listActiveGyms()),
     listRooms: adminProcedure.query(() => listRooms()),
     createRoom: adminProcedure
-      .input(z.object({ gymId: z.number().int().positive().optional(), name: z.string().trim().min(2).max(128), address: z.string().trim().min(2).max(2_000), description: z.string().trim().min(2).max(4_000), maximumCapacity: z.number().int().min(1).max(500) }))
+      .input(z.object({ gymId: z.number().int().positive().optional(), name: z.string().trim().min(2).max(128), address: z.string().trim().min(2).max(2_000), description: z.string().trim().min(2).max(4_000), maximumCapacity: z.number().int().min(1).max(500), openingTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default("00:00"), closingTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/).default("23:59") }))
       .mutation(({ ctx, input }) => createGymRoom({ ...input, actorUserId: ctx.user.id })),
     updateRoom: adminProcedure
-      .input(z.object({ roomId: z.number().int().positive(), gymId: z.number().int().positive(), name: z.string().trim().min(2).max(128), address: z.string().trim().min(2).max(2_000), description: z.string().trim().min(2).max(4_000), maximumCapacity: z.number().int().min(1).max(500), active: z.boolean() }))
+      .input(z.object({ roomId: z.number().int().positive(), gymId: z.number().int().positive(), name: z.string().trim().min(2).max(128), address: z.string().trim().min(2).max(2_000), description: z.string().trim().min(2).max(4_000), maximumCapacity: z.number().int().min(1).max(500), openingTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), closingTime: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), active: z.boolean() }))
       .mutation(({ ctx, input }) => updateGymRoom({ ...input, actorUserId: ctx.user.id })),
     deleteRoom: adminProcedure
       .input(z.object({ roomId: z.number().int().positive(), confirmationName: z.string().trim().min(1).max(128) }))
@@ -347,6 +358,73 @@ export const appRouter = router({
       }),
   }),
   availability: router({
+    roomSchedule: protectedProcedure
+      .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+      .query(async ({ ctx, input }) => {
+        if (!["client", "coach", "admin"].includes(ctx.user.role)) throw new Error("Authenticated access is required to view room schedules.");
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        const rooms = await listRooms();
+        const dayStart = localDateTime(input.date, "00:00");
+        const dayEnd = dayStart ? new Date(dayStart.getTime() + 24 * 60 * 60_000) : null;
+        if (!dayStart || !dayEnd) throw new Error("Choose a valid room schedule date.");
+        const roomIds = rooms.map((room) => room.id);
+        const closures = roomIds.length ? await db.select({ roomId: roomClosures.roomId, reason: roomClosures.reason }).from(roomClosures).where(and(eq(roomClosures.closureDate, input.date), inArray(roomClosures.roomId, roomIds))) : [];
+        const closuresByRoom = new Map(closures.map((closure) => [closure.roomId, closure.reason]));
+        const bookingRows = roomIds.length ? await db.select({
+          bookingId: bookings.externalId,
+          status: bookings.status,
+          roomId: timeSlots.roomId,
+          startAt: timeSlots.startAt,
+          endAt: timeSlots.endAt,
+          coachName: coaches.fullName,
+          serviceName: serviceTypes.name,
+          availabilityId: availabilityShifts.externalId,
+        }).from(bookings)
+          .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
+          .leftJoin(coaches, eq(timeSlots.coachId, coaches.id))
+          .leftJoin(serviceTypes, eq(timeSlots.serviceTypeId, serviceTypes.id))
+          .leftJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
+          .where(and(inArray(timeSlots.roomId, roomIds), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, dayEnd), gt(timeSlots.endAt, dayStart))) : [];
+        const availabilityRows = roomIds.length ? await db.select({
+          id: availabilityShifts.externalId,
+          roomId: availabilityShifts.roomId,
+          startAt: availabilityShifts.startAt,
+          endAt: availabilityShifts.endAt,
+          status: availabilityShifts.status,
+          maximumCapacity: availabilityShifts.maximumCapacity,
+          coachName: coaches.fullName,
+          note: availabilityShifts.note,
+        }).from(availabilityShifts)
+          .innerJoin(coaches, eq(availabilityShifts.coachId, coaches.id))
+          .where(and(inArray(availabilityShifts.roomId, roomIds), lt(availabilityShifts.startAt, dayEnd), gt(availabilityShifts.endAt, dayStart))) : [];
+        return {
+          date: input.date,
+          rooms: rooms.map((room) => {
+            const closed = closuresByRoom.has(room.id);
+            const activeBookings = bookingRows.filter((booking) => booking.roomId === room.id);
+            const windows = availabilityRows.filter((window) => window.roomId === room.id).map((window) => {
+              const occupancy = activeBookings.filter((booking) => booking.startAt < window.endAt && booking.endAt > window.startAt).length;
+              return {
+                ...window,
+                occupancy,
+                remainingCapacity: Math.max(0, Math.min(room.maximumCapacity, window.maximumCapacity) - occupancy),
+                statusReason: roomScheduleStatus({ active: room.active, closed, occupancy, maximumCapacity: Math.min(room.maximumCapacity, window.maximumCapacity) }),
+              };
+            });
+            return {
+              ...room,
+              closureReason: closuresByRoom.get(room.id) ?? null,
+              occupancy: activeBookings.length,
+              remainingCapacity: Math.max(0, room.maximumCapacity - activeBookings.length),
+              statusReason: roomScheduleStatus({ active: room.active, closed, occupancy: activeBookings.length, maximumCapacity: room.maximumCapacity }),
+              nextAvailableSlot: windows.find((window) => window.statusReason === "available")?.startAt ?? null,
+              windows,
+              bookings: activeBookings,
+            };
+          }),
+        };
+      }),
     rooms: protectedProcedure.input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).optional()).query(async ({ ctx, input }) => {
       if (ctx.user.role !== "coach" && ctx.user.role !== "admin") throw new Error("Coach access is required to view rooms.");
       const allRooms = await listRooms();
@@ -484,6 +562,20 @@ export const appRouter = router({
         ));
         return { endAt, bookedCount: overlaps.length, remainingCapacity: Math.max(0, window[0].maximumCapacity - overlaps.length), maximumCapacity: window[0].maximumCapacity };
       }),
+    previewRoomCapacity: protectedProcedure
+      .input(z.object({ roomId: z.number().int().positive(), startAt: z.string().datetime(), durationMinutes: durationInput }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "client") throw new Error("Member access is required to preview room capacity.");
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        const startAt = new Date(input.startAt);
+        const endAt = new Date(startAt.getTime() + input.durationMinutes * 60_000);
+        if (startAt <= new Date()) throw new Error("Choose a future start time.");
+        await assertRoomOpenForInterval(db, input.roomId, startAt, endAt);
+        const room = await db.select({ maximumCapacity: gymRooms.maximumCapacity }).from(gymRooms).where(eq(gymRooms.id, input.roomId)).limit(1);
+        const overlaps = await db.select({ id: bookings.id }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(eq(timeSlots.roomId, input.roomId), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endAt), gt(timeSlots.endAt, startAt)));
+        return { endAt, bookedCount: overlaps.length, remainingCapacity: Math.max(0, (room[0]?.maximumCapacity ?? 0) - overlaps.length), maximumCapacity: room[0]?.maximumCapacity ?? 0 };
+      }),
     create: protectedProcedure
       .input(availabilityInput)
       .mutation(async ({ ctx, input }) => {
@@ -495,8 +587,6 @@ export const appRouter = router({
         if (!startAt || !endAt || endAt <= startAt) throw new Error("Choose an end time after the start time.");
         const now = new Date();
         if (startAt.getTime() < now.getTime() + 30 * 60_000) throw new Error("Today’s availability must start at least 30 minutes from now.");
-        const defaultService = await db.select({ id: serviceTypes.id }).from(serviceTypes).where(eq(serviceTypes.active, true)).limit(1);
-        if (!defaultService[0]) throw new Error("No active coaching service is available.");
         const room = await db.select().from(gymRooms).where(and(eq(gymRooms.id, input.roomId), eq(gymRooms.active, true))).limit(1);
         if (!room[0]) throw new Error("Select an active room for this availability.");
         await assertRoomOpenForInterval(db, room[0].id, startAt, endAt);
@@ -512,7 +602,7 @@ export const appRouter = router({
             inArray(availabilityShifts.status, ["available", "booked", "blocked"]),
           )).limit(1);
           if (conflicts.length) throw new Error("This availability overlaps an existing availability window or blocked period.");
-          await tx.insert(availabilityShifts).values({ externalId: windowId, gymId: room[0].gymId, coachId, roomId: room[0].id, serviceTypeId: defaultService[0].id, startAt, endAt, maximumCapacity: input.maximumCapacity, location: room[0].name, note: input.note, status: "available", createdBy: ctx.user.id });
+          await tx.insert(availabilityShifts).values({ externalId: windowId, gymId: room[0].gymId, coachId, roomId: room[0].id, serviceTypeId: null, startAt, endAt, maximumCapacity: input.maximumCapacity, location: room[0].name, note: input.note, status: "available", createdBy: ctx.user.id });
           await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "CREATE_AVAILABILITY", details: `Created continuous availability window ${windowId} for coach ${coachId}.` });
         });
         return { success: true as const, windowId, createdCount: 1 };
@@ -532,7 +622,7 @@ export const appRouter = router({
         return { success: true as const };
       }),
     book: protectedProcedure
-      .input(z.object({ windowId: z.string().min(1).max(64), startAt: z.string().datetime(), durationMinutes: durationInput }))
+      .input(z.object({ windowId: z.string().min(1).max(64), serviceTypeId: z.number().int().positive(), startAt: z.string().datetime(), durationMinutes: durationInput }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "client") throw new Error("Only members can book a coach shift.");
         const db = await getDb();
@@ -540,6 +630,8 @@ export const appRouter = router({
         return db.transaction(async (tx: any) => {
           const shift = await tx.select().from(availabilityShifts).where(eq(availabilityShifts.externalId, input.windowId)).limit(1);
           if (!shift[0]) throw new Error("Availability window not found.");
+          const service = await tx.select({ id: serviceTypes.id }).from(serviceTypes).where(and(eq(serviceTypes.id, input.serviceTypeId), eq(serviceTypes.active, true))).limit(1);
+          if (!service[0]) throw new Error("Select an active coaching service for this session.");
           await tx.execute(sql`SELECT id FROM availabilityShifts WHERE id = ${shift[0].id} FOR UPDATE`);
           // A Client record lock also serializes bookings across different Coach windows for the same Client.
           await tx.execute(sql`SELECT id FROM users WHERE id = ${ctx.user.id} FOR UPDATE`);
@@ -563,7 +655,7 @@ export const appRouter = router({
           }
           const bookingExternalId = `booking-${randomUUID()}`;
           const slotExternalId = `booking-slot-${bookingExternalId}`;
-          await tx.insert(timeSlots).values({ externalId: slotExternalId, gymId: shift[0].gymId, coachId: shift[0].coachId, roomId: shift[0].roomId, serviceTypeId: shift[0].serviceTypeId, startAt, endAt, maximumCapacity: shift[0].maximumCapacity, bookedCount: 1, status: "Full", room: shift[0].location });
+          await tx.insert(timeSlots).values({ externalId: slotExternalId, gymId: shift[0].gymId, coachId: shift[0].coachId, roomId: shift[0].roomId, serviceTypeId: service[0].id, startAt, endAt, maximumCapacity: shift[0].maximumCapacity, bookedCount: 1, status: "Full", room: shift[0].location });
           const slot = await tx.select({ id: timeSlots.id }).from(timeSlots).where(eq(timeSlots.externalId, slotExternalId)).limit(1);
           await tx.insert(bookings).values({ externalId: bookingExternalId, memberUserId: ctx.user.id, timeSlotId: slot[0].id, availabilityShiftId: shift[0].id, status: "confirmed" });
           const booking = await tx.select({ id: bookings.id }).from(bookings).where(eq(bookings.externalId, bookingExternalId)).limit(1);
@@ -576,6 +668,36 @@ export const appRouter = router({
           return { success: true as const, bookingId: bookingExternalId, startAt, endAt, remainingCapacity: shift[0].maximumCapacity - overlappingBookings.length - 1 };
         });
       }),
+    bookRoom: protectedProcedure
+      .input(z.object({ roomId: z.number().int().positive(), startAt: z.string().datetime(), durationMinutes: durationInput }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "client") throw new Error("Only members can book gym access.");
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        return db.transaction(async (tx: any) => {
+          const startAt = new Date(input.startAt);
+          const endAt = new Date(startAt.getTime() + input.durationMinutes * 60_000);
+          if (startAt <= new Date()) throw new Error("Choose a future start time.");
+          await tx.execute(sql`SELECT id FROM users WHERE id = ${ctx.user.id} FOR UPDATE`);
+          const room = await tx.select({ id: gymRooms.id, gymId: gymRooms.gymId, name: gymRooms.name, maximumCapacity: gymRooms.maximumCapacity, active: gymRooms.active }).from(gymRooms).where(eq(gymRooms.id, input.roomId)).limit(1);
+          if (!room[0] || !room[0].active) throw new Error("This room is no longer available for booking.");
+          await tx.execute(sql`SELECT id FROM gymRooms WHERE id = ${room[0].id} FOR UPDATE`);
+          await assertRoomOpenForInterval(tx, room[0].id, startAt, endAt);
+          const clientOverlap = await tx.select({ id: bookings.id }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(eq(bookings.memberUserId, ctx.user.id), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endAt), gt(timeSlots.endAt, startAt))).limit(1);
+          if (clientOverlap.length) throw new Error("This session overlaps with one of your existing bookings.");
+          const roomOverlaps = await tx.select({ id: bookings.id }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(eq(timeSlots.roomId, room[0].id), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endAt), gt(timeSlots.endAt, startAt)));
+          if (roomOverlaps.length >= room[0].maximumCapacity) throw new Error("That room has reached its maximum client capacity. Choose another time.");
+          const bookingExternalId = `room-booking-${randomUUID()}`;
+          const slotExternalId = `room-slot-${bookingExternalId}`;
+          await tx.insert(timeSlots).values({ externalId: slotExternalId, gymId: room[0].gymId, coachId: null, roomId: room[0].id, serviceTypeId: null, startAt, endAt, maximumCapacity: room[0].maximumCapacity, bookedCount: 1, status: "Full", room: room[0].name });
+          const slot = await tx.select({ id: timeSlots.id }).from(timeSlots).where(eq(timeSlots.externalId, slotExternalId)).limit(1);
+          await tx.insert(bookings).values({ externalId: bookingExternalId, memberUserId: ctx.user.id, timeSlotId: slot[0].id, availabilityShiftId: null, status: "confirmed" });
+          const booking = await tx.select({ id: bookings.id }).from(bookings).where(eq(bookings.externalId, bookingExternalId)).limit(1);
+          await tx.insert(notifications).values({ userId: ctx.user.id, type: "confirmation", title: "Gym access booked", message: "Your room-only gym access booking is confirmed and has been added to your schedule.", relatedBookingId: booking[0].id });
+          await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "BOOK_ROOM_ACCESS", details: `Booked room ${room[0].id} from ${startAt.toISOString()} to ${endAt.toISOString()}.` });
+          return { success: true as const, bookingId: bookingExternalId, startAt, endAt, remainingCapacity: room[0].maximumCapacity - roomOverlaps.length - 1 };
+        });
+      }),
     cancel: protectedProcedure
       .input(z.object({ bookingId: z.string().min(1).max(64), reason: z.string().trim().max(240).optional() }))
       .mutation(async ({ ctx, input }) => {
@@ -583,17 +705,19 @@ export const appRouter = router({
         if (!db) throw new Error("Database unavailable");
         const cancellation = await db.transaction(async (tx: any) => {
           await tx.execute(sql`SELECT id FROM bookings WHERE externalId = ${input.bookingId} FOR UPDATE`);
-          const record = await tx.select({ booking: bookings, shift: availabilityShifts, clientName: users.name }).from(bookings).innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).innerJoin(users, eq(bookings.memberUserId, users.id)).where(eq(bookings.externalId, input.bookingId)).limit(1);
-          if (!record[0]) throw new Error("Managed booking not found.");
-          const canCancel = record[0].booking.memberUserId === ctx.user.id || ctx.user.role === "admin" || (ctx.user.role === "coach" && (await managedCoachId(tx, ctx.user)) === record[0].shift.coachId);
+          const record = await tx.select({ booking: bookings, shift: availabilityShifts, clientName: users.name }).from(bookings).leftJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).innerJoin(users, eq(bookings.memberUserId, users.id)).where(eq(bookings.externalId, input.bookingId)).limit(1);
+          if (!record[0]) throw new Error("Booking not found.");
+          const canCancel = record[0].booking.memberUserId === ctx.user.id || ctx.user.role === "admin" || (ctx.user.role === "coach" && record[0].shift && (await managedCoachId(tx, ctx.user)) === record[0].shift.coachId);
           if (!canCancel) throw new Error("You cannot cancel this booking.");
           if (record[0].booking.status !== "confirmed") throw new Error("This booking cannot be cancelled.");
           await tx.update(bookings).set({ status: "cancelled", cancellationTime: new Date(), cancellationReason: input.reason }).where(eq(bookings.id, record[0].booking.id));
           await tx.update(timeSlots).set({ status: "Cancelled", bookedCount: 0 }).where(eq(timeSlots.id, record[0].booking.timeSlotId));
-          const coach = await tx.select({ userId: coaches.userId }).from(coaches).where(eq(coaches.id, record[0].shift.coachId)).limit(1);
-          if (coach[0]?.userId) await tx.insert(notifications).values({ userId: coach[0].userId, type: "cancellation", title: "Client session cancelled", message: `${record[0].clientName ?? "A client"} cancelled a session in your availability window.`, relatedBookingId: record[0].booking.id });
-          await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: "CANCEL_AVAILABILITY_BOOKING", details: `Cancelled ${input.bookingId}; the availability window remains open.` });
-          return { shiftId: record[0].shift.externalId };
+          if (record[0].shift) {
+            const coach = await tx.select({ userId: coaches.userId }).from(coaches).where(eq(coaches.id, record[0].shift.coachId)).limit(1);
+            if (coach[0]?.userId) await tx.insert(notifications).values({ userId: coach[0].userId, type: "cancellation", title: "Client session cancelled", message: `${record[0].clientName ?? "A client"} cancelled a session in your availability window.`, relatedBookingId: record[0].booking.id });
+          }
+          await tx.insert(auditLogs).values({ actorUserId: ctx.user.id, action: record[0].shift ? "CANCEL_AVAILABILITY_BOOKING" : "CANCEL_ROOM_ACCESS_BOOKING", details: record[0].shift ? `Cancelled ${input.bookingId}; the availability window remains open.` : `Cancelled standalone room-access booking ${input.bookingId}.` });
+          return { shiftId: record[0].shift?.externalId ?? null };
         });
         return { success: true as const, releaseRequired: false as const, shiftId: cancellation.shiftId };
       }),

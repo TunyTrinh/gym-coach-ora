@@ -38,6 +38,8 @@ export const gymRooms = mysqlTable("gymRooms", {
   address: text("address").notNull(),
   description: text("description").notNull(),
   maximumCapacity: int("maximumCapacity").notNull(),
+  openingTime: varchar("openingTime", { length: 5 }).default("00:00").notNull(),
+  closingTime: varchar("closingTime", { length: 5 }).default("23:59").notNull(),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
@@ -101,7 +103,8 @@ export const timeSlots = mysqlTable("timeSlots", {
   gymId: int("gymId").notNull(),
   coachId: int("coachId"),
   roomId: int("roomId"),
-  serviceTypeId: int("serviceTypeId").notNull(),
+  /** Optional for standalone room-access bookings. */
+  serviceTypeId: int("serviceTypeId"),
   startAt: timestamp("startAt").notNull(),
   endAt: timestamp("endAt").notNull(),
   maximumCapacity: int("maximumCapacity").notNull(),
@@ -118,7 +121,8 @@ export const availabilityShifts = mysqlTable("availabilityShifts", {
   gymId: int("gymId").notNull(),
   coachId: int("coachId").notNull(),
   roomId: int("roomId"),
-  serviceTypeId: int("serviceTypeId").notNull(),
+  /** Services are selected at Coach-led booking time, not while publishing availability. */
+  serviceTypeId: int("serviceTypeId"),
   startAt: timestamp("startAt").notNull(),
   endAt: timestamp("endAt").notNull(),
   maximumCapacity: int("maximumCapacity").default(1).notNull(),

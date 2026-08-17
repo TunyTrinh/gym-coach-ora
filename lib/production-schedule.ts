@@ -11,7 +11,7 @@ type ScheduleRow = {
   endAt: Date | string;
   room: string;
   maximumCapacity: number;
-  serviceName: string;
+  serviceName: string | null;
   availabilityId: string | null;
   coachName?: string | null;
   clientId?: number;
@@ -38,11 +38,11 @@ export function adaptProductionSchedule(
   const bookings: GymSnapshot["bookings"] = [];
 
   for (const row of input.rows) {
-    const serviceId = `service-${row.serviceName.replace(/\s+/g, "-").toLowerCase()}`;
-    if (!services.has(serviceId)) {
+    const serviceId = row.serviceName ? `service-${row.serviceName.replace(/\s+/g, "-").toLowerCase()}` : undefined;
+    if (serviceId && !services.has(serviceId)) {
       services.set(serviceId, {
         id: serviceId,
-        name: row.serviceName,
+        name: row.serviceName ?? "Coach session",
         description: "",
         durationMinutes: Math.round((new Date(row.endAt).getTime() - new Date(row.startAt).getTime()) / 60_000),
         defaultCapacity: row.maximumCapacity,

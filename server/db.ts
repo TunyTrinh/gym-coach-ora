@@ -11,6 +11,15 @@ export function normalizeRoomName(value: string) {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
 
+function isValidRoomHours(openingTime: string, closingTime: string) {
+  const parse = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value)
+    ? Number(value.slice(0, 2)) * 60 + Number(value.slice(3))
+    : null;
+  const opening = parse(openingTime);
+  const closing = parse(closingTime);
+  return opening !== null && closing !== null && opening < closing;
+}
+
 const activeBookingStatuses = ["pending", "confirmed"] as const;
 const cancellableAvailabilityStatuses = ["available", "booked", "blocked"] as const;
 
@@ -238,15 +247,16 @@ export async function listActiveGyms() {
 export async function listRooms(input: { activeOnly?: boolean } = {}) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
-  return db.select({ id: gymRooms.id, externalId: gymRooms.externalId, gymId: gymRooms.gymId, name: gymRooms.name, address: gymRooms.address, description: gymRooms.description, maximumCapacity: gymRooms.maximumCapacity, active: gymRooms.active }).from(gymRooms).where(input.activeOnly ? eq(gymRooms.active, true) : undefined);
+  return db.select({ id: gymRooms.id, externalId: gymRooms.externalId, gymId: gymRooms.gymId, name: gymRooms.name, address: gymRooms.address, description: gymRooms.description, maximumCapacity: gymRooms.maximumCapacity, openingTime: gymRooms.openingTime, closingTime: gymRooms.closingTime, active: gymRooms.active }).from(gymRooms).where(input.activeOnly ? eq(gymRooms.active, true) : undefined);
 }
 
-export async function createGymRoom(input: { gymId?: number; name: string; address: string; description: string; maximumCapacity: number; actorUserId: number }) {
+export async function createGymRoom(input: { gymId?: number; name: string; address: string; description: string; maximumCapacity: number; openingTime: string; closingTime: string; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
   const name = input.name.trim();
   const nameNormalized = normalizeRoomName(name);
   if (!nameNormalized) throw new Error("Enter a room name.");
+  if (!isValidRoomHours(input.openingTime, input.closingTime)) throw new Error("Choose valid room opening and closing hours.");
   return db.transaction(async (tx: any) => {
     let gymId = input.gymId;
     if (gymId) {
@@ -269,7 +279,7 @@ export async function createGymRoom(input: { gymId?: number; name: string; addre
     const existing = await tx.select({ id: gymRooms.id }).from(gymRooms).where(and(eq(gymRooms.gymId, resolvedGymId), eq(gymRooms.nameNormalized, nameNormalized))).limit(1);
     if (existing[0]) throw new Error("A room with this name already exists at this gym.");
     const externalId = `room-${randomUUID()}`;
-    await tx.insert(gymRooms).values({ externalId, gymId: resolvedGymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, active: true });
+    await tx.insert(gymRooms).values({ externalId, gymId: resolvedGymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, openingTime: input.openingTime, closingTime: input.closingTime, active: true });
     const room = await tx.select({ id: gymRooms.id }).from(gymRooms).where(eq(gymRooms.externalId, externalId)).limit(1);
     if (!room[0]) throw new Error("Room could not be created.");
     await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "CREATE_GYM_ROOM", details: `Created room ${name} (${room[0].id}) at gym ${resolvedGymId} with capacity ${input.maximumCapacity}.` });
@@ -277,12 +287,13 @@ export async function createGymRoom(input: { gymId?: number; name: string; addre
   });
 }
 
-export async function updateGymRoom(input: { roomId: number; gymId: number; name: string; address: string; description: string; maximumCapacity: number; active: boolean; actorUserId: number }) {
+export async function updateGymRoom(input: { roomId: number; gymId: number; name: string; address: string; description: string; maximumCapacity: number; openingTime: string; closingTime: string; active: boolean; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
   const name = input.name.trim();
   const nameNormalized = normalizeRoomName(name);
   if (!nameNormalized) throw new Error("Enter a room name.");
+  if (!isValidRoomHours(input.openingTime, input.closingTime)) throw new Error("Choose valid room opening and closing hours.");
   return db.transaction(async (tx: any) => {
     const room = await tx.select().from(gymRooms).where(eq(gymRooms.id, input.roomId)).limit(1);
     if (!room[0]) throw new Error("Room not found.");
@@ -291,7 +302,7 @@ export async function updateGymRoom(input: { roomId: number; gymId: number; name
     const duplicate = await tx.select({ id: gymRooms.id }).from(gymRooms).where(and(eq(gymRooms.gymId, input.gymId), eq(gymRooms.nameNormalized, nameNormalized))).limit(1);
     if (duplicate[0] && duplicate[0].id !== input.roomId) throw new Error("A room with this name already exists at this gym.");
     const wasActive = room[0].active;
-    await tx.update(gymRooms).set({ gymId: input.gymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, active: input.active }).where(eq(gymRooms.id, input.roomId));
+    await tx.update(gymRooms).set({ gymId: input.gymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, openingTime: input.openingTime, closingTime: input.closingTime, active: input.active }).where(eq(gymRooms.id, input.roomId));
     if (wasActive && !input.active) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -314,7 +325,7 @@ export async function updateGymRoom(input: { roomId: number; gymId: number; name
       }
       await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "DEACTIVATE_GYM_ROOM", details: `Marked room ${input.roomId} inactive and notified people with today's shifts.` });
     }
-    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "UPDATE_GYM_ROOM", details: `Updated room ${input.roomId}; active=${input.active}, capacity=${input.maximumCapacity}.` });
+    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "UPDATE_GYM_ROOM", details: `Updated room ${input.roomId}; active=${input.active}, capacity=${input.maximumCapacity}, hours=${input.openingTime}-${input.closingTime}.` });
     return { success: true as const };
   });
 }

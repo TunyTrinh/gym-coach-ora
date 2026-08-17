@@ -41,7 +41,8 @@ export interface TimeSlot {
   roomId?: string;
   /** Present when this booked session belongs to a coach availability window. */
   availabilityShiftId?: string;
-  serviceTypeId: string;
+  /** Service is present for Coach-led bookings and absent for room-only gym access. */
+  serviceTypeId?: string;
   start: string;
   end: string;
   maximumCapacity: number;
@@ -55,7 +56,8 @@ export interface AvailabilityShift {
   gymId: string;
   coachId: string;
   roomId?: string;
-  serviceTypeId: string;
+  /** A Coach publishes time and a room; a service is chosen only for a Coach-led booking. */
+  serviceTypeId?: string;
   start: string;
   end: string;
   /** Concurrent client capacity for any overlapping interval inside this window. */
@@ -334,7 +336,7 @@ export const formatShortDate = (value: string) =>
 export const formatDateLabel = (value: string) =>
   new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(value));
 
-export const getService = (snapshot: GymSnapshot, serviceTypeId: string) => snapshot.services.find((service) => service.id === serviceTypeId);
+export const getService = (snapshot: GymSnapshot, serviceTypeId?: string) => serviceTypeId ? snapshot.services.find((service) => service.id === serviceTypeId) : undefined;
 export const getCoach = (snapshot: GymSnapshot, coachId?: string) => snapshot.coaches.find((coach) => coach.id === coachId);
 export const getSlot = (snapshot: GymSnapshot, slotId: string) => snapshot.slots.find((slot) => slot.id === slotId);
 export const getBookingSlot = (snapshot: GymSnapshot, booking: Booking) => getSlot(snapshot, booking.timeSlotId);

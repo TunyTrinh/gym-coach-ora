@@ -129,8 +129,8 @@ export function GymProvider({ children }: PropsWithChildren) {
       if (snapshot.bookings.some((booking) => booking.memberId === snapshot.member.id && booking.timeSlotId === slotId && ["Confirmed", "Pending"].includes(booking.status))) {
         return { success: false, error: "You are already booked for this session." };
       }
-      const service = getService(snapshot, slot.serviceTypeId);
-      if (!service) return { success: false, error: "The selected service is unavailable." };
+      const service = slot.serviceTypeId ? getService(snapshot, slot.serviceTypeId) : undefined;
+      if (slot.serviceTypeId && !service) return { success: false, error: "The selected service is unavailable." };
       const start = new Date(slot.start).getTime();
       const end = new Date(slot.end).getTime();
       const overlap = snapshot.bookings.some((booking) => {
@@ -161,7 +161,7 @@ export function GymProvider({ children }: PropsWithChildren) {
         bookings: [...current.bookings, booking],
         availabilityShifts: managedShift ? current.availabilityShifts.map((shift) => shift.id === managedShift.id ? { ...shift, status: "Booked", memberId: current.member.id, bookingId: booking.id, updatedBy: current.member.id } : shift) : current.availabilityShifts,
         notifications: [
-          { id: `note-${Date.now()}`, type: "confirmation", title: "Booking confirmed", message: `${service.name} on ${formatShortDate(slot.start)} at ${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(slot.start))}${coach ? ` with ${coach.fullName}` : ""}.${managedShift ? " Your coach has been notified." : ""}`, createdAt: iso(new Date()), read: false, relatedBookingId: booking.id, priority: "Important" },
+          { id: `note-${Date.now()}`, type: "confirmation", title: "Booking confirmed", message: `${service?.name ?? "Gym access"} on ${formatShortDate(slot.start)} at ${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(slot.start))}${coach ? ` with ${coach.fullName}` : ""}.${managedShift ? " Your coach has been notified." : ""}`, createdAt: iso(new Date()), read: false, relatedBookingId: booking.id, priority: "Important" },
           ...current.notifications,
         ],
       }));
@@ -193,8 +193,7 @@ export function GymProvider({ children }: PropsWithChildren) {
         return bookedSlot?.availabilityShiftId === windowId && intervalsOverlap(startAt.toISOString(), endAt.toISOString(), bookedSlot.start, bookedSlot.end);
       });
       if (overlappingClients.length >= availability.maximumCapacity) return { success: false, error: "That time has reached the coach’s maximum client capacity. Choose another time." };
-      const service = getService(snapshot, availability.serviceTypeId) ?? snapshot.services[0];
-      if (!service) return { success: false, error: "The selected service is unavailable." };
+      const service = availability.serviceTypeId ? getService(snapshot, availability.serviceTypeId) : undefined;
       const bookingId = `booking-${Date.now()}`;
       const slot: TimeSlot = {
         id: `booking-slot-${bookingId}`,
@@ -217,7 +216,7 @@ export function GymProvider({ children }: PropsWithChildren) {
         slots: [...current.slots, slot],
         bookings: [...current.bookings, booking],
         notifications: [
-          { id: `note-client-${Date.now()}`, type: "confirmation", title: "Booking confirmed", message: `${service.name} on ${formatShortDate(slot.start)} is confirmed.${coach ? ` Your coach is ${coach.fullName}.` : ""}`, createdAt: iso(new Date()), read: false, relatedBookingId: booking.id, priority: "Important", audience: "client" },
+          { id: `note-client-${Date.now()}`, type: "confirmation", title: "Booking confirmed", message: `${service?.name ?? "Coach session"} on ${formatShortDate(slot.start)} is confirmed.${coach ? ` Your coach is ${coach.fullName}.` : ""}`, createdAt: iso(new Date()), read: false, relatedBookingId: booking.id, priority: "Important", audience: "client" },
           { id: `note-coach-${Date.now()}`, type: "confirmation", title: "New client booking", message: `A client booked ${formatShortDate(slot.start)} from ${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(startAt)} to ${new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" }).format(endAt)}.`, createdAt: iso(new Date()), read: false, relatedBookingId: booking.id, priority: "Important", audience: "coach" },
           ...current.notifications,
         ],
@@ -233,16 +232,16 @@ export function GymProvider({ children }: PropsWithChildren) {
       if (!booking) return { success: false, error: "Booking not found." };
       if (!["Confirmed", "Pending"].includes(booking.status)) return { success: false, error: "Only active bookings can be cancelled." };
       const slot = getBookingSlot(snapshot, booking);
-      const service = slot ? getService(snapshot, slot.serviceTypeId) : undefined;
-      if (!slot || !service) return { success: false, error: "Session details are unavailable." };
-      const deadline = new Date(slot.start).getTime() - service.cancellationWindowMinutes * 60_000;
-      if (Date.now() > deadline) return { success: false, error: `This booking can no longer be cancelled. The cutoff was ${formatShortDate(new Date(deadline).toISOString())}.` };
+      const service = slot?.serviceTypeId ? getService(snapshot, slot.serviceTypeId) : undefined;
+      if (!slot || (slot.serviceTypeId && !service)) return { success: false, error: "Session details are unavailable." };
+      const deadline = service ? new Date(slot.start).getTime() - service.cancellationWindowMinutes * 60_000 : null;
+      if (deadline !== null && Date.now() > deadline) return { success: false, error: `This booking can no longer be cancelled. The cutoff was ${formatShortDate(new Date(deadline).toISOString())}.` };
       setSnapshot((current) => ({
         ...current,
         bookings: current.bookings.map((item) => item.id === bookingId ? { ...item, status: "Cancelled", cancellationTime: iso(new Date()), cancellationReason: reason } : item),
         slots: current.slots.map((item) => item.id === slot.id ? { ...item, bookedCount: 0, status: "Cancelled" } : item),
         notifications: [
-          { id: `note-client-cancel-${Date.now()}`, type: "cancellation", title: "Booking cancelled", message: `${service.name} on ${formatShortDate(slot.start)} has been cancelled.`, createdAt: iso(new Date()), read: false, relatedBookingId: bookingId, priority: "Normal", audience: "client" },
+          { id: `note-client-cancel-${Date.now()}`, type: "cancellation", title: "Booking cancelled", message: `${service?.name ?? "Gym access"} on ${formatShortDate(slot.start)} has been cancelled.`, createdAt: iso(new Date()), read: false, relatedBookingId: bookingId, priority: "Normal", audience: "client" },
           ...(slot.availabilityShiftId ? [{ id: `note-coach-cancel-${Date.now()}`, type: "cancellation" as const, title: "Client session cancelled", message: `A client cancelled a session on ${formatShortDate(slot.start)}. Your availability remains open for other times.`, createdAt: iso(new Date()), read: false, relatedBookingId: bookingId, priority: "Normal" as const, audience: "coach" as const }] : []),
           ...current.notifications,
         ],
@@ -264,7 +263,7 @@ export function GymProvider({ children }: PropsWithChildren) {
     if (conflicts) return { success: false, error: "This overlaps an existing availability window or blocked period." };
     const timestamp = Date.now();
     setSnapshot((current) => {
-      const serviceTypeId = String(input.serviceTypeId ?? current.services[0]?.id ?? "service-strength");
+      const serviceTypeId = input.serviceTypeId ? String(input.serviceTypeId) : undefined;
       const nextWindow = { id: `availability-${timestamp}`, gymId: current.gyms[0]?.id ?? "gym-peak", coachId, roomId: input.roomId ? String(input.roomId) : undefined, serviceTypeId, start: window.start, end: window.end, maximumCapacity: input.maximumCapacity, location: input.location, note: input.note, status: "Available" as const, createdBy: current.member.id };
       return { ...current, availabilityShifts: [...current.availabilityShifts, nextWindow], notifications: [{ id: `note-${timestamp}`, type: "announcement", title: "Availability published", message: "Your continuous availability window is open for booking.", createdAt: iso(new Date()), read: false, priority: "Normal", audience: "coach" }, ...current.notifications] };
     });

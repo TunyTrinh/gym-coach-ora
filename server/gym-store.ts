@@ -35,8 +35,8 @@ export function bookGymSlot(slotId: string, userId: number | string): ServerMuta
   if (snapshot.bookings.some((booking) => booking.memberId === memberId && booking.timeSlotId === slotId && ["Confirmed", "Pending"].includes(booking.status))) return { success: false, error: "You are already booked for this session." };
   if (new Date(slot.start).getTime() <= Date.now()) return { success: false, error: "Past sessions cannot be booked." };
 
-  const service = getService(snapshot, slot.serviceTypeId);
-  if (!service) return { success: false, error: "The selected service is unavailable." };
+  const service = slot.serviceTypeId ? getService(snapshot, slot.serviceTypeId) : undefined;
+  if (slot.serviceTypeId && !service) return { success: false, error: "The selected service is unavailable." };
   const start = new Date(slot.start).getTime();
   const end = new Date(slot.end).getTime();
   const overlap = snapshot.bookings.some((booking) => {
@@ -61,9 +61,9 @@ export function cancelGymBooking(bookingId: string, userId: number | string, rea
   if (!booking) return { success: false, error: "Booking not found." };
   if (!["Confirmed", "Pending"].includes(booking.status)) return { success: false, error: "Only active bookings can be cancelled." };
   const slot = getBookingSlot(snapshot, booking);
-  const service = slot ? getService(snapshot, slot.serviceTypeId) : undefined;
-  if (!slot || !service) return { success: false, error: "Session details are unavailable." };
-  if (Date.now() > new Date(slot.start).getTime() - service.cancellationWindowMinutes * 60_000) return { success: false, error: "This booking is past its cancellation cutoff." };
+  const service = slot?.serviceTypeId ? getService(snapshot, slot.serviceTypeId) : undefined;
+  if (!slot || (slot.serviceTypeId && !service)) return { success: false, error: "Session details are unavailable." };
+  if (service && Date.now() > new Date(slot.start).getTime() - service.cancellationWindowMinutes * 60_000) return { success: false, error: "This booking is past its cancellation cutoff." };
 
   snapshot = {
     ...snapshot,
