@@ -110,3 +110,8 @@
 - [x] Redesign selected-day room rows with status pills and concise capacity, closure, and availability context
 - [x] Add an all-room and per-room filter for Coaches and Admins when a gym has more than four rooms
 - [x] Validate the redesigned Schedule calendar and Availability room picker in responsive Preview and public PWA builds
+- [x] Replace the Client booking screen’s single week line with an accessible seven-day date-card selector
+- [x] Show clear local-time and selected-date context for Client room and Coach booking availability
+- [x] Preserve selected-date authoritative room and Coach discovery when navigating the Client week selector
+- [x] Add regression coverage for Client week-card ordering, selection, local-date behavior, and booking-query synchronization
+- [x] Validate the responsive Client booking flow in Preview and public PWA builds

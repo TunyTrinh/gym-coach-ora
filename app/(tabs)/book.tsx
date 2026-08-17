@@ -18,6 +18,7 @@ import { isLocalTestMode } from "@/lib/local-test-mode";
 import { createLocalDateRail, formatLocalClock, isSameLocalDay } from "@/lib/scheduler";
 import { trpc } from "@/lib/trpc";
 import { getBookingSlot, getCoach, type AvailabilityShift, type GymSnapshot } from "@/shared/gym";
+import { roomStatusPresentation, visibleRoomCalendarMarkers } from "@/shared/room-status-presentation";
 
 const quickDurations = [30, 45, 60] as const;
 const customDurations = Array.from({ length: 13 }, (_, index) => 60 + index * 15);
@@ -143,6 +144,14 @@ export default function BookScreen() {
   const [selectedDay, setSelectedDay] = useState(0);
   const days = createLocalDateRail(now, 7);
   const selectedDate = days[selectedDay] ?? days[0];
+  const productionWeekCalendar = trpc.availability.roomCalendar.useQuery(
+    { from: localDayKey(days[0]), to: localDayKey(days[days.length - 1]) },
+    { enabled: !previewMode && role === "client" && days.length === 7 },
+  );
+  const weekStatusByDate = useMemo(
+    () => new Map((productionWeekCalendar.data ?? []).map((row) => [row.date, row.markers])),
+    [productionWeekCalendar.data],
+  );
   const productionRoomSchedule = trpc.availability.roomSchedule.useQuery({ date: localDayKey(selectedDate) }, { enabled: !previewMode && role === "client" });
   const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
@@ -326,22 +335,21 @@ export default function BookScreen() {
           </SpectrumCard>
 
           <Text style={[styles.stepLabel, { color: colors.muted }]}>1. {t("chooseDay")}</Text>
-          <FlatList
-            horizontal
-            data={days}
-            keyExtractor={(day) => day.toISOString()}
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.dateStrip}
-            renderItem={({ item: day, index }) => {
-              const active = selectedDay === index;
-              const hasAvailability = activeSnapshot.availabilityShifts.some((window) => window.status === "Available" && isSameLocalDay(new Date(window.start), day) && new Date(window.end) > now);
-              return <Pressable onPress={() => setSelectedDay(index)} style={({ pressed }) => [styles.dateCard, { backgroundColor: active ? "#2b1f2a" : colors.surface, borderColor: active ? "#f04488" : colors.border }, pressed && styles.pressed]}>
-                <Text style={[styles.dateWeekday, { color: active ? "#ff82b7" : colors.muted }]}>{isSameLocalDay(day, now) ? t("today").toUpperCase() : new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en-US", { weekday: "short" }).format(day).toUpperCase()}</Text>
-                <Text style={[styles.dateNumber, { color: colors.foreground }]}>{day.getDate()}</Text>
-                {hasAvailability ? <View style={styles.dateDot} /> : null}
-              </Pressable>;
-            }}
-          />
+          <View accessibilityRole="tablist" style={styles.clientWeekGrid}>{days.map((day, index) => {
+            const active = selectedDay === index;
+            const dateKey = localDayKey(day);
+            const markers = visibleRoomCalendarMarkers(previewMode
+              ? activeSnapshot.availabilityShifts.filter((window) => isSameLocalDay(new Date(window.start), day) && new Date(window.end) > now).length ? ["available"] : []
+              : weekStatusByDate.get(dateKey) ?? []);
+            const visibleMarkers = markers.slice(0, 3);
+            const overflow = markers.length - visibleMarkers.length;
+            const dayLabel = isSameLocalDay(day, now) ? t("today").toUpperCase() : new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en-US", { weekday: "short" }).format(day).toUpperCase();
+            return <Pressable key={dateKey} onPress={() => setSelectedDay(index)} accessibilityRole="tab" accessibilityLabel={`${dayLabel}, ${formatDateLocalized(day, language, { month: "long", day: "numeric" })}. ${markers.length ? markers.join(", ") : t("noSlotsAvailable")}`} accessibilityState={{ selected: active }} style={({ pressed }) => [styles.clientWeekCard, { backgroundColor: active ? "#2b1f2a" : colors.surface, borderColor: active ? "#f04488" : colors.border }, pressed && styles.pressed]}>
+              <Text numberOfLines={1} style={[styles.clientWeekday, { color: active ? "#ff82b7" : colors.muted }]}>{dayLabel}</Text>
+              <Text style={[styles.clientWeekNumber, { color: active ? "#ffffff" : colors.foreground }]}>{day.getDate()}</Text>
+              <View style={styles.clientWeekDots}>{visibleMarkers.map((marker) => <View key={marker} style={[styles.clientWeekDot, { backgroundColor: roomStatusPresentation(marker).color }]} />)}{overflow > 0 ? <Text style={[styles.clientWeekOverflow, { color: colors.muted }]}>+{overflow}</Text> : null}</View>
+            </Pressable>;
+          })}</View>
           {!previewMode ? <RoomAccessPanel selectedDate={selectedDate} duration={duration} colors={colors} t={t} language={language} onFeedback={setBookingFeedback} /> : null}
           <Text style={[styles.stepLabel, { color: colors.muted }]}>2. {t("chooseAvailability")}</Text>
         </View>
@@ -541,11 +549,13 @@ const styles = StyleSheet.create({
   clockTitle: { color: "#ffffff", fontSize: 24, fontWeight: "800" },
   clockMeta: { color: "rgba(255,255,255,0.78)", fontSize: 12, marginTop: 4 },
   stepLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.25 },
-  dateStrip: { gap: 8, paddingRight: 14 },
-  dateCard: { width: 65, minHeight: 74, borderRadius: 15, borderWidth: 1, alignItems: "center", justifyContent: "center", gap: 5 },
-  dateWeekday: { fontSize: 9, fontWeight: "900", letterSpacing: 0.6 },
-  dateNumber: { fontSize: 22, fontWeight: "900" },
-  dateDot: { position: "absolute", bottom: 8, width: 5, height: 5, borderRadius: 3, backgroundColor: "#32d77b" },
+  clientWeekGrid: { flexDirection: "row", gap: 5, alignItems: "stretch" },
+  clientWeekCard: { flex: 1, minWidth: 0, minHeight: 82, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center", gap: 5, paddingHorizontal: 2, paddingVertical: 8 },
+  clientWeekday: { fontSize: 9, fontWeight: "900", letterSpacing: 0.35, textAlign: "center" },
+  clientWeekNumber: { fontSize: 22, fontWeight: "900" },
+  clientWeekDots: { minHeight: 7, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 2 },
+  clientWeekDot: { width: 6, height: 6, borderRadius: 3 },
+  clientWeekOverflow: { fontSize: 8, fontWeight: "900", marginLeft: 1 },
   windowList: { gap: 10 },
   windowCard: { gap: 11, padding: 16, borderWidth: 1 },
   windowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },
