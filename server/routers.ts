@@ -9,6 +9,7 @@ import { isValidGoogleEmail, normalizeGoogleEmail } from "./google-authorization
 import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, gymRooms, healthMeasurements, notifications, roomClosures, serviceTypes, timeSlots, users } from "../drizzle/schema";
 import { and, asc, eq, gt, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { isRoomEligibleForAvailability } from "../shared/room-eligibility";
 
 const availabilityInput = z.object({
   coachId: z.number().int().positive().optional(),
@@ -346,17 +347,30 @@ export const appRouter = router({
       }),
   }),
   availability: router({
-    rooms: protectedProcedure.query(async ({ ctx }) => {
+    rooms: protectedProcedure.input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).optional()).query(async ({ ctx, input }) => {
       if (ctx.user.role !== "coach" && ctx.user.role !== "admin") throw new Error("Coach access is required to view rooms.");
-      const rooms = await listRooms({ activeOnly: true });
-      if (ctx.user.role !== "coach") return rooms.map((room) => ({ ...room, defaultGym: false }));
+      const allRooms = await listRooms();
+      const requestedDate = input?.date ?? localDayKey(new Date());
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
-      const coachId = await getAuthorizedCoachIdForUser(db, ctx.user.id);
-      if (!coachId) throw new Error("Your Coach access is inactive or revoked.");
-      const coach = await db.select({ gymId: coaches.gymId }).from(coaches).where(eq(coaches.id, coachId)).limit(1);
-      const defaultGymId = coach[0]?.gymId ?? null;
-      return rooms.map((room) => ({ ...room, defaultGym: defaultGymId !== null && room.gymId === defaultGymId }));
+      const roomIds = allRooms.map((room) => room.id);
+      const closures = roomIds.length ? await db.select({ roomId: roomClosures.roomId }).from(roomClosures).where(and(eq(roomClosures.closureDate, requestedDate), inArray(roomClosures.roomId, roomIds))) : [];
+      const closedRoomIds = new Set(closures.map((closure) => closure.roomId));
+      const activeRooms = allRooms.filter((room) => room.active);
+      const eligibleRooms = activeRooms.filter((room) => isRoomEligibleForAvailability({ active: room.active, closed: closedRoomIds.has(room.id) }));
+      const defaultGymId = ctx.user.role === "coach" ? (await (async () => {
+        const coachId = await getAuthorizedCoachIdForUser(db, ctx.user.id);
+        if (!coachId) throw new Error("Your Coach access is inactive or revoked.");
+        const coach = await db.select({ gymId: coaches.gymId }).from(coaches).where(eq(coaches.id, coachId)).limit(1);
+        return coach[0]?.gymId ?? null;
+      })()) : null;
+      return {
+        rooms: eligibleRooms.map((room) => ({ ...room, defaultGym: defaultGymId !== null && room.gymId === defaultGymId })),
+        totalRooms: allRooms.length,
+        activeRoomCount: activeRooms.length,
+        closedRoomCount: activeRooms.filter((room) => closedRoomIds.has(room.id)).length,
+        requestedDate,
+      };
     }),
     mine: protectedProcedure
       .input(z.object({ coachId: z.number().int().positive().optional(), from: z.string().datetime().optional(), to: z.string().datetime().optional() }).optional())

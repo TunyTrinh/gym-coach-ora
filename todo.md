@@ -58,3 +58,10 @@
 - [x] Add a Preview-only debug account switcher that uses the real database-backed API contracts
 - [x] Ensure debug account switching is excluded from every deployed public PWA release
 - [x] Validate switched Preview accounts read/write the same authoritative database rules as public PWA sessions
+
+- [x] Trace `Test_room1` through the database, Admin API, Coach API, permissions, and client caches
+- [x] Unify room eligibility for active, open, and non-closed rooms across Admin, Coach, Client, App, and PWA
+- [x] Add clear Admin activation/deactivation control without changing permanent active status during temporary closures
+- [x] Return accurate empty and closed-room explanations and invalidate relevant room/availability caches after changes
+- [x] Add regression coverage for inactive, activated, temporarily closed, reopened, and cross-environment room behavior
+- [x] Report the root cause, fields/API responses, preserved data, and passing evidence

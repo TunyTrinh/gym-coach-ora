@@ -36,27 +36,28 @@ export default function RoomsScreen() {
   const rooms = trpc.admin.listRooms.useQuery(undefined, { enabled: user?.role === "admin" });
   const gyms = trpc.admin.listActiveGyms.useQuery(undefined, { enabled: user?.role === "admin" });
   const roomClosures = trpc.admin.roomClosures.useQuery({ roomId: selectedRoomId ?? 0 }, { enabled: user?.role === "admin" && Boolean(selectedRoomId) });
+  const utils = trpc.useUtils();
   useEffect(() => { if (!selectedRoomId && rooms.data?.[0]) setSelectedRoomId(rooms.data[0].id); }, [rooms.data, selectedRoomId]);
   const dayEnd = useMemo(() => addDays(selectedDay, 1), [selectedDay]);
   const schedule = trpc.admin.roomSchedule.useQuery({ roomId: selectedRoomId ?? 0, from: selectedDay.toISOString(), to: dayEnd.toISOString() }, { enabled: user?.role === "admin" && Boolean(selectedRoomId) });
   const createRoom = trpc.admin.createRoom.useMutation({
-    onSuccess: async () => { await rooms.refetch(); setShowForm(false); setForm(emptyForm()); setFeedback({ title: t("roomCreated"), body: t("roomsBody"), tone: "success" }); },
+    onSuccess: async () => { await Promise.all([rooms.refetch(), utils.availability.rooms.invalidate()]); setShowForm(false); setForm(emptyForm()); setFeedback({ title: t("roomCreated"), body: t("roomsBody"), tone: "success" }); },
     onError: (error) => setFeedback({ title: t("createRoom"), body: error.message, tone: "error" }),
   });
   const updateRoom = trpc.admin.updateRoom.useMutation({
-    onSuccess: async () => { await Promise.all([rooms.refetch(), schedule.refetch()]); setShowForm(false); setForm(emptyForm()); setFeedback({ title: t("roomUpdated"), body: t("roomsBody"), tone: "success" }); },
+    onSuccess: async () => { await Promise.all([rooms.refetch(), schedule.refetch(), utils.availability.rooms.invalidate()]); setShowForm(false); setForm(emptyForm()); setFeedback({ title: t("roomUpdated"), body: t("roomsBody"), tone: "success" }); },
     onError: (error) => setFeedback({ title: t("editRoom"), body: error.message, tone: "error" }),
   });
   const deleteRoom = trpc.admin.deleteRoom.useMutation({
-    onSuccess: async () => { await Promise.all([rooms.refetch(), schedule.refetch(), roomClosures.refetch()]); setRoomToDelete(null); setSelectedRoomId(null); setFeedback({ title: t("deleteRoomSuccess"), body: t("deleteConfirmationBody"), tone: "success" }); },
+    onSuccess: async () => { await Promise.all([rooms.refetch(), schedule.refetch(), roomClosures.refetch(), utils.availability.rooms.invalidate()]); setRoomToDelete(null); setSelectedRoomId(null); setFeedback({ title: t("deleteRoomSuccess"), body: t("deleteConfirmationBody"), tone: "success" }); },
     onError: (error) => setFeedback({ title: t("deleteRoom"), body: error.message || t("deleteRoom"), tone: "error" }),
   });
   const setRoomClosure = trpc.admin.setRoomClosure.useMutation({
-    onSuccess: async () => { await Promise.all([roomClosures.refetch(), schedule.refetch()]); setClosureReason(""); setFeedback({ title: t("closureSaved"), body: t("roomClosuresBody"), tone: "success" }); },
+    onSuccess: async () => { await Promise.all([roomClosures.refetch(), schedule.refetch(), utils.availability.rooms.invalidate()]); setClosureReason(""); setFeedback({ title: t("closureSaved"), body: t("roomClosuresBody"), tone: "success" }); },
     onError: (error) => setFeedback({ title: t("manageClosures"), body: error.message, tone: "error" }),
   });
   const removeRoomClosure = trpc.admin.removeRoomClosure.useMutation({
-    onSuccess: async () => { await Promise.all([roomClosures.refetch(), schedule.refetch()]); setFeedback({ title: t("closureRemoved"), body: t("roomClosuresBody"), tone: "success" }); },
+    onSuccess: async () => { await Promise.all([roomClosures.refetch(), schedule.refetch(), utils.availability.rooms.invalidate()]); setFeedback({ title: t("closureRemoved"), body: t("roomClosuresBody"), tone: "success" }); },
     onError: (error) => setFeedback({ title: t("manageClosures"), body: error.message, tone: "error" }),
   });
   const selectedRoom = rooms.data?.find((room) => room.id === selectedRoomId);
