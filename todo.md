@@ -65,3 +65,13 @@
 - [x] Return accurate empty and closed-room explanations and invalidate relevant room/availability caches after changes
 - [x] Add regression coverage for inactive, activated, temporarily closed, reopened, and cross-environment room behavior
 - [x] Report the root cause, fields/API responses, preserved data, and passing evidence
+
+- [ ] Map actual Preview, native App, and public PWA builds, API origins, and authoritative database target
+- [x] Inspect every persisted Test_room1 eligibility field, including hours, closures, and archive state
+- [x] Activate Test_room1 through the live authenticated Admin UI and verify the database transition
+- [x] Verify the exact authenticated Coach room-eligibility response and Add Availability selection flow
+- [x] Verify temporary close and reopen behavior, query-cache invalidation, and PWA service-worker freshness
+- [ ] Repair any live synchronization or deployment defect and add evidence-backed regression coverage
+- [x] Save and report the authenticated end-to-end verification result
+- [ ] Run the same authenticated flow on an installed native build and managed Preview after a device or Preview-session test surface is supplied
+- [ ] Make deployed release manifests retain a verifiable source revision when the deployment build worker lacks Git metadata
