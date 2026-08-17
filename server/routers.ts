@@ -375,7 +375,7 @@ export const appRouter = router({
         const closures = roomIds.length ? await db.select({ roomId: roomClosures.roomId, closureDate: roomClosures.closureDate }).from(roomClosures).where(and(inArray(roomClosures.roomId, roomIds), gte(roomClosures.closureDate, input.from), lte(roomClosures.closureDate, input.to))) : [];
         const windows = roomIds.length ? await db.select({ roomId: availabilityShifts.roomId, startAt: availabilityShifts.startAt, endAt: availabilityShifts.endAt, status: availabilityShifts.status, maximumCapacity: availabilityShifts.maximumCapacity }).from(availabilityShifts).where(and(inArray(availabilityShifts.roomId, roomIds), lt(availabilityShifts.startAt, endExclusive), gt(availabilityShifts.endAt, from))) : [];
         const bookingRows = roomIds.length ? await db.select({ roomId: timeSlots.roomId, startAt: timeSlots.startAt, endAt: timeSlots.endAt }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(inArray(timeSlots.roomId, roomIds), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endExclusive), gt(timeSlots.endAt, from))) : [];
-        const rows: { date: string; markers: string[]; publishedCount: number; bookingCount: number }[] = [];
+        const rows: { date: string; markers: string[]; publishedCount: number; bookingCount: number; capacityRatio: number | null }[] = [];
         for (let cursor = new Date(from); cursor < endExclusive; cursor = new Date(cursor.getTime() + 24 * 60 * 60_000)) {
           const date = localDayKey(cursor);
           const dayEnd = new Date(cursor.getTime() + 24 * 60 * 60_000);
@@ -383,6 +383,10 @@ export const appRouter = router({
           const activeRooms = rooms.filter((room) => room.active);
           const dayWindows = windows.filter((window) => window.startAt < dayEnd && window.endAt > cursor);
           const dayBookings = bookingRows.filter((booking) => booking.startAt < dayEnd && booking.endAt > cursor);
+          const eligibleRooms = activeRooms.filter((room) => !closedIds.has(room.id));
+          const capacityRatio = eligibleRooms.length
+            ? Math.max(...eligibleRooms.map((room) => Math.min(1, dayBookings.filter((booking) => booking.roomId === room.id).length / Math.max(1, room.maximumCapacity))))
+            : null;
           const fullyOccupied = rooms.some((room) => dayBookings.filter((booking) => booking.roomId === room.id).length >= room.maximumCapacity);
           const markers: string[] = [];
           if (rooms.some((room) => !room.active)) markers.push("inactive");
@@ -392,7 +396,7 @@ export const appRouter = router({
           if (activeRooms.some((room) => !closedIds.has(room.id))) markers.push("available");
           if (dayWindows.some((window) => window.status === "available")) markers.push("availability_published");
           if (dayBookings.length) markers.push("client_booking");
-          rows.push({ date, markers, publishedCount: dayWindows.filter((window) => window.status === "available").length, bookingCount: dayBookings.length });
+          rows.push({ date, markers, publishedCount: dayWindows.filter((window) => window.status === "available").length, bookingCount: dayBookings.length, capacityRatio });
         }
         return rows;
       }),

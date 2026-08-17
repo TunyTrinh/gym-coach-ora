@@ -9,7 +9,7 @@ const scheduleUi = readFileSync(resolve(root, "app/(tabs)/schedule.tsx"), "utf8"
 const availabilityUi = readFileSync(resolve(root, "app/availability.tsx"), "utf8");
 
 describe("visible room status and service-independent Client discovery", () => {
-  it("provides canonical monthly calendar markers and selected-date room rows from one availability router", () => {
+  it("provides canonical monthly calendar markers, selected-date room rows, and authoritative capacity ratios from one availability router", () => {
     expect(routers).toContain("roomCalendar: protectedProcedure");
     expect(routers).toContain('markers.push("partially_closed")');
     expect(routers).toContain('markers.push("availability_published")');
@@ -17,6 +17,8 @@ describe("visible room status and service-independent Client discovery", () => {
     expect(routers).toContain("roomSchedule: protectedProcedure");
     expect(routers).toContain("serviceTypeId: availabilityShifts.serviceTypeId");
     expect(routers).toContain("coachId: availabilityShifts.coachId");
+    expect(routers).toContain("capacityRatio");
+    expect(routers).toContain("eligibleRooms");
   });
 
   it("drives Client Coach discovery from the selected-date room schedule and retains blocked windows with reasons", () => {
@@ -26,15 +28,14 @@ describe("visible room status and service-independent Client discovery", () => {
     expect(bookingUi).toContain('window.coachId === selectedWindow.coachId && window.status === "Available"');
   });
 
-  it("places accessible Coach room-calendar labels in Schedule and refetches calendar state after availability mutations", () => {
+  it("places the accessible shared Coach capacity calendar in Schedule and refetches calendar state after availability mutations", () => {
     expect(scheduleUi).toContain("CoachRoomCalendar");
     expect(scheduleUi).toContain("roomCalendarLegend");
-    expect(scheduleUi).toContain("accessibilityLabel");
+    expect(scheduleUi).toContain("CapacityCalendar");
     expect(scheduleUi).toContain("trpc.availability.roomCalendar.useQuery");
-    expect(scheduleUi).toContain("visibleRoomCalendarMarkers");
-    expect(scheduleUi).toContain("roomCalendarDot");
+    expect(scheduleUi).toContain("onInfo");
     expect(scheduleUi).toContain("roomFilterId");
-    expect(scheduleUi).not.toContain("markerSymbol");
+    expect(scheduleUi).toContain("buildClientCapacityDays");
     expect(availabilityUi).not.toContain("CoachRoomCalendar");
     expect(availabilityUi).toContain("utils.availability.roomCalendar.invalidate()");
   });

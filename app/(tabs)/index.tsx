@@ -1,13 +1,11 @@
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 import { useMemo } from "react";
 
-import { Avatar, OfflineBanner, ScreenHeader, SpectrumCard, StatusBadge } from "@/components/gym-ui";
+import { Avatar, OfflineBanner, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
-import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { useNetworkStatus } from "@/hooks/use-network-status";
 import { useGym } from "@/lib/gym-store";
-import { haptic } from "@/lib/haptics";
 import { useLanguage } from "@/lib/language-provider";
 import { isLocalTestMode } from "@/lib/local-test-mode";
 import { trpc } from "@/lib/trpc";
@@ -17,7 +15,6 @@ import { getBookingSlot, getCoach, getService } from "@/shared/gym";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function HomeScreen() {
-  const reducedMotion = useReducedMotion();
   const { user } = useAuth();
   const { snapshot, upcomingBookings, unreadCount } = useGym();
   const previewMode = isLocalTestMode();
@@ -37,7 +34,7 @@ export default function HomeScreen() {
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <ScreenHeader title={`${t("welcomeBack")}, ${firstName}`} subtitle={role === "coach" ? t("dashboard") : role === "admin" ? t("adminHub") : t("findYourTime")} onPress={() => router.push("/notifications")} badge={activeUnreadCount} label={role === "coach" ? t("coachLabel") : role === "admin" ? t("admin") : "Coachora"} />
+      <ScreenHeader title={`${t("welcomeBack")}, ${firstName}`} subtitle={role === "coach" ? t("dashboard") : role === "admin" ? t("adminHub") : t("findYourTime")} onPress={() => router.push("/notifications")} badge={activeUnreadCount} label={role === "coach" ? t("coachLabel") : role === "admin" ? t("admin") : "Coachora"} role={role} />
       {!isOnline ? <OfflineBanner label={t("offlineNow")} /> : null}
 
       <>
@@ -59,7 +56,7 @@ export default function HomeScreen() {
           <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⚙</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>{t("bookings")}</Text><Text style={styles.heroMetaMuted}>{t("manageCoachTime")}</Text></View><Text style={styles.heroArrow}>→</Text></View>
         </SpectrumCard>}
 
-        {role === "client" && <SpectrumCard style={styles.heroCard}>
+        {role === "client" && <SpectrumCard style={styles.heroCard} onPress={() => router.push("/book")} accessibilityLabel={t("bookSessionTitle")}>
           <View style={styles.heroTopRow}>
             <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{hasNextBooking ? t("nextSession") : t("findYourTime").toUpperCase()}</Text><Text style={styles.heroTitle}>{previewMode ? nextService?.name ?? t("noSessionYet") : nextServerBooking?.serviceName ?? t("noSessionYet")}</Text></View>
             <StatusBadge label={hasNextBooking ? t("booked") : t("available")} tone={hasNextBooking ? "success" : "accent"} />
@@ -74,9 +71,8 @@ export default function HomeScreen() {
         </SpectrumCard>}
       </>
 
-      {role === "client" ? <Pressable onPress={() => { haptic.light(); router.push("/book"); }} style={({ pressed }) => [styles.primaryAction, pressed && (reducedMotion ? styles.primaryReducedPressed : styles.primaryPressed)]} accessibilityRole="button" accessibilityLabel={t("bookSessionTitle")}>
-        <View><Text style={styles.primaryEyebrow}>{t("findYourTime").toUpperCase()}</Text><Text style={styles.primaryTitle}>{t("bookSessionTitle")}</Text><Text style={styles.primaryCopy}>{t("bookSessionSubtitle")}</Text></View><View style={styles.primaryArrow}><Text style={styles.primaryArrowText}>+</Text></View>
-      </Pressable> : null}
+      {role === "coach" ? <SurfaceCard style={styles.glanceCard}><Text style={[styles.glanceEyebrow, { color: "#45C9C0" }]}>{t("monthView").toUpperCase()}</Text><Text style={[styles.glanceTitle, { color: "#F5F5F7" }]}>{t("coachSchedule")}</Text><Text style={[styles.glanceCopy, { color: "#9B9BA8" }]}>{t("scheduleAppears")}</Text></SurfaceCard> : null}
+      {role === "admin" ? <SurfaceCard style={styles.glanceCard}><Text style={[styles.glanceEyebrow, { color: "#F2B84B" }]}>{t("admin").toUpperCase()}</Text><Text style={[styles.glanceTitle, { color: "#F5F5F7" }]}>{t("staffSchedule")}</Text><Text style={[styles.glanceCopy, { color: "#9B9BA8" }]}>{t("manageCoachTime")}</Text></SurfaceCard> : null}
     </ScrollView>
   </ScreenContainer>;
 }
@@ -94,10 +90,7 @@ const styles = StyleSheet.create({
   heroArrow: { color: "#ffffff", fontSize: 24, fontWeight: "400", paddingHorizontal: 5 },
   heroEmpty: { color: "rgba(255,255,255,0.82)", fontSize: 13, lineHeight: 20, marginTop: 19, maxWidth: 260 },
   metaIcon: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(13,13,15,0.2)", alignItems: "center", justifyContent: "center" }, metaIconText: { color: "#ffffff", fontSize: 18 },
-  primaryAction: { minHeight: 116, borderRadius: 24, backgroundColor: "#26222b", borderWidth: 1, borderColor: "rgba(255,130,183,0.42)", paddingHorizontal: 19, paddingVertical: 17, flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 14 },
-  primaryEyebrow: { color: "#ff82b7", fontSize: 10, fontWeight: "900", letterSpacing: 1.2 }, primaryTitle: { color: "#ffffff", fontSize: 20, fontWeight: "900", letterSpacing: -0.35, marginTop: 5 }, primaryCopy: { color: "#b4b4bd", fontSize: 12, marginTop: 4 },
-  primaryArrow: { width: 42, height: 42, borderRadius: 21, alignItems: "center", justifyContent: "center", backgroundColor: "#f04488" }, primaryArrowText: { color: "#ffffff", fontSize: 26, fontWeight: "300", lineHeight: 30 },
+  glanceCard: { minHeight: 112, justifyContent: "center", gap: 5 }, glanceEyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1, textTransform: "uppercase" }, glanceTitle: { fontSize: 17, lineHeight: 22, fontWeight: "700" }, glanceCopy: { fontSize: 13, lineHeight: 20 },
   sectionLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4, marginLeft: 2, marginTop: 4 },
   summaryRow: { flexDirection: "row", gap: 11 }, summaryCard: { flex: 1, minHeight: 118, justifyContent: "space-between", padding: 16 }, summaryValue: { fontSize: 22, fontWeight: "900", letterSpacing: -0.5 }, summaryTitle: { fontSize: 14, fontWeight: "800", marginTop: 10 }, summaryCopy: { fontSize: 11, marginTop: 3 },
-  primaryPressed: { opacity: 0.78, transform: [{ scale: 0.99 }] }, primaryReducedPressed: { opacity: 0.78 },
 });

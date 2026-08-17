@@ -2,7 +2,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native";
 
 import AvailabilityScreen from "@/app/availability";
-import { Avatar, GhostButton, PrimaryButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
+import { CapacityCalendar, type CapacityCalendarDay } from "@/components/capacity-calendar";
+import { Avatar, GhostButton, PrimaryButton, ScreenHeader, SecondaryButton, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
@@ -75,7 +76,6 @@ function AdminBookingsCalendar() {
   const [selectedRoomId, setSelectedRoomId] = useState<number | string | null>(null);
   const monthStart = startOfMonth(visibleMonth);
   const monthEnd = addMonths(monthStart, 1);
-  const monthDays = buildMonthGrid(monthStart);
   const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? "client";
   const hasAuthenticatedAdmin = user?.role === "admin";
   const isPreviewAdmin = isLocalTestMode() && role === "admin" && !hasAuthenticatedAdmin;
@@ -107,6 +107,12 @@ function AdminBookingsCalendar() {
   });
   const selectedActivity = dailyActivity.get(localDayKey(selectedDate)) ?? { open: 0, booked: 0 };
   const selectedWindows = roomWindows.filter((window) => isSameLocalDay(new Date(window.startAt), selectedDate));
+  const selectedRoom = roomOptions.find((room) => String(room.id) === String(selectedRoomId));
+  const capacityDays: CapacityCalendarDay[] = buildMonthGrid(monthStart).map((day) => {
+    const activity = dailyActivity.get(localDayKey(day)) ?? { open: 0, booked: 0 };
+    const hasCapacity = activity.open > 0 || activity.booked > 0;
+    return { date: localDayKey(day), capacity: hasCapacity ? selectedRoom?.maximumCapacity ?? null : null, booked: activity.booked, summary: hasCapacity ? `${activity.booked}/${selectedRoom?.maximumCapacity ?? 0} ${t("clients").toLowerCase()}` : t("noRoomActivity") };
+  });
 
   useEffect(() => {
     if (!selectedRoomId && roomOptions[0]) setSelectedRoomId(roomOptions[0].id);
@@ -116,7 +122,7 @@ function AdminBookingsCalendar() {
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.adminBookingsContent} showsVerticalScrollIndicator={false}>
-      <ScreenHeader title={t("adminBookingsCalendar")} subtitle={t("adminBookingsCalendarBody")} label={t("admin").toUpperCase()} />
+      <ScreenHeader title={t("adminBookingsCalendar")} subtitle={t("adminBookingsCalendarBody")} label={t("admin").toUpperCase()} role="admin" />
       <Text style={[styles.stepLabel, { color: colors.muted }]}>{t("selectRoom").toUpperCase()}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.adminRoomRail}>
         {rooms.isLoading && !isPreviewAdmin ? <ActivityIndicator color="#ff82b7" /> : roomOptions.map((room) => <Pressable key={room.id} onPress={() => setSelectedRoomId(room.id)} style={({ pressed }) => [styles.adminRoomPill, { borderColor: String(room.id) === String(selectedRoomId) ? "#f04488" : colors.border, backgroundColor: String(room.id) === String(selectedRoomId) ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}>
@@ -125,9 +131,8 @@ function AdminBookingsCalendar() {
         </Pressable>)}
       </ScrollView>
       {!rooms.isLoading && !roomOptions.length ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noRooms")}</Text></SurfaceCard> : null}
-      {selectedRoomId ? <><SurfaceCard style={styles.adminCalendarCard}><View style={styles.monthCalendarHeading}><Text style={[styles.stepLabel, { color: colors.muted }]}>{t("chooseDay").toUpperCase()}</Text><View style={styles.monthNavigation}><Pressable accessibilityLabel={t("previousMonth")} onPress={() => setVisibleMonth((month) => addMonths(month, -1))} style={({ pressed }) => [styles.monthArrow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><Text style={[styles.monthArrowText, { color: colors.foreground }]}>‹</Text></Pressable><Text style={[styles.monthTitle, { color: colors.foreground }]}>{formatDateLocalized(monthStart.toISOString(), language, { month: "long", year: "numeric" })}</Text><Pressable accessibilityLabel={t("nextMonth")} onPress={() => setVisibleMonth((month) => addMonths(month, 1))} style={({ pressed }) => [styles.monthArrow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><Text style={[styles.monthArrowText, { color: colors.foreground }]}>›</Text></Pressable></View></View>
-        <View style={styles.monthWeekdays}>{monthDays.slice(0, 7).map((day) => <Text key={day.toISOString()} style={[styles.monthWeekday, { color: colors.muted }]}>{new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en-US", { weekday: "narrow" }).format(day).toUpperCase()}</Text>)}</View><View style={styles.monthGrid}>{monthDays.map((day) => { const active = isSameLocalDay(day, selectedDate); const inMonth = day.getMonth() === monthStart.getMonth(); const activity = dailyActivity.get(localDayKey(day)) ?? { open: 0, booked: 0 }; return <Pressable key={day.toISOString()} onPress={() => { setSelectedDate(startOfLocalDay(day)); if (!inMonth) setVisibleMonth(startOfMonth(day)); }} style={({ pressed }) => [styles.monthDay, { borderColor: active ? "#f04488" : colors.border, backgroundColor: active ? "#2b1f2a" : colors.surface, opacity: inMonth ? 1 : 0.42 }, pressed && styles.pressed]}><Text style={[styles.monthDayNumber, { color: active ? "#ff82b7" : colors.foreground }]}>{day.getDate()}</Text>{activity.open || activity.booked ? <View style={styles.monthActivity}><View style={[styles.monthDot, { backgroundColor: "#32d77b" }]} /><Text style={[styles.monthActivityCount, { color: colors.muted }]}>{activity.open}</Text><View style={[styles.monthDot, { backgroundColor: "#f04488" }]} /><Text style={[styles.monthActivityCount, { color: colors.muted }]}>{activity.booked}</Text></View> : <View style={styles.monthActivitySpacer} />}</Pressable>; })}</View></SurfaceCard>
-        <SpectrumCard style={styles.activitySummary} intensity="muted"><Text style={styles.activityDate}>{formatDateLocalized(selectedDate.toISOString(), language, { weekday: "long", month: "short", day: "numeric" })}</Text><View style={styles.activityStats}><View style={styles.activityStat}><Text style={styles.activityNumber}>{selectedActivity.open}</Text><Text style={styles.activityLabel}>{t("openAvailabilityCount")}</Text></View><View style={styles.activityDivider} /><View style={styles.activityStat}><Text style={styles.activityNumber}>{selectedActivity.booked}</Text><Text style={styles.activityLabel}>{t("bookedSessionCount")}</Text></View></View></SpectrumCard>
+      {selectedRoomId ? <><CapacityCalendar role="admin" month={monthStart} selectedDate={localDayKey(selectedDate)} days={capacityDays} locale={language === "vi" ? "vi-VN" : "en-US"} title={t("chooseDay")} loading={schedule.isLoading && !isPreviewAdmin} todayLabel={t("today")} previousLabel={t("previousMonth")} nextLabel={t("nextMonth")} onMonthChange={setVisibleMonth} onDateChange={(date) => { const next = startOfLocalDay(new Date(`${date}T00:00:00`)); setSelectedDate(next); if (next.getMonth() !== monthStart.getMonth()) setVisibleMonth(startOfMonth(next)); }} />
+        <SurfaceCard style={styles.activitySummary}><Text style={[styles.activityDate, { color: colors.foreground }]}>{formatDateLocalized(selectedDate.toISOString(), language, { weekday: "long", month: "short", day: "numeric" })}</Text><View style={styles.activityStats}><View style={styles.activityStat}><Text style={[styles.activityNumber, { color: colors.foreground }]}>{selectedActivity.open}</Text><Text style={[styles.activityLabel, { color: colors.muted }]}>{t("openAvailabilityCount")}</Text></View><View style={[styles.activityDivider, { backgroundColor: colors.border }]} /><View style={styles.activityStat}><Text style={[styles.activityNumber, { color: colors.foreground }]}>{selectedActivity.booked}</Text><Text style={[styles.activityLabel, { color: colors.muted }]}>{t("bookedSessionCount")}</Text></View></View></SurfaceCard>
         {schedule.isLoading && !isPreviewAdmin ? <ActivityIndicator color="#ff82b7" style={styles.activityLoading} /> : selectedWindows.length ? <View style={styles.adminWindowList}>{selectedWindows.map((window) => { const participants = roomBookings.filter((booking) => booking.availabilityId === window.id); return <SurfaceCard key={window.id} style={styles.adminWindowCard}><View style={styles.adminWindowTop}><View><Text style={[styles.windowTime, { color: colors.foreground }]}>{formatTimeLocalized(window.startAt, language)}–{formatTimeLocalized(window.endAt, language)}</Text><Text style={[styles.windowHint, { color: colors.muted }]}>{window.coachName} · {window.location}</Text></View><StatusBadge label={window.status.toLowerCase() === "available" ? t("available") : window.status} tone={window.status.toLowerCase() === "available" ? "success" : "warning"} /></View><Text style={[styles.adminWindowMeta, { color: colors.muted }]}>{participants.length}/{window.maximumCapacity} {t("clients").toLowerCase()} · {participants.length} {t("bookedSessionCount").toLowerCase()}</Text>{participants.map((participant) => <View key={participant.id} style={[styles.adminParticipant, { borderTopColor: colors.border }]}><Text style={[styles.adminParticipantName, { color: colors.foreground }]}>{participant.clientName ?? "—"}</Text><Text style={[styles.adminParticipantMeta, { color: colors.muted }]}>{participant.status}{participant.checkInTime ? ` · ${t("attendance")}` : ""}</Text></View>)}</SurfaceCard>; })}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noRoomActivity")}</Text></SurfaceCard>}</> : null}
     </ScrollView>
   </ScreenContainer>;
@@ -322,8 +327,8 @@ export default function BookScreen() {
     <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.headerContent}>
-          <ScreenHeader title={t("bookSessionTitle")} subtitle={t("bookSessionSubtitle")} label={t("book").toUpperCase()} />
-          <SpectrumCard style={styles.clockCard} intensity="muted">
+          <ScreenHeader title={t("bookSessionTitle")} subtitle={t("bookSessionSubtitle")} label={t("client").toUpperCase()} role="client" />
+          <SurfaceCard style={styles.clockCard}>
             <Text style={styles.clockEyebrow}>{t("yourLocalTime")}</Text>
             <View style={styles.clockRow}>
               <View>
@@ -332,7 +337,7 @@ export default function BookScreen() {
               </View>
               <StatusBadge label={t("live")} tone="success" />
             </View>
-          </SpectrumCard>
+          </SurfaceCard>
 
           <Text style={[styles.stepLabel, { color: colors.muted }]}>1. {t("chooseDay")}</Text>
           <View accessibilityRole="tablist" style={styles.clientWeekGrid}>{days.map((day, index) => {
@@ -448,9 +453,9 @@ function RoomAccessPanel({ selectedDate, duration, colors, t, language, onFeedba
     {schedule.isLoading ? <ActivityIndicator color="#ff82b7" /> : schedule.data?.rooms.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomAccessRail}>{schedule.data.rooms.map((room) => {
       const selected = room.id === selectedRoomId;
       const available = room.statusReason === "available";
-      return <Pressable key={room.id} onPress={() => setSelectedRoomId(room.id)} accessibilityRole="button" accessibilityState={{ selected }} style={({ pressed }) => [styles.roomAccessPill, { borderColor: selected ? "#f04488" : colors.border, backgroundColor: selected ? "#2b1f2a" : colors.surface, opacity: available ? 1 : 0.72 }, pressed && styles.pressed]}><Text style={[styles.roomAccessName, { color: selected ? "#ff82b7" : colors.foreground }]}>{room.name}</Text><Text style={[styles.roomAccessMeta, { color: colors.muted }]}>{room.openingTime}–{room.closingTime} · {room.maximumCapacity}</Text><Text style={[styles.roomAccessStatus, { color: available ? "#32d77b" : "#ff8b82" }]}>{roomStatusCopy(room.statusReason, t)}</Text></Pressable>;
+      return <Pressable key={room.id} disabled={!available} onPress={() => setSelectedRoomId(room.id)} accessibilityRole="button" accessibilityState={{ selected, disabled: !available }} style={({ pressed }) => [styles.roomAccessPill, { borderColor: selected ? colors.client : colors.border, backgroundColor: selected ? `${colors.client}18` : colors.surface, opacity: available ? 1 : 0.5 }, pressed && available && styles.pressed]}><Text style={[styles.roomAccessName, { color: selected ? colors.client : colors.foreground }]}>{room.name}</Text><Text style={[styles.roomAccessMeta, { color: colors.muted }]}>{room.openingTime}–{room.closingTime} · {room.maximumCapacity}</Text><Text style={[styles.roomAccessStatus, { color: available ? colors.success : colors.closed }]}>{roomStatusCopy(room.statusReason, t)}</Text></Pressable>;
     })}</ScrollView> : <Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("roomAccessNoRooms")}</Text>}
-    {selectedRoom ? <><Text style={[styles.stepLabel, { color: colors.muted }]}>{t("roomAccessTime").toUpperCase()}</Text><Pressable onPress={() => setShowTimePicker(true)} style={({ pressed }) => [styles.timeChoice, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.timeChoiceValue, { color: colors.foreground }]}>{formatTimeLocalized(startAt, language)}</Text><Text style={[styles.timeChoiceChevron, { color: colors.muted }]}>›</Text></Pressable><Text style={[styles.roomAccessHours, { color: colors.muted }]}>{t("roomOpeningHours")}: {selectedRoom.openingTime}–{selectedRoom.closingTime}</Text>{preview.isFetching ? <ActivityIndicator color="#ff82b7" /> : preview.data ? <Text style={[styles.roomAccessCapacity, { color: preview.data.remainingCapacity > 0 ? "#32d77b" : "#ff8b82" }]}>{preview.data.remainingCapacity} {t("roomCapacityRemaining")}</Text> : preview.error ? <Text style={styles.roomAccessError}>{preview.error.message.includes("opening hours") ? t("roomTimeOutsideHours") : preview.error.message}</Text> : null}<PrimaryButton title={busy ? t("publishing") : t("roomAccessBooking")} disabled={busy || selectedRoom.statusReason !== "available" || !preview.data || preview.data.remainingCapacity < 1} onPress={confirm} /></> : null}
+    {selectedRoom ? <><Text style={[styles.stepLabel, { color: colors.muted }]}>{t("roomAccessTime").toUpperCase()}</Text><Pressable onPress={() => setShowTimePicker(true)} style={({ pressed }) => [styles.timeChoice, { backgroundColor: colors.surface2, borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.timeChoiceValue, { color: colors.foreground }]}>{formatTimeLocalized(startAt, language)}</Text><Text style={[styles.timeChoiceChevron, { color: colors.muted }]}>›</Text></Pressable><Text style={[styles.roomAccessHours, { color: colors.muted }]}>{t("roomOpeningHours")}: {selectedRoom.openingTime}–{selectedRoom.closingTime}</Text>{preview.isFetching ? <ActivityIndicator color={colors.client} /> : preview.data ? <Text style={[styles.roomAccessCapacity, { color: preview.data.remainingCapacity > 0 ? colors.success : colors.closed }]}>{preview.data.remainingCapacity} {t("roomCapacityRemaining")}</Text> : preview.error ? <Text style={styles.roomAccessError}>{preview.error.message.includes("opening hours") ? t("roomTimeOutsideHours") : preview.error.message}</Text> : null}<SecondaryButton title={busy ? t("publishing") : t("roomAccessBooking")} disabled={busy || selectedRoom.statusReason !== "available" || !preview.data || preview.data.remainingCapacity < 1} onPress={confirm} role="client" /></> : null}
     <StartTimePicker visible={showTimePicker} value={time} colors={colors} t={t} error={Boolean(preview.error)} onChange={setTime} onClose={() => setShowTimePicker(false)} onSave={() => setShowTimePicker(false)} />
   </SurfaceCard>;
 }

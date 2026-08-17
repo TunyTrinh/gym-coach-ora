@@ -9,6 +9,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
 import { isLocalTestMode } from "@/lib/local-test-mode";
+import { getRoleAccent, type CoachoraRole } from "@/components/gym-ui";
 
 export default function TabLayout() {
   const colors = useColors();
@@ -23,8 +24,9 @@ export default function TabLayout() {
 
   const isCoach = role === "coach";
   const isAdmin = role === "admin";
+  const roleAccent = getRoleAccent(role as CoachoraRole);
 
-  return <Tabs screenOptions={{ tabBarActiveTintColor: "#ff82b7", tabBarInactiveTintColor: "#777780", headerShown: false, tabBarButton: HapticTab, tabBarStyle: { paddingTop: 9, paddingBottom: bottomPadding, height: tabBarHeight, backgroundColor: "#151518", borderTopColor: colors.border, borderTopWidth: 1 }, tabBarLabelStyle: { fontSize: 10, fontWeight: "800", letterSpacing: 0.1 } }}>
+  return <Tabs screenOptions={{ tabBarActiveTintColor: roleAccent, tabBarInactiveTintColor: colors.tertiary, headerShown: false, tabBarButton: HapticTab, tabBarStyle: { paddingTop: 9, paddingBottom: bottomPadding, height: tabBarHeight, backgroundColor: colors.background, borderTopColor: colors.border, borderTopWidth: 1 }, tabBarLabelStyle: { fontSize: 10, fontWeight: "800", letterSpacing: 0.1 } }}>
     <Tabs.Screen name="index" options={{ title: isCoach ? t("dashboard") : isAdmin ? t("schedule") : t("home"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="house.fill" color={color} /> }} />
     <Tabs.Screen name="schedule" options={{ href: isAdmin ? null : undefined, title: t("schedule"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="calendar" color={color} /> }} />
     <Tabs.Screen name="book" options={{ title: isCoach ? t("availabilityWorkspace") : t("book"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="calendar.badge.plus" color={color} /> }} />

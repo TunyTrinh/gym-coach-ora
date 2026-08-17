@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
 
-import { GhostButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
+import { GhostButton, ScreenHeader, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
 import { useColors } from "@/hooks/use-colors";
 import { useGym } from "@/lib/gym-store";
@@ -22,8 +22,8 @@ export default function HistoryScreen() {
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <ScreenHeader title={t("historyTitle")} subtitle={t("historySubtitle")} label={t("yourProgress")} />
-      <SpectrumCard style={styles.summaryCard} intensity="muted"><Text style={styles.summaryEyebrow}>{t("attendanceSummary")}</Text><Text style={styles.summaryTitle}>{t("keepMomentum")}</Text><View style={styles.summaryStats}><SummaryMetric value={String(completedCount)} label={t("completed")} /><SummaryMetric value={`${checkInRate}%`} label={t("attendance")} /><SummaryMetric value={String(Math.max(0, completedCount))} label={t("checkIns")} /></View></SpectrumCard>
+      <ScreenHeader title={t("historyTitle")} subtitle={t("historySubtitle")} label={t("yourProgress")} role="client" />
+      <SurfaceCard style={styles.summaryCard}><Text style={[styles.summaryEyebrow, { color: colors.client }]}>{t("attendanceSummary")}</Text><Text style={[styles.summaryTitle, { color: colors.foreground }]}>{t("keepMomentum")}</Text><View style={styles.summaryStats}><SummaryMetric value={String(completedCount)} label={t("completed")} colors={colors} /><SummaryMetric value={`${checkInRate}%`} label={t("attendance")} colors={colors} /><SummaryMetric value={String(Math.max(0, completedCount))} label={t("checkIns")} colors={colors} /></View></SurfaceCard>
       <Pressable onPress={() => router.push("/progress")} accessibilityRole="button" style={({ pressed }) => [styles.healthEntry, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><View><Text style={styles.healthEyebrow}>{t("healthProgressCard")}</Text><Text style={[styles.healthTitle, { color: colors.foreground }]}>{t("measurementsAndTrends")}</Text><Text style={[styles.healthCopy, { color: colors.muted }]}>{t("compareMeasurements")}</Text></View><Text style={styles.healthArrow}>→</Text></Pressable>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}><HistoryFilter label={t("allActivity")} active={filter === "all"} onPress={() => setFilter("all")} /><HistoryFilter label={t("completed")} active={filter === "Completed"} onPress={() => setFilter("Completed")} /><HistoryFilter label={t("cancelled")} active={filter === "Cancelled"} onPress={() => setFilter("Cancelled")} /><HistoryFilter label={t("noShow")} active={filter === "No-show"} onPress={() => setFilter("No-show")} /></ScrollView>
       <View style={styles.list}>{filtered.length === 0 ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noActivityYet")}</Text><Text style={[styles.emptyText, { color: colors.muted }]}>{t("historyEmpty")}</Text></SurfaceCard> : filtered.map((booking) => {
@@ -39,7 +39,7 @@ export default function HistoryScreen() {
   </ScreenContainer>;
 }
 
-function SummaryMetric({ value, label }: { value: string; label: string }) { return <View><Text style={styles.summaryValue}>{value}</Text><Text style={styles.summaryLabel}>{label}</Text></View>; }
+function SummaryMetric({ value, label, colors }: { value: string; label: string; colors: ReturnType<typeof useColors> }) { return <View><Text style={[styles.summaryValue, { color: colors.foreground }]}>{value}</Text><Text style={[styles.summaryLabel, { color: colors.muted }]}>{label}</Text></View>; }
 
 function statusLabel(status: string, t: (key: any) => string) {
   if (status === "Completed") return t("completed");
