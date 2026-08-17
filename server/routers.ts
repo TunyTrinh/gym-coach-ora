@@ -6,9 +6,10 @@ import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_
 import { bookGymSlot, cancelGymBooking, getGymSnapshot, markGymAttendance } from "./gym-store";
 import { createGymRoom, deleteCoachAccount, deleteGymRoom, getAdminRoomSchedule, getAuthorizedCoachIdForUser, getDb, getRoomClosures, grantCoachGoogleAccess, listActiveGyms, listCoachAccounts, listRooms, removeRoomClosure, setCoachGoogleAccess, setRoomClosure, updateGymRoom } from "./db";
 import { isValidGoogleEmail, normalizeGoogleEmail } from "./google-authorization";
-import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, gymRooms, notifications, roomClosures, serviceTypes, timeSlots, users } from "../drizzle/schema";
-import { and, eq, gt, gte, inArray, lt, lte, sql } from "drizzle-orm";
+import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, gymRooms, healthMeasurements, notifications, roomClosures, serviceTypes, timeSlots, users } from "../drizzle/schema";
+import { and, asc, eq, gt, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
+import { isRoomEligibleForAvailability } from "../shared/room-eligibility";
 
 const availabilityInput = z.object({
   coachId: z.number().int().positive().optional(),
@@ -25,6 +26,20 @@ const durationInput = z.number().int().min(30).max(240).refine(
   (value) => value === 30 || value === 45 || (value >= 60 && value % 15 === 0),
   "Choose 30, 45, or a 15-minute duration from 60 to 240 minutes.",
 );
+
+const measurementInput = z.object({
+  recordedAt: z.string().datetime(),
+  weightKg: z.number().positive().max(500).optional(),
+  bodyFatPercentage: z.number().positive().max(100).optional(),
+  chestCm: z.number().positive().max(400).optional(),
+  waistCm: z.number().positive().max(400).optional(),
+  hipsCm: z.number().positive().max(400).optional(),
+  armsCm: z.number().positive().max(200).optional(),
+  thighsCm: z.number().positive().max(300).optional(),
+}).refine((value) => Object.entries(value).some(([key, item]) => key !== "recordedAt" && typeof item === "number"), "Add at least one measurement.");
+
+const measurementScale = (value?: number) => value === undefined ? null : Math.round(value * 10);
+const measurementValue = (value: number | null) => value === null ? undefined : value / 10;
 
 function localDateTime(date: string, time: string) {
   const [year, month, day] = date.split("-").map(Number);
@@ -94,6 +109,121 @@ export const appRouter = router({
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
       return { success: true } as const;
+    }),
+  }),
+  catalog: router({
+    coaches: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      return db.select({
+        id: coaches.id,
+        fullName: coaches.fullName,
+        specialty: coaches.specialty,
+        gymId: coaches.gymId,
+      }).from(coaches).where(eq(coaches.active, true)).orderBy(asc(coaches.fullName));
+    }),
+    services: protectedProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      return db.select({
+        id: serviceTypes.id,
+        name: serviceTypes.name,
+        description: serviceTypes.description,
+        durationMinutes: serviceTypes.durationMinutes,
+        cancellationWindowMinutes: serviceTypes.cancellationWindowMinutes,
+      }).from(serviceTypes).where(eq(serviceTypes.active, true)).orderBy(asc(serviceTypes.name));
+    }),
+  }),
+  member: router({
+    schedule: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "client") throw new Error("Member access is required to view this schedule.");
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      return db.select({
+        id: bookings.externalId,
+        status: bookings.status,
+        bookingTime: bookings.bookingTime,
+        cancellationTime: bookings.cancellationTime,
+        cancellationReason: bookings.cancellationReason,
+        checkInTime: bookings.checkInTime,
+        startAt: timeSlots.startAt,
+        endAt: timeSlots.endAt,
+        room: timeSlots.room,
+        maximumCapacity: timeSlots.maximumCapacity,
+        coachName: coaches.fullName,
+        serviceName: serviceTypes.name,
+        availabilityId: availabilityShifts.externalId,
+      }).from(bookings)
+        .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
+        .leftJoin(coaches, eq(timeSlots.coachId, coaches.id))
+        .innerJoin(serviceTypes, eq(timeSlots.serviceTypeId, serviceTypes.id))
+        .leftJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
+        .where(eq(bookings.memberUserId, ctx.user.id))
+        .orderBy(asc(timeSlots.startAt));
+    }),
+    measurements: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "client") throw new Error("Only clients can view private health progress.");
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      const records = await db.select().from(healthMeasurements).where(eq(healthMeasurements.userId, ctx.user.id)).orderBy(asc(healthMeasurements.measurementDate));
+      return records.map((record) => ({
+        id: String(record.id),
+        recordedAt: record.measurementDate,
+        weightKg: measurementValue(record.weight),
+        bodyFatPercentage: measurementValue(record.bodyFat),
+        chestCm: measurementValue(record.chest),
+        waistCm: measurementValue(record.waist),
+        hipsCm: measurementValue(record.hips),
+        armsCm: measurementValue(record.arms),
+        thighsCm: measurementValue(record.thighs),
+      }));
+    }),
+    saveMeasurement: protectedProcedure.input(measurementInput).mutation(async ({ ctx, input }) => {
+      if (ctx.user.role !== "client") throw new Error("Only clients can save private health progress.");
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      await db.insert(healthMeasurements).values({
+        userId: ctx.user.id,
+        recordedBy: ctx.user.id,
+        measurementDate: new Date(input.recordedAt),
+        weight: measurementScale(input.weightKg),
+        bodyFat: measurementScale(input.bodyFatPercentage),
+        chest: measurementScale(input.chestCm),
+        waist: measurementScale(input.waistCm),
+        hips: measurementScale(input.hipsCm),
+        arms: measurementScale(input.armsCm),
+        thighs: measurementScale(input.thighsCm),
+      });
+      return { success: true as const };
+    }),
+    notifications: protectedProcedure.query(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      return db.select({
+        id: notifications.id,
+        type: notifications.type,
+        title: notifications.title,
+        message: notifications.message,
+        read: notifications.read,
+        relatedBookingId: bookings.externalId,
+        priority: notifications.priority,
+        createdAt: notifications.createdAt,
+      }).from(notifications)
+        .leftJoin(bookings, eq(notifications.relatedBookingId, bookings.id))
+        .where(eq(notifications.userId, ctx.user.id))
+        .orderBy(asc(notifications.createdAt));
+    }),
+    markNotificationRead: protectedProcedure.input(z.object({ notificationId: z.number().int().positive() })).mutation(async ({ ctx, input }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      await db.update(notifications).set({ read: true }).where(and(eq(notifications.id, input.notificationId), eq(notifications.userId, ctx.user.id)));
+      return { success: true as const };
+    }),
+    markAllNotificationsRead: protectedProcedure.mutation(async ({ ctx }) => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      await db.update(notifications).set({ read: true }).where(eq(notifications.userId, ctx.user.id));
+      return { success: true as const };
     }),
   }),
   gym: router({
@@ -217,17 +347,30 @@ export const appRouter = router({
       }),
   }),
   availability: router({
-    rooms: protectedProcedure.query(async ({ ctx }) => {
+    rooms: protectedProcedure.input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).optional()).query(async ({ ctx, input }) => {
       if (ctx.user.role !== "coach" && ctx.user.role !== "admin") throw new Error("Coach access is required to view rooms.");
-      const rooms = await listRooms({ activeOnly: true });
-      if (ctx.user.role !== "coach") return rooms.map((room) => ({ ...room, defaultGym: false }));
+      const allRooms = await listRooms();
+      const requestedDate = input?.date ?? localDayKey(new Date());
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
-      const coachId = await getAuthorizedCoachIdForUser(db, ctx.user.id);
-      if (!coachId) throw new Error("Your Coach access is inactive or revoked.");
-      const coach = await db.select({ gymId: coaches.gymId }).from(coaches).where(eq(coaches.id, coachId)).limit(1);
-      const defaultGymId = coach[0]?.gymId ?? null;
-      return rooms.map((room) => ({ ...room, defaultGym: defaultGymId !== null && room.gymId === defaultGymId }));
+      const roomIds = allRooms.map((room) => room.id);
+      const closures = roomIds.length ? await db.select({ roomId: roomClosures.roomId }).from(roomClosures).where(and(eq(roomClosures.closureDate, requestedDate), inArray(roomClosures.roomId, roomIds))) : [];
+      const closedRoomIds = new Set(closures.map((closure) => closure.roomId));
+      const activeRooms = allRooms.filter((room) => room.active);
+      const eligibleRooms = activeRooms.filter((room) => isRoomEligibleForAvailability({ active: room.active, closed: closedRoomIds.has(room.id) }));
+      const defaultGymId = ctx.user.role === "coach" ? (await (async () => {
+        const coachId = await getAuthorizedCoachIdForUser(db, ctx.user.id);
+        if (!coachId) throw new Error("Your Coach access is inactive or revoked.");
+        const coach = await db.select({ gymId: coaches.gymId }).from(coaches).where(eq(coaches.id, coachId)).limit(1);
+        return coach[0]?.gymId ?? null;
+      })()) : null;
+      return {
+        rooms: eligibleRooms.map((room) => ({ ...room, defaultGym: defaultGymId !== null && room.gymId === defaultGymId })),
+        totalRooms: allRooms.length,
+        activeRoomCount: activeRooms.length,
+        closedRoomCount: activeRooms.filter((room) => closedRoomIds.has(room.id)).length,
+        requestedDate,
+      };
     }),
     mine: protectedProcedure
       .input(z.object({ coachId: z.number().int().positive().optional(), from: z.string().datetime().optional(), to: z.string().datetime().optional() }).optional())
@@ -237,7 +380,14 @@ export const appRouter = router({
         const coachId = await managedCoachId(db, ctx.user, input?.coachId);
         const from = input?.from ? new Date(input.from) : new Date();
         const to = input?.to ? new Date(input.to) : new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
-        return db.select().from(availabilityShifts).where(and(eq(availabilityShifts.coachId, coachId), lt(availabilityShifts.startAt, to), gt(availabilityShifts.endAt, from)));
+        const windows = await db.select().from(availabilityShifts).where(and(eq(availabilityShifts.coachId, coachId), lt(availabilityShifts.startAt, to), gt(availabilityShifts.endAt, from)));
+        if (!windows.length) return [];
+        const counts = await db.select({ shiftId: bookings.availabilityShiftId, count: sql<number>`count(*)` })
+          .from(bookings)
+          .where(and(inArray(bookings.availabilityShiftId, windows.map((window) => window.id)), inArray(bookings.status, ["pending", "confirmed"])))
+          .groupBy(bookings.availabilityShiftId);
+        const countByShiftId = new Map(counts.map((count) => [count.shiftId, Number(count.count)]));
+        return windows.map((window) => ({ ...window, bookedCount: countByShiftId.get(window.id) ?? 0 }));
       }),
     bookable: protectedProcedure
       .input(z.object({ coachId: z.number().int().positive(), dateStart: z.string().datetime(), dateEnd: z.string().datetime() }))
@@ -263,6 +413,46 @@ export const appRouter = router({
           gt(availabilityShifts.endAt, new Date(input.dateStart)),
           gt(availabilityShifts.endAt, new Date()),
         ));
+        const roomIds = [...new Set(windows.flatMap((window) => window.roomId ? [window.roomId] : []))];
+        if (!roomIds.length) return windows;
+        const startDay = localDayKey(new Date(input.dateStart));
+        const endDay = localDayKey(new Date(new Date(input.dateEnd).getTime() - 1));
+        const closures = await db.select({ roomId: roomClosures.roomId }).from(roomClosures).where(and(
+          inArray(roomClosures.roomId, roomIds),
+          gte(roomClosures.closureDate, startDay),
+          lte(roomClosures.closureDate, endDay),
+        ));
+        const closedRoomIds = new Set(closures.map((closure) => closure.roomId));
+        return windows.filter((window) => !window.roomId || !closedRoomIds.has(window.roomId));
+      }),
+    bookableAll: protectedProcedure
+      .input(z.object({ dateStart: z.string().datetime(), dateEnd: z.string().datetime() }))
+      .query(async ({ ctx, input }) => {
+        if (ctx.user.role !== "client") throw new Error("Member access is required to view bookable shifts.");
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        const windows = await db.select({
+          id: availabilityShifts.externalId,
+          coachId: availabilityShifts.coachId,
+          coachName: coaches.fullName,
+          coachSpecialty: coaches.specialty,
+          serviceTypeId: availabilityShifts.serviceTypeId,
+          roomId: availabilityShifts.roomId,
+          startAt: availabilityShifts.startAt,
+          endAt: availabilityShifts.endAt,
+          location: availabilityShifts.location,
+          status: availabilityShifts.status,
+          maximumCapacity: availabilityShifts.maximumCapacity,
+          note: availabilityShifts.note,
+        }).from(availabilityShifts)
+          .innerJoin(coaches, eq(availabilityShifts.coachId, coaches.id))
+          .where(and(
+            eq(availabilityShifts.status, "available"),
+            eq(coaches.active, true),
+            lt(availabilityShifts.startAt, new Date(input.dateEnd)),
+            gt(availabilityShifts.endAt, new Date(input.dateStart)),
+            gt(availabilityShifts.endAt, new Date()),
+          ));
         const roomIds = [...new Set(windows.flatMap((window) => window.roomId ? [window.roomId] : []))];
         if (!roomIds.length) return windows;
         const startDay = localDayKey(new Date(input.dateStart));
@@ -407,6 +597,69 @@ export const appRouter = router({
         });
         return { success: true as const, releaseRequired: false as const, shiftId: cancellation.shiftId };
       }),
+    checkIn: protectedProcedure
+      .input(z.object({ bookingId: z.string().min(1).max(64) }))
+      .mutation(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        const record = await db.select({
+          bookingId: bookings.id,
+          memberUserId: bookings.memberUserId,
+          status: bookings.status,
+          checkInTime: bookings.checkInTime,
+          startAt: timeSlots.startAt,
+        }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(eq(bookings.externalId, input.bookingId)).limit(1);
+        if (!record[0] || record[0].memberUserId !== ctx.user.id) throw new Error("Booking not found.");
+        if (record[0].status !== "confirmed") throw new Error("Only confirmed bookings can be checked in.");
+        const minutesFromStart = (Date.now() - record[0].startAt.getTime()) / 60_000;
+        if (minutesFromStart < -30 || minutesFromStart > 30) throw new Error("Check-in opens 30 minutes before your session and closes 30 minutes after it starts.");
+        if (!record[0].checkInTime) await db.update(bookings).set({ checkInTime: new Date(), checkedInBy: ctx.user.id }).where(eq(bookings.id, record[0].bookingId));
+        return { success: true as const };
+      }),
+    markAttendance: protectedProcedure
+      .input(z.object({ bookingId: z.string().min(1).max(64), status: z.enum(["completed", "no_show"]) }))
+      .mutation(async ({ ctx, input }) => {
+        if (ctx.user.role !== "coach" && ctx.user.role !== "admin") throw new Error("Coach access is required to record attendance.");
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        const record = await db.select({ bookingId: bookings.id, status: bookings.status, shiftCoachId: availabilityShifts.coachId })
+          .from(bookings).innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id)).where(eq(bookings.externalId, input.bookingId)).limit(1);
+        if (!record[0]) throw new Error("Managed booking not found.");
+        if (ctx.user.role === "coach" && (await managedCoachId(db, ctx.user)) !== record[0].shiftCoachId) throw new Error("You can record attendance only for your own sessions.");
+        if (record[0].status !== "confirmed" && record[0].status !== "pending") throw new Error("This booking already has an attendance result.");
+        await db.update(bookings).set({ status: input.status, checkInTime: input.status === "completed" ? new Date() : undefined, checkedInBy: input.status === "completed" ? ctx.user.id : undefined }).where(eq(bookings.id, record[0].bookingId));
+        await db.insert(auditLogs).values({ actorUserId: ctx.user.id, action: input.status === "completed" ? "COMPLETE_BOOKING" : "MARK_BOOKING_NO_SHOW", details: `Recorded ${input.status} for ${input.bookingId}.` });
+        return { success: true as const };
+      }),
+    coachSchedule: protectedProcedure.query(async ({ ctx }) => {
+      if (ctx.user.role !== "coach" && ctx.user.role !== "admin") throw new Error("Coach access is required to view this schedule.");
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      const coachId = await managedCoachId(db, ctx.user, undefined);
+      return db.select({
+        id: bookings.externalId,
+        status: bookings.status,
+        bookingTime: bookings.bookingTime,
+        cancellationTime: bookings.cancellationTime,
+        cancellationReason: bookings.cancellationReason,
+        checkInTime: bookings.checkInTime,
+        clientId: users.id,
+        clientName: users.name,
+        startAt: timeSlots.startAt,
+        endAt: timeSlots.endAt,
+        room: timeSlots.room,
+        maximumCapacity: timeSlots.maximumCapacity,
+        serviceName: serviceTypes.name,
+        availabilityId: availabilityShifts.externalId,
+        availabilityCapacity: availabilityShifts.maximumCapacity,
+      }).from(bookings)
+        .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
+        .innerJoin(users, eq(bookings.memberUserId, users.id))
+        .innerJoin(serviceTypes, eq(timeSlots.serviceTypeId, serviceTypes.id))
+        .innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
+        .where(eq(availabilityShifts.coachId, coachId))
+        .orderBy(asc(timeSlots.startAt));
+    }),
     releaseAfterCancellation: protectedProcedure
       .input(z.object({ shiftId: z.string().min(1).max(64), release: z.enum(["reopen", "block"]) }))
       .mutation(async ({ ctx, input }) => {

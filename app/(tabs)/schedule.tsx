@@ -11,6 +11,8 @@ import { addMonths, buildMonthGrid, isSameLocalDay, localDayKey, startOfLocalDay
 import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
 import { isLocalTestMode } from "@/lib/local-test-mode";
+import { adaptProductionSchedule } from "@/lib/production-schedule";
+import { trpc } from "@/lib/trpc";
 import { formatDateLocalized, formatTimeLocalized, localeFor } from "@/lib/i18n";
 import { getBookingSlot, getCoach, getService } from "@/shared/gym";
 
@@ -45,7 +47,8 @@ export default function ScheduleScreen() {
   const { user } = useAuth();
   const { snapshot, upcomingBookings, cancelBooking, checkInBooking, markAttendance } = useGym();
   const { language, t } = useLanguage();
-  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
+  const previewMode = isLocalTestMode();
+  const role = previewMode ? snapshot.member.role : user?.role ?? "client";
   const isCoach = role === "coach";
   const [now, setNow] = useState(() => new Date());
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
@@ -53,33 +56,42 @@ export default function ScheduleScreen() {
   const [feedbackSheet, setFeedbackSheet] = useState<FeedbackSheet | null>(null);
   const [cancellationBookingId, setCancellationBookingId] = useState<string | null>(null);
   const [cancellationBusy, setCancellationBusy] = useState(false);
+  const memberSchedule = trpc.member.schedule.useQuery(undefined, { enabled: !previewMode && role === "client" });
+  const coachSchedule = trpc.availability.coachSchedule.useQuery(undefined, { enabled: !previewMode && isCoach });
+  const cancelServerBooking = trpc.availability.cancel.useMutation();
+  const checkInServerBooking = trpc.availability.checkIn.useMutation();
+  const markServerAttendance = trpc.availability.markAttendance.useMutation();
+  const utils = trpc.useUtils();
+  const activeSnapshot = useMemo(
+    () => previewMode ? snapshot : adaptProductionSchedule(snapshot, { role, user, rows: isCoach ? (coachSchedule.data ?? []) : (memberSchedule.data ?? []) }),
+    [coachSchedule.data, isCoach, memberSchedule.data, previewMode, role, snapshot, user],
+  );
+  const activeUpcomingBookings = useMemo(
+    () => activeSnapshot.bookings.filter((booking) => booking.memberId === activeSnapshot.member.id && ["Confirmed", "Pending"].includes(booking.status) && new Date(getBookingSlot(activeSnapshot, booking)?.start ?? 0) > new Date()).sort((left, right) => new Date(getBookingSlot(activeSnapshot, left)?.start ?? 0).getTime() - new Date(getBookingSlot(activeSnapshot, right)?.start ?? 0).getTime()),
+    [activeSnapshot],
+  );
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
 
-  const coachId = isCoach ? "coach-maya" : undefined;
   const calendarBookings = useMemo(() => {
-    if (!isCoach) return upcomingBookings;
-    return snapshot.bookings
-      .filter((booking) => {
-        const slot = getBookingSlot(snapshot, booking);
-        return Boolean(slot && slot.coachId === coachId);
-      })
-      .sort((a, b) => new Date(getBookingSlot(snapshot, a)?.start ?? 0).getTime() - new Date(getBookingSlot(snapshot, b)?.start ?? 0).getTime());
-  }, [coachId, isCoach, snapshot, upcomingBookings]);
+    if (!isCoach) return previewMode ? upcomingBookings : activeUpcomingBookings;
+    return activeSnapshot.bookings
+      .sort((a, b) => new Date(getBookingSlot(activeSnapshot, a)?.start ?? 0).getTime() - new Date(getBookingSlot(activeSnapshot, b)?.start ?? 0).getTime());
+  }, [activeSnapshot, activeUpcomingBookings, isCoach, previewMode, upcomingBookings]);
 
   const bookingsByDay = useMemo(() => {
     const result = new Map<string, typeof calendarBookings>();
     calendarBookings.forEach((booking) => {
-      const slot = getBookingSlot(snapshot, booking);
+      const slot = getBookingSlot(activeSnapshot, booking);
       if (!slot) return;
       const key = localDayKey(slot.start);
       result.set(key, [...(result.get(key) ?? []), booking]);
     });
     return result;
-  }, [calendarBookings, snapshot]);
+  }, [activeSnapshot, calendarBookings]);
 
   const calendarDays = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
   const selectedBookings = bookingsByDay.get(localDayKey(selectedDate)) ?? [];
@@ -106,7 +118,13 @@ export default function ScheduleScreen() {
     const bookingId = cancellationBookingId;
     if (!bookingId || cancellationBusy) return;
     setCancellationBusy(true);
-    const result = await cancelBooking(bookingId, "Plans changed");
+    const result = previewMode
+      ? await cancelBooking(bookingId, "Plans changed")
+      : await cancelServerBooking.mutateAsync({ bookingId, reason: "Plans changed" }).then(() => ({ success: true as const, message: "Booking cancelled and capacity released for that time." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "This booking could not be cancelled." }));
+    if (result.success && !previewMode) {
+      await utils.member.schedule.invalidate();
+      await utils.availability.coachSchedule.invalidate();
+    }
     setCancellationBusy(false);
     setCancellationBookingId(null);
     setFeedbackSheet({
@@ -117,7 +135,10 @@ export default function ScheduleScreen() {
   };
 
   const handleCheckIn = async (bookingId: string) => {
-    const result = await checkInBooking(bookingId);
+    const result = previewMode
+      ? await checkInBooking(bookingId)
+      : await checkInServerBooking.mutateAsync({ bookingId }).then(() => ({ success: true as const, message: "You’re checked in. Have a great session." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Check-in is unavailable." }));
+    if (result.success && !previewMode) await utils.member.schedule.invalidate();
     setFeedbackSheet({
       success: result.success,
       title: result.success ? t("checkedInAlert") : t("checkInUnavailable"),
@@ -126,7 +147,10 @@ export default function ScheduleScreen() {
   };
 
   const handleAttendance = async (bookingId: string, status: "Completed" | "No-show") => {
-    const result = await markAttendance(bookingId, status);
+    const result = previewMode
+      ? await markAttendance(bookingId, status)
+      : await markServerAttendance.mutateAsync({ bookingId, status: status === "Completed" ? "completed" : "no_show" }).then(() => ({ success: true as const, message: status === "Completed" ? "Member marked completed." : "Member marked no-show." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Attendance could not be updated." }));
+    if (result.success && !previewMode) await utils.availability.coachSchedule.invalidate();
     setFeedbackSheet({
       success: result.success,
       title: result.success ? t("attendanceSaved") : t("couldNotUpdateShift"),
@@ -191,7 +215,7 @@ export default function ScheduleScreen() {
             >
               <Text style={[styles.dayNumber, { color: isCurrentMonth ? colors.foreground : colors.muted }, isSelected && styles.selectedDayText]}>{day.getDate()}</Text>
               {isCoach ? <View style={styles.dayBlocks}>{visibleBlocks.map((booking) => {
-                const slot = getBookingSlot(snapshot, booking);
+                const slot = getBookingSlot(activeSnapshot, booking);
                 return slot ? <View key={booking.id} style={[styles.miniBlock, { backgroundColor: blockColor(slot.start) }]}><Text numberOfLines={1} style={styles.miniBlockText}>{formatTimeLocalized(slot.start, language)}</Text></View> : null;
               })}{dayBookings.length > 2 ? <Text style={[styles.moreBlocks, { color: isSelected ? "#ffffff" : "#ff82b7"}]}>+{dayBookings.length - 2}</Text> : null}</View> : dayBookings.length > 0 ? <View style={[styles.bookingDot, { backgroundColor: dayBookings.length > 1 ? "#ff82b7" : "#8a77ef" }]}><Text style={styles.bookingDotText}>{dayBookings.length}</Text></View> : <View style={styles.dotSpacer} />}
             </Pressable>
@@ -210,19 +234,19 @@ export default function ScheduleScreen() {
         <Text style={[styles.emptyMessage, { color: colors.muted }]}>{isCoach ? t("scheduleAppears") : t("chooseDayOrBook")}</Text>
         <PrimaryButton title={isCoach ? t("addAvailability") : t("browseSessions")} onPress={() => router.push(isCoach ? "/book" : "/book")} />
       </SurfaceCard> : selectedBookings.map((booking) => {
-        const slot = getBookingSlot(snapshot, booking);
+        const slot = getBookingSlot(activeSnapshot, booking);
         if (!slot) return null;
-        const service = getService(snapshot, slot.serviceTypeId);
-        const coach = getCoach(snapshot, slot.coachId);
+        const service = getService(activeSnapshot, slot.serviceTypeId);
+        const coach = getCoach(activeSnapshot, slot.coachId);
         const bookingDuration = booking.durationMinutes ?? service?.durationMinutes ?? Math.round((new Date(slot.end).getTime() - new Date(slot.start).getTime()) / 60_000);
         const minutesUntil = Math.round((new Date(slot.start).getTime() - now.getTime()) / 60_000);
         const checkInOpen = minutesUntil <= 30 && minutesUntil >= -30;
 
         if (isCoach) {
-          const window = snapshot.availabilityShifts.find((item) => item.id === slot.availabilityShiftId);
-          const concurrent = snapshot.bookings.filter((item) => {
+          const window = activeSnapshot.availabilityShifts.find((item) => item.id === slot.availabilityShiftId);
+          const concurrent = activeSnapshot.bookings.filter((item) => {
             if (!["Confirmed", "Pending"].includes(item.status)) return false;
-            const other = getBookingSlot(snapshot, item);
+            const other = getBookingSlot(activeSnapshot, item);
             return Boolean(other && other.availabilityShiftId === slot.availabilityShiftId && intervalsOverlap(slot.start, slot.end, other.start, other.end));
           }).length;
           const remaining = Math.max(0, (window?.maximumCapacity ?? slot.maximumCapacity) - concurrent);

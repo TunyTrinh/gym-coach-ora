@@ -1,222 +1,80 @@
-# GymFlow Mobile App TODO
+# Project TODO
 
-- [x] Initialize Expo mobile application workspace with TypeScript and Tailwind (NativeWind)
-- [x] Create mobile app interface design document (`design.md`)
-- [x] Implement backend Frappe-inspired data models and tRPC API routers (`server/routers.ts`, `server/storage.ts`) for Gyms, Coaches, Service Types, Time Slots, Bookings, Member Profiles, Announcements, and Notifications
-- [x] Implement robust booking business rules and concurrency checks on the server
-- [x] Implement Google OAuth / mock social login and user profile creation flow
-- [x] Implement tab bar navigation and mobile screen components (Home, Book, Schedule, History, Notifications, Profile, Coach Dashboard)
-- [x] Implement PWA manifest, service worker configuration, and installation guidance for iOS and Android
-- [x] Implement automated unit and integration tests for core booking flows
-- [x] Verify application builds successfully and prepare implementation summary
-- [x] Audit existing routes, components, client store, API procedures, theme, and booking scheduler before redesign
-- [x] Define and apply the dark Spectrum design system across the GymFlow mobile experience
-- [x] Upgrade the booking scheduler to initialize from the device's current local date and time, expose a Today action, and de-emphasize elapsed time slots
-- [x] Preserve current booking, cancellation, attendance, notification, and role-aware workflows through the redesign
-- [x] Add focused tests for time-aware scheduler helper behavior and verify redesigned mobile UI at portrait breakpoints
-- [x] Audit the existing booking store and schedule UI for unified overview and health progress extension points
-- [x] Add a consolidated schedule overview with calendar navigation, booked-day signals, and a selected-day session summary
-- [x] Add local health measurement records for weight, body fat, chest, waist, hips, arms, and thighs
-- [x] Add measurement comparisons, dated history, and a simple accessible progress chart
-- [x] Test schedule and health-progress state behavior and verify the new mobile screens compile cleanly
-- [x] Audit existing PWA assets, backend services, environment configuration, and deployment entrypoints
-- [x] Define self-hosted Docker Compose topology, HTTPS/domain reverse proxy, secure environment, and database-backup plan
-- [x] Add production Docker Compose, reverse proxy, environment template, and automated database backup assets
-- [x] Harden the PWA manifest, install guidance, offline fallback, and automatic update workflow
-- [x] Validate the self-hosted deployment package and document one-machine operation and recovery steps
-- [x] Audit current member screens, navigation, booking states, and content density for unnecessary complexity
-- [x] Document the member-first information architecture, progressive disclosure rules, and motion approach in `design.md`
-- [x] Simplify the primary navigation to Home, Schedule, Book, Progress, and Profile while retaining secondary features through progressive disclosure
-- [x] Refine the member-first Home dashboard, three-step booking flow, and compact weekly schedule overview
-- [x] Simplify Health Progress with latest-versus-previous comparisons, metric selection, and separate detailed history
-- [x] Add accessible feedback states and reduced-motion-aware micro-interactions without delaying actions
-- [x] Validate member routes and preserved login-to-progress data flow through type checks, linting, automated business-rule tests, and a successful production PWA export build
-- [x] Diagnose and restore Learn Gym time-slot booking without weakening local-time, capacity, duplicate-booking, or cancellation safeguards
-- [x] Declare the NativeWind runtime dependency and validate the production server bundle plus PWA export; Docker is unavailable in this sandbox for a local container build
-- [x] Add focused regression coverage and revalidate booking behavior plus the production web build
-- [x] Implement secure role-based access control (RBAC) supporting Client, Coach, and Admin roles
-- [x] Add database tables for coach-client assignments, coach notes, health measurements, and audit logs
-- [x] Add backend tRPC procedures for role management, client assignment, and protected coach-client access
-- [x] Make tab navigation and home dashboard role-aware for Clients, Coaches, and Admins
-- [x] Pass all TypeScript checks, automated tests, production web export, and server build
-- [x] Audit existing coach, booking, database, API, navigation, and container build paths for the Coach Availability module
-- [x] Design availability shifts, status transitions, recurrence, cancellation release behavior, and secure role boundaries
-- [x] Add safe schema migrations and transactional server-side availability, booking, blocking, cancellation, and audit operations
-- [x] Build a mobile Coach Availability interface with calendar/list views, shift creation preview, filters, details, and future-shift management
-- [x] Connect client booking to coach-managed Available shifts and expose guarded Admin oversight controls
-- [x] Add complete feedback states, availability conflict regression tests, and validate the repaired PWA export; Docker remains unavailable in this sandbox for a local container image build
+- [x] Inspect private repository metadata and confirm `optimize-program` branch exists
+- [x] Clone `TunyTrinh/gym-coach-ora`
+- [x] Check out branch `optimize-program`
+- [x] Initialize the Coachora WebDev mobile project
+- [x] Document the mobile interface design and key user flows
+- [x] Import the checked-out repository implementation into the Coachora WebDev project
+- [x] Reconcile repository configuration with the Coachora WebDev project configuration
+- [x] Generate and install the Coachora app icon in all required asset locations
+- [x] Update `app.config.ts` branding fields without changing the generated app slug
+- [x] Install dependencies and run type checking
+- [x] Run the web build and verify the public PWA output
+- [ ] Connect Google OAuth credentials and resolve the OAuth configuration test returning HTTP 503
+- [ ] Save the final delivery checkpoint
+- [ ] Publish the checkpoint from the WebDev Management UI and verify the generated public domain
+- [x] Audit frontend, backend, API, database, permissions, scheduling, localization, PWA, and deployment code for correctness and duplication
+- [x] Apply safe, backward-compatible fixes for test configuration and load-test reliability
+- [x] Measure bounded functional, regression, and 1,000-connection health-endpoint behavior without changing confirmed business rules
+- [x] Report verified scalability limits and infrastructure requirements for the requested 1,000-active-user traffic target
+- [x] Approve migration of client, coach, and admin workflow screens from local demo state to the existing database-backed APIs
+- [x] Approve migration of client, coach, and admin workflow screens from local demo state to the existing database-backed APIs
+- [x] Map each Client, Coach, and Admin workflow to its database-backed API, authorization rule, and empty state
+- [x] Move Client booking, schedule, cancellation, and progress data to the authoritative API path outside development preview mode
+- [x] Move Coach availability, schedule, capacity, and attendance data to the authoritative API path outside development preview mode
+- [x] Move Admin room, closure, capacity, and access-management data to the authoritative API path outside development preview mode
+- [x] Remove production fallback to demo roles, hard-coded coach identities, and local booking mutations
+- [ ] Add API contract and synchronized-workflow regression tests for the authoritative data path
+- [ ] Decide whether the availability-booking cancellation cutoff must match the fixed-session cancellation policy
+- [x] Preserve the approved Coachora logo unchanged and derive only required resized icon variants from it
+- [x] Reconcile the live database with all source-controlled migrations and resolve the missing auth-schema columns
+- [x] Resolve signed-out authentication console noise without weakening authentication or permissions
+- [x] Standardize all user-facing product naming and metadata on Coachora
+- [x] Audit and improve visual hierarchy, responsive layouts, semantic headings, accessibility, and client/coach/admin workflows
+- [x] Define and enforce one authoritative production data and business-rule path across app, preview, and PWA
+- [x] Audit and safely optimize source structure, dependencies, bundle budgets, rendering, API boundaries, database queries, and resource limits
+- [x] Harden PWA manifest, service-worker caching, offline behavior, version diagnostics, and install metadata
+- [ ] Validate responsive behavior, app workflows, privacy/security, bundle metrics, and non-destructive staging load behavior with evidence
+- [ ] Produce an evidence-based production and App Store readiness report with unresolved decisions explicitly identified
+- [x] Add deterministic database-schedule adapter regression coverage and validate linting, type checks, 59 tests, and the production web export
+- [x] Audit Preview versus public PWA source commit, release configuration, build artifacts, environment settings, API origins, feature flags, schema migrations, and cache behavior
+- [x] Identify and consolidate confirmed duplicate Preview/PWA UI, service, type, validation, translation, and business-rule paths
+- [x] Establish one tested build artifact and release manifest for Preview and public PWA delivery
+- [x] Verify environment-specific domains, secrets, and database targets remain isolated while schema/migrations stay identical
+- [ ] Publish the unified checkpoint, then validate Preview and public PWA UI, authentication, permissions, APIs, migrations, booking, localization, and cache updates against the promoted artifact
+- [x] Report root causes, consolidation outcomes, remaining environment boundaries, and test evidence
 
-- [ ] Audit every client, coach, admin, booking, availability, schedule, profile, progress, history, and notification screen for unnecessary or duplicated UI
-- [ ] Simplify client booking to a maximum of three clear screens with one primary action per screen
-- [ ] Simplify coach free-shift publishing to no more than four required inputs and move advanced options under More options
-- [ ] Enforce role-specific navigation and hide Coach/Admin controls from Clients and client booking controls from Coach mode
-- [ ] Simplify secondary schedule, profile, progress, history, notifications, and admin surfaces
-- [ ] Fix TypeScript and Docker production build failures and add usability/role regression coverage
-- [ ] Validate mobile and web layouts and save a simplification checkpoint
+- [x] Verify why the public PWA still serves a different release after publishing checkpoint `4ce10929`
+- [x] Compare live public release manifest, bundle hash, Preview checkpoint, and service-worker state
+- [x] Trace whether the remaining difference is stale public deployment, public host routing, runtime auth state, or browser cache
+- [x] Apply and validate the minimal corrective action without deleting code or production data
+- [x] Report the exact remaining cause and the public verification result
+- [x] Remove Preview’s seeded room-calendar data path from normal app behavior
+- [x] Make both Preview and public PWA room screens read the same authoritative database-backed room APIs
+- [x] Preserve demo fixtures only behind an explicit developer-only opt-in, not host-based default behavior
+- [x] Validate the signed-out entry state and room-data source consistently in Preview and public PWA
+- [x] Audit existing Preview debug/authentication mechanisms and protected test-account access
+- [x] Add a Preview-only debug account switcher that uses the real database-backed API contracts
+- [x] Ensure debug account switching is excluded from every deployed public PWA release
+- [x] Validate switched Preview accounts read/write the same authoritative database rules as public PWA sessions
 
-- [ ] Add persistent English and Vietnamese language preference under Profile → More options → Language
-- [ ] Apply language changes immediately across the complete interface without translating user-created content
-- [ ] Localize dates, times, forms, notifications, errors, and role-specific staff screens
-- [ ] Verify Vietnamese layout fit on mobile and preserve role boundaries
-- [ ] Add language and localization regression tests and revalidate production build/export
-- [ ] Save a verified language-feature checkpoint
+- [x] Trace `Test_room1` through the database, Admin API, Coach API, permissions, and client caches
+- [x] Unify room eligibility for active, open, and non-closed rooms across Admin, Coach, Client, App, and PWA
+- [x] Add clear Admin activation/deactivation control without changing permanent active status during temporary closures
+- [x] Return accurate empty and closed-room explanations and invalidate relevant room/availability caches after changes
+- [x] Add regression coverage for inactive, activated, temporarily closed, reopened, and cross-environment room behavior
+- [x] Report the root cause, fields/API responses, preserved data, and passing evidence
 
-- [ ] Centralize all translations in a robust type-safe i18n catalog covering auth, membership, notifications, installation help, navigation, booking, schedules, health, forms, and errors
-- [ ] Wire the centralized translation helper across all screens and shared UI primitives without translating user-created content
-- [ ] Verify Vietnamese layout fit and immediate persistence across mobile screens and production export
-- [ ] Centralize all translations in a robust type-safe i18n catalog covering auth, membership, notifications, installation help, navigation, booking, schedules, health, forms, and errors
-- [ ] Wire the centralized translation helper across all screens and shared UI primitives without translating user-created content
-- [ ] Verify Vietnamese layout fit and immediate persistence across mobile screens and production export
-- [ ] Rename app branding to "Coachora" and finish 100% Vietnamese localization for Schedule, Progress, and Profile tabs without mixed languages
-- [ ] Fix untranslated Schedule empty-state text ("Nothing booked") and route all Schedule strings through centralized catalog
-- [x] Fix Home screen top safe-area spacing so Coachora branding and the welcome heading remain below the mobile status bar
-- [x] Re-run validation and visual verification for the safe-area fix
+- [ ] Map actual Preview, native App, and public PWA builds, API origins, and authoritative database target
+- [x] Inspect every persisted Test_room1 eligibility field, including hours, closures, and archive state
+- [x] Activate Test_room1 through the live authenticated Admin UI and verify the database transition
+- [x] Verify the exact authenticated Coach room-eligibility response and Add Availability selection flow
+- [x] Verify temporary close and reopen behavior, query-cache invalidation, and PWA service-worker freshness
+- [ ] Repair any live synchronization or deployment defect and add evidence-backed regression coverage
+- [x] Save and report the authenticated end-to-end verification result
+- [ ] Run the same authenticated flow on an installed native build and managed Preview after a device or Preview-session test surface is supplied
+- [ ] Make deployed release manifests retain a verifiable source revision when the deployment build worker lacks Git metadata
 
-- [x] Replace the outdated gym-style splash/loading logo with the supplied premium Coachora C logo across all Expo branding assets
-- [x] Verify the old logo is no longer referenced and re-run branding validation
-- [ ] Force-refresh Expo Go branding metadata by using unique Coachora icon and splash asset paths instead of reusing cached filenames
-- [ ] Revalidate the clean Expo manifest and device-ready development bundle
-- [x] Replace stale dist/icon-192.png and dist/icon-512.png with the supplied Coachora C logo and synchronize generated PWA icon output
-- [x] Validate production icon hashes and install manifests after the replacement
-- [x] Replace typed Coach availability time fields with scrollable start and end time pickers
-- [x] Remove Duration and Break from the primary Coach availability flow
-- [x] Show clear localized reasons when Coach availability publishing is blocked
-- [x] Validate the updated Coach availability flow across tests and previews
-- [x] Upgrade Coach availability time selection to an iPhone-style wheel with hour, minute, and AM/PM columns
-- [x] Validate the wheel picker behavior and save a verified checkpoint
-- [x] Diagnose and fix dev-server bundling failure and re-establish a responsive preview
-- [x] Diagnose and fix recurring dev-server shutdown causing preview to stop responding
-- [x] Diagnose and harden Expo Go native-bundle request path to prevent sandbox process crash during device testing
-- [x] Investigate and resolve recurring server stoppage after temporary running state
-- [x] Clean up duplicate browser/preview processes and verify stable memory usage
-- [x] Diagnose and fix Expo Go device connection crash causing VM server failure
-- [x] Fix localhost:8081 connection refused by providing the correct exposed preview URL
-- [x] Configure Metro and Expo start for host binding so phone testing and preview access work correctly
-- [x] Verify and restore the secure public PWA route for phone access without Expo Go or localhost
-- [x] Fix Metro exiting after initial bundle so secure preview access remains available
-- [x] Restart and verify the Coachora development server after the latest interruption
-- [x] Perform a controlled development-environment recovery and verify stable Coachora preview services
-
-- [x] Audit the existing availability, booking, schedule, notification, and localization architecture for continuous-window migration
-- [x] Replace fixed shift generation with persistent continuous coach availability windows
-- [x] Enforce server-side interval overlap capacity and full-window-fit validation for duration-based bookings
-- [x] Add client start-time, duration, calculated-end-time, and live remaining-capacity booking controls
-- [x] Simplify Coach Add Availability to date, start, end, concurrent capacity, location, and optional note
-- [x] Update Coach schedule with client time blocks, duration, status, booked count, and remaining capacity
-- [x] Synchronize booking, cancellation, and rescheduling notifications and data refreshes across Client and Coach views
-- [x] Localize all continuous-availability content, capacity feedback, schedule states, and notifications in English and Vietnamese
-- [x] Add regression coverage, mobile layout validation, and checkpoint for continuous availability windows
-
-- [x] Audit Coach calendar routing, availability publishing, and tab navigation for the requested workflow refinement
-- [x] Add a Coach Schedule calendar with direct client time blocks and selected-day booking details
-- [x] Enforce a 30-minute minimum lead time for same-day availability and provide localized inline red guidance
-- [x] Restore persistent Coach bottom navigation on Add Availability and preserve active-tab context
-- [x] Validate Coach calendar, lead-time feedback, navigation, bilingual labels, and production build
-
-- [x] Audit the current Client duration and start-time controls for the picker refinement
-- [x] Replace Client duration choices with 30, 45, 60, and Other using a 60-minute-plus scrollable duration picker
-- [x] Replace Client start-time chips with an iPhone-style scrollable time picker while preserving interval-capacity checks
-- [x] Validate bilingual Client picker labels, booking capacity behavior, automated tests, and production build
-
-- [x] Audit and correct Client time-wheel options so every selectable start time fits the Coach window and selected duration
-- [x] Validate 15-minute Client start-time options against Coach availability boundaries and overlapping capacity
-
-- [x] Refine the Client start-time wheel to display availability-derived time labels on one left-aligned line
-- [x] Validate the compact Client time-wheel styling and save the refinement checkpoint
-
-- [x] Restore centered single-line labels in the Client start-time wheel
-- [x] Correct Client start-time filtering so each selected duration ends at or before Coach availability end time
-- [x] Add exact-boundary regression coverage and validate the Client start-time correction
-
-- [x] Audit and correct Client start-time options across every Coach availability window on the selected date
-- [x] Add same-date multi-window boundary and capacity regression coverage for Client booking
-- [x] Strengthen the selected Client time-wheel value with a bold, slightly larger center treatment
-- [x] Validate multi-window Client time selection, centered wheel styling, and production readiness
-- [x] Replace the Client availability-derived time list with Coach-style hour, minute, and AM/PM wheels
-- [x] Validate the selected Client start time plus duration against all Coach windows and show a localized inline error when it does not fit
-- [x] Revalidate Client booking time boundaries, bilingual error feedback, and save a verified checkpoint
-- [x] Fix the Client wheel’s invalid default time and independent hour, minute, and AM/PM scroll state
-- [x] Match the supplied three-column highlighted-row layout and revalidate availability-boundary booking behavior
-- [x] Fix Client hour-column state updates so every hour remains selectable
-- [x] Implement mandatory centered snap behavior for Client hour, minute, and AM/PM touch scrolling
-- [x] Verify Client wheel selection and exact availability-boundary booking behavior, then save a checkpoint
-- [x] Apply the corrected Client-style hour, minute, and AM/PM wheel behavior to Coach availability selection
-- [x] Verify Coach wheel snapping, time validation, and save a verified checkpoint
-- [x] Inventory Coachora architecture, data flows, dependencies, migrations, and automated test coverage
-- [x] Audit booking correctness, capacity concurrency, permissions, frontend/backend consistency, localization, PWA, and resource usage
-- [x] Apply safe backward-compatible security, stability, and maintainability improvements found by the audit
-- [x] Run functional, regression, static, security-oriented, and bounded load validation with measured outcomes
-- [x] Produce an evidence-based production audit and optimization report with traffic findings and remaining risks
-- [x] Inventory all source modules, active process relationships, duplicate logic, dependencies, and data-source boundaries for the expanded audit
-- [x] Audit end-to-end Client, Coach, and Admin correctness, authorization, privacy, localization, PWA behavior, and continuous-availability consistency
-- [x] Apply only safe backward-compatible resource, security, concurrency, and maintainability improvements supported by the audit
-- [x] Measure development versus production process/heap/RSS/CPU usage and production build artifacts without weakening development tooling
-- [x] Run functional, authorization, booking-concurrency, security, bounded load/spike, and post-load stability verification within safe environment limits
-- [x] Write the required expanded Markdown completion report, including evidence limits for the requested 1,000-user test
-- [x] Replace the default attendance confirmation alert with a premium Coachora confirmation sheet while preserving the completion flow
-- [x] Replace Client cancellation system alerts with a premium confirmation and result sheet
-- [x] Show a clear localized reason when Coach availability publishing is blocked or fails
-- [x] Audit and remove the production test-user bypass while retaining a development-only test mode
-- [x] Require authenticated Google Sign-In before private Coachora routes and APIs can be used
-- [x] Preserve Client, Coach, and Admin role access after sign-in and add verified logout
-- [x] Configure the required Google OAuth deployment settings so production sign-in can start
-- [x] Replace Coachora mobile and PWA icon assets with the supplied Coachora logo
-- [x] Restore the original Coachora logo already retained in the codebase across mobile and PWA branding assets
-- [x] Apply the exact supplied full Coachora logo to splash and web branding surfaces
-- [x] Apply a matching square crop from the supplied Coachora logo to launcher and PWA icon surfaces
-- [x] Replace the login screen’s legacy logo treatment with the supplied full Coachora mark
-- [x] Verify the public deployment serves the latest Coachora login-screen logo and resolve any stale cache path
-- [x] Inspect the public HTML and JavaScript bundle for the active sign-in logo reference, then correct any deployment-specific branding mismatch
-- [x] Trace the exact public login-image URL rendered in the live DOM and replace its remaining legacy pink-C asset with the supplied full Coachora logo
-- [ ] Provide a safe development-only Google sign-in test flow for the Preview panel and Expo Go without changing production access controls
-- [x] Allow the managed Preview panel to bypass the login gate automatically while enforcing Google Sign-In on the public website and production app builds
-- [x] Replace the static offline banner with real online/offline network status
-- [x] Make the web PWA installation card invoke the browser install prompt when available and show platform-appropriate fallback guidance otherwise
-- [ ] Diagnose why the public deployment serves an earlier static web bundle after a successful backend publication and correct the release path
-- [x] Add secure username-and-password login alongside Google Sign-In, with the requested administrator account created using a password hash
-- [x] Add an Admin-only Coach account creation and existing-Client promotion workflow with server-side role and profile validation
-- [x] Add a rate-limited local username/password sign-in endpoint with secure password hashing and the requested Admin bootstrap account
-- [x] Add localized local sign-in fields below Google Sign-In and refresh the verified session after sign-in
-- [x] Add an Admin-only Coach account creation form, Client promotion, server-side validation, and audit logging
-- [x] Add regression tests and validate local login plus Admin Coach-account creation
-- [x] Keep the local-account username/password form hidden until the user taps the bilingual account sign-in link
-- [x] Restrict local username/password sign-in to the protected Admin account only
-- [x] Authorize Coach access by normalized verified Google email without creating duplicate accounts
-- [x] Add Admin-only Coach grant, revoke, and disable controls with audit logs for every role change
-- [x] Preserve Coach profiles through Google sign-in and enforce revocation on backend-protected procedures
-- [x] Add authorization, email-verification, revocation, and role-permission regression coverage
-- [x] Add Admin-managed gym rooms with name, address, description, and maximum concurrent capacity
-- [x] Add Admin-only room creation and update controls from Profile
-- [x] Add a room-selected Admin schedule calendar that shows availability, booking, attendance, and participating clients
-- [x] Enforce room capacity and Admin-only access on backend room-management and schedule APIs
-- [x] Add bilingual EN/VI room and Admin schedule localization plus regression coverage
-- [x] Diagnose and repair the Admin Room Management save action so authorized Admins can create and update rooms
-- [x] Redesign the Admin Bookings tab as a room-selected calendar with open availability and booked-session counts
-- [x] Add Admin-only room activity calendar queries and bilingual daily booking-summary labels
-- [x] Validate room activity counts, Admin permissions, calendar states, and production build
-- [x] Remove the Client booking screen’s available-time count
-- [x] Show a localized in-app reason when booking is rejected for overlap, duplicate session, capacity, or time-window rules
-- [x] Add regression coverage and validate Client booking feedback behavior
-- [x] Simplify Admin bottom navigation to Schedule, Book, User, and Profile
-- [x] Replace the Admin room calendar’s horizontal day strip with a full selectable month calendar
-- [x] Show each selected room’s daily open-availability and booked-session activity on the month calendar
-- [x] Validate Admin calendar navigation and mobile layout in English and Vietnamese
-- [x] Fix the blank Admin rendering state and duplicate User tab label after the Admin navigation update
-- [x] Make the development-preview role switch immediately apply the matching Admin navigation and screens
-- [x] Align the Admin room calendar size and day-cell layout with Client and Coach calendars
-- [x] Re-verify Admin-controlled Coach Google-email authorization, revocation, and role enforcement end to end
-- [x] Require Coaches to select an active room when publishing availability and sync it to the Admin room calendar
-- [x] Fix Client booking room visibility so the Admin calendar resolves the same managed room identifier
-- [x] Allow the managed preview Admin role to open Admin management routes without weakening production authorization
-- [x] Keep the Admin bottom navigation visible when opening Coach access and Room management
-- [x] Add typed-name Admin confirmation before deleting a Coach or room
-- [x] Demote deleted Coach accounts to Client while retaining their user and booking history
-- [x] Notify affected Clients when an Admin removes a Coach
-- [x] Notify affected Coaches and Clients when an Admin removes a room
-- [x] Add room active/inactive notification handling for people with shifts today
-- [x] Add calendar-based temporary room closures that notify affected Coach and Client bookings
-- [x] Make the Admin Coach authorization form’s gym assignment optional
-- [x] Default Coach availability to the assigned gym’s active room while allowing selection of any active room
-- [x] Repair Admin room deletion so exact typed room-name confirmation opens and completes the protected deletion flow
-- [x] Make the Admin room delete action visible and reachable from the selected room’s Edit room flow
-- [x] Normalize Create room button enabled and disabled styling with clear bilingual validation feedback
+- [x] Commit the verified Coachora changes to the current Git branch
+- [x] Push the commit to TunyTrinh/gym-coach-ora and verify the remote branch

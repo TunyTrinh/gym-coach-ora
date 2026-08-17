@@ -10,6 +10,10 @@ export function isLocalTestMode() {
     return false;
   }
 
+  // Preview and public PWA share the authoritative API by default. Seeded
+  // fixtures are available only when a developer deliberately opts in.
+  if (process.env.EXPO_PUBLIC_ENABLE_DEMO_PREVIEW !== "true") return false;
+
   const hostname = window.location.hostname;
   return ["localhost", "127.0.0.1", "::1"].includes(hostname) || isManagedPreviewHostname(hostname);
 }

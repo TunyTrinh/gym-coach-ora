@@ -1,5 +1,6 @@
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { router } from "expo-router";
+import { useMemo } from "react";
 
 import { Avatar, OfflineBanner, ScreenHeader, SpectrumCard, StatusBadge } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
@@ -9,6 +10,7 @@ import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { useLanguage } from "@/lib/language-provider";
 import { isLocalTestMode } from "@/lib/local-test-mode";
+import { trpc } from "@/lib/trpc";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
 import { getBookingSlot, getCoach, getService } from "@/shared/gym";
 
@@ -18,18 +20,24 @@ export default function HomeScreen() {
   const reducedMotion = useReducedMotion();
   const { user } = useAuth();
   const { snapshot, upcomingBookings, unreadCount } = useGym();
-  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? "client";
+  const previewMode = isLocalTestMode();
+  const role = previewMode ? snapshot.member.role : user?.role ?? "client";
   const { language, t } = useLanguage();
   const isOnline = useNetworkStatus();
-  const nextBooking = upcomingBookings[0];
+  const productionSchedule = trpc.member.schedule.useQuery(undefined, { enabled: !previewMode && role === "client" });
+  const productionNotifications = trpc.member.notifications.useQuery(undefined, { enabled: !previewMode && Boolean(user) });
+  const nextBooking = previewMode ? upcomingBookings[0] : undefined;
   const nextSlot = nextBooking ? getBookingSlot(snapshot, nextBooking) : undefined;
   const nextService = nextSlot ? getService(snapshot, nextSlot.serviceTypeId) : undefined;
   const nextCoach = nextSlot ? getCoach(snapshot, nextSlot.coachId) : undefined;
-  const firstName = snapshot.member.fullName.split(" ")[0];
+  const nextServerBooking = useMemo(() => (productionSchedule.data ?? []).find((booking) => ["pending", "confirmed"].includes(booking.status) && new Date(booking.startAt) > new Date()), [productionSchedule.data]);
+  const hasNextBooking = previewMode ? Boolean(nextBooking) : Boolean(nextServerBooking);
+  const firstName = (previewMode ? snapshot.member.fullName : user?.name?.trim() || "Coachora member").split(" ")[0];
+  const activeUnreadCount = previewMode ? unreadCount : (productionNotifications.data ?? []).filter((notification) => !notification.read).length;
 
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <ScreenHeader title={`${t("welcomeBack")}, ${firstName}`} subtitle={role === "coach" ? t("dashboard") : role === "admin" ? t("adminHub") : t("findYourTime")} onPress={() => router.push("/notifications")} badge={unreadCount} label={role === "coach" ? t("coachLabel") : role === "admin" ? t("admin") : "Coachora"} />
+      <ScreenHeader title={`${t("welcomeBack")}, ${firstName}`} subtitle={role === "coach" ? t("dashboard") : role === "admin" ? t("adminHub") : t("findYourTime")} onPress={() => router.push("/notifications")} badge={activeUnreadCount} label={role === "coach" ? t("coachLabel") : role === "admin" ? t("admin") : "Coachora"} />
       {!isOnline ? <OfflineBanner label={t("offlineNow")} /> : null}
 
       <>
@@ -53,12 +61,15 @@ export default function HomeScreen() {
 
         {role === "client" && <SpectrumCard style={styles.heroCard}>
           <View style={styles.heroTopRow}>
-            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{nextBooking ? t("nextSession") : t("findYourTime").toUpperCase()}</Text><Text style={styles.heroTitle}>{nextService?.name ?? t("noSessionYet")}</Text></View>
-            <StatusBadge label={nextBooking ? t("booked") : t("available")} tone={nextBooking ? "success" : "accent"} />
+            <View style={styles.heroHeading}><Text style={styles.heroEyebrow}>{hasNextBooking ? t("nextSession") : t("findYourTime").toUpperCase()}</Text><Text style={styles.heroTitle}>{previewMode ? nextService?.name ?? t("noSessionYet") : nextServerBooking?.serviceName ?? t("noSessionYet")}</Text></View>
+            <StatusBadge label={hasNextBooking ? t("booked") : t("available")} tone={hasNextBooking ? "success" : "accent"} />
           </View>
-          {nextSlot ? <>
+          {previewMode && nextSlot ? <>
             <Text style={styles.heroDate}>{formatDateLocalized(nextSlot.start, language)} · {formatTimeLocalized(nextSlot.start, language)}</Text>
             <View style={styles.heroMetaRow}>{nextCoach ? <Avatar initials={nextCoach.initials} accent={nextCoach.accent} size={36} /> : <View style={styles.metaIcon}><Text style={styles.metaIconText}>⌁</Text></View>}<View style={styles.heroCopy}><Text style={styles.heroMeta}>{nextCoach?.fullName ?? t("openGymAccess")}</Text><Text style={styles.heroMetaMuted}>{nextSlot.room} · {snapshot.gyms[0]?.name}</Text></View><Text style={styles.heroArrow}>→</Text></View>
+          </> : !previewMode && nextServerBooking ? <>
+            <Text style={styles.heroDate}>{formatDateLocalized(new Date(nextServerBooking.startAt).toISOString(), language)} · {formatTimeLocalized(new Date(nextServerBooking.startAt).toISOString(), language)}</Text>
+            <View style={styles.heroMetaRow}><View style={styles.metaIcon}><Text style={styles.metaIconText}>⌁</Text></View><View style={styles.heroCopy}><Text style={styles.heroMeta}>{nextServerBooking.coachName ?? t("openGymAccess")}</Text><Text style={styles.heroMetaMuted}>{nextServerBooking.room}</Text></View><Text style={styles.heroArrow}>→</Text></View>
           </> : <Text style={styles.heroEmpty}>{t("bookSessionSubtitle")}</Text>}
         </SpectrumCard>}
       </>

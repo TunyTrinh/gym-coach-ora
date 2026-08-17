@@ -48,14 +48,19 @@ async function worker() {
 await Promise.all(Array.from({ length: concurrency }, worker));
 agent.destroy();
 latencies.sort((a, b) => a - b);
-const percentile = (value) => latencies.length ? latencies[Math.min(latencies.length - 1, Math.floor(latencies.length * value))] : null;
+const percentile = (value) => latencies.length
+  ? latencies[Math.max(0, Math.min(latencies.length - 1, Math.ceil(latencies.length * value) - 1))]
+  : null;
 const elapsedMs = performance.now() - startedAt;
+const successes = completed - failures;
 console.log(JSON.stringify({
   target: target.toString(),
   concurrency,
   durationMs: Math.round(elapsedMs),
   completed,
+  successes,
   failures,
+  errorRatePercent: Number((completed ? (failures / completed) * 100 : 0).toFixed(4)),
   failureTypes: Object.fromEntries(failureTypes),
   requestsPerSecond: Number((completed / (elapsedMs / 1000)).toFixed(2)),
   latencyMs: {

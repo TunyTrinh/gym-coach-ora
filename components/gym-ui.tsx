@@ -13,11 +13,11 @@ function SpectrumFill({ opacity = 1 }: { opacity?: number }) {
   return (
     <Svg pointerEvents="none" width="100%" height="100%" style={styles.spectrumFill}>
       <Defs>
-        <LinearGradient id="gymflow-spectrum" x1="0" y1="0" x2="1" y2="1">
+        <LinearGradient id="coachora-spectrum" x1="0" y1="0" x2="1" y2="1">
           {SPECTRUM_COLORS.map((color, index) => <Stop key={color} offset={`${(index / (SPECTRUM_COLORS.length - 1)) * 100}%`} stopColor={color} />)}
         </LinearGradient>
       </Defs>
-      <Rect x="0" y="0" width="100%" height="100%" fill="url(#gymflow-spectrum)" opacity={opacity} />
+      <Rect x="0" y="0" width="100%" height="100%" fill="url(#coachora-spectrum)" opacity={opacity} />
     </Svg>
   );
 }
@@ -41,7 +41,7 @@ export function ScreenHeader({ title, subtitle, onPress, icon = "bell.fill", bad
     <View style={styles.header}>
       <View style={styles.headerCopy}>
         <Text style={[styles.eyebrow, { color: colors.primary }]}>{label}</Text>
-        <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
+        <Text accessibilityRole="header" style={[styles.title, { color: colors.foreground }]}>{title}</Text>
         {subtitle ? <Text style={[styles.subtitle, { color: colors.muted }]}>{subtitle}</Text> : null}
       </View>
       {onPress ? <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel="Open notifications" style={({ pressed }) => [styles.iconButton, { backgroundColor: "#151518", borderColor: colors.border }, pressed && styles.pressed]}>
@@ -54,7 +54,7 @@ export function ScreenHeader({ title, subtitle, onPress, icon = "bell.fill", bad
 
 export function SectionTitle({ title, action, onAction, eyebrow }: { title: string; action?: string; onAction?: () => void; eyebrow?: string }) {
   const colors = useColors();
-  return <View style={styles.sectionRow}><View>{eyebrow ? <Text style={[styles.sectionEyebrow, { color: colors.primary }]}>{eyebrow}</Text> : null}<Text style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</Text></View>{action && onAction ? <Pressable onPress={onAction} accessibilityRole="button"><Text style={[styles.sectionAction, { color: colors.primary }]}>{action}</Text></Pressable> : null}</View>;
+  return <View style={styles.sectionRow}><View>{eyebrow ? <Text style={[styles.sectionEyebrow, { color: colors.primary }]}>{eyebrow}</Text> : null}<Text accessibilityRole="header" style={[styles.sectionTitle, { color: colors.foreground }]}>{title}</Text></View>{action && onAction ? <Pressable onPress={onAction} accessibilityRole="button"><Text style={[styles.sectionAction, { color: colors.primary }]}>{action}</Text></Pressable> : null}</View>;
 }
 
 export function SurfaceCard({ children, style, onPress, accessibilityLabel }: PressableProps & { children: ReactNode; style?: StyleProp<ViewStyle>; accessibilityLabel?: string }) {

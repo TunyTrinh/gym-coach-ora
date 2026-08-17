@@ -12,6 +12,7 @@ import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { useLanguage } from "@/lib/language-provider";
 import { isLocalTestMode } from "@/lib/local-test-mode";
+import { trpc } from "@/lib/trpc";
 import type { HealthMeasurementInput, HealthMeasurementKey, HealthMeasurementRecord } from "@/shared/gym";
 
 const metrics: { key: HealthMeasurementKey; label: string; shortLabel: string; unit: string; accent: string }[] = [
@@ -31,13 +32,17 @@ export default function ProgressScreen() {
   const { user } = useAuth();
   const { snapshot, saveMeasurement } = useGym();
   const { t } = useLanguage();
-  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
+  const previewMode = isLocalTestMode();
+  const role = previewMode ? snapshot.member.role : user?.role ?? "client";
   const [metricKey, setMetricKey] = useState<HealthMeasurementKey>("weightKg");
   const [showForm, setShowForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const reducedMotion = useReducedMotion();
-  const records = useMemo(() => [...snapshot.measurements].sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()), [snapshot.measurements]);
+  const productionMeasurements = trpc.member.measurements.useQuery(undefined, { enabled: !previewMode && role === "client" });
+  const saveProductionMeasurement = trpc.member.saveMeasurement.useMutation();
+  const utils = trpc.useUtils();
+  const records = useMemo(() => (previewMode ? snapshot.measurements : (productionMeasurements.data ?? []).map((record) => ({ ...record, recordedAt: new Date(record.recordedAt).toISOString() }))).sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()), [previewMode, productionMeasurements.data, snapshot.measurements]);
   const activeMetric = metrics.find((metric) => metric.key === metricKey)!;
   const activeEntries = [...records].filter((record) => typeof record[metricKey] === "number").reverse();
   const latest = activeEntries.at(-1);
@@ -54,7 +59,10 @@ export default function ProgressScreen() {
       const value = Number(raw);
       if (Number.isFinite(value) && value > 0) measurement[metric.key] = value;
     });
-    const result = await saveMeasurement(measurement);
+    const result = previewMode
+      ? await saveMeasurement(measurement)
+      : await saveProductionMeasurement.mutateAsync(measurement).then(() => ({ success: true as const, message: "Measurement saved to your private progress history." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Measurement could not be saved." }));
+    if (result.success && !previewMode) await utils.member.measurements.invalidate();
     if (result.success) haptic.success(); else haptic.error();
     Alert.alert(result.success ? "Progress saved" : "Couldn’t save", result.success ? result.message ?? "Measurement saved." : result.error);
     if (result.success) { setShowForm(false); setForm(emptyForm()); }
@@ -85,7 +93,7 @@ export default function ProgressScreen() {
 
       <View style={styles.comparisonHeader}><View><Text style={[styles.sectionEyebrow, { color: "#a98af0" }]}>YOUR CHECK-INS</Text><Text style={[styles.sectionTitle, { color: colors.foreground }]}>Keep it simple</Text></View><Pressable onPress={() => { haptic.light(); setShowForm(true); }} accessibilityRole="button" style={({ pressed }) => [styles.addButton, pressed && (reducedMotion ? styles.pressed : styles.addPressed)]}><Text style={styles.addButtonText}>+ Add</Text></Pressable></View>
       <SurfaceCard style={styles.historySummary} onPress={() => setShowHistory(true)} accessibilityLabel={`Open ${activeMetric.label} measurement history`}><View style={styles.historySummaryCopy}><Text style={[styles.historySummaryTitle, { color: colors.foreground }]}>{activeMetric.label} history</Text><Text style={[styles.historySummaryDetail, { color: colors.muted }]}>{activeEntries.length ? `${activeEntries.length} check-ins · latest ${latest ? formatDate(latest.recordedAt) : ""}` : "Your dated check-ins will appear here."}</Text></View><Text style={styles.historySummaryAction}>View</Text></SurfaceCard>
-      <Text style={[styles.privateNote, { color: colors.muted }]}>Measurements are stored locally in this Coachora profile and are not visible to coaches or other members.</Text>
+      <Text style={[styles.privateNote, { color: colors.muted }]}>Measurements are stored privately in your Coachora profile and are not visible to coaches or other members.</Text>
     </ScrollView>
     <MeasurementHistory visible={showHistory} entries={activeEntries} metric={activeMetric} colors={colors} onClose={() => setShowHistory(false)} />
     <MeasurementForm visible={showForm} form={form} colors={colors} onChange={(key, value) => setForm((current) => ({ ...current, [key]: value }))} onClose={() => setShowForm(false)} onSave={handleSave} />
