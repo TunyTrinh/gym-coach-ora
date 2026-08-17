@@ -1,6 +1,7 @@
 export type AvailabilityRoomChoice = {
   id: string | number;
   defaultGym?: boolean;
+  eligible?: boolean;
 };
 
 /**
@@ -11,8 +12,9 @@ export function defaultAvailabilityRoomId(
   rooms: AvailabilityRoomChoice[],
   selectedRoomId: string | number | null,
 ) {
-  if (selectedRoomId !== null && rooms.some((room) => String(room.id) === String(selectedRoomId))) {
+  const eligibleRooms = rooms.filter((room) => room.eligible !== false);
+  if (selectedRoomId !== null && eligibleRooms.some((room) => String(room.id) === String(selectedRoomId))) {
     return selectedRoomId;
   }
-  return rooms.find((room) => room.defaultGym)?.id ?? rooms[0]?.id ?? null;
+  return eligibleRooms.find((room) => room.defaultGym)?.id ?? eligibleRooms[0]?.id ?? null;
 }

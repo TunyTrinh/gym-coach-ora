@@ -15,6 +15,7 @@ import { defaultAvailabilityRoomId } from "@/lib/availability-room-default";
 import { roomAvailabilityReason } from "@/shared/room-eligibility";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
 import { getBookingSlot, type AvailabilityCreateInput, type AvailabilityShift } from "@/shared/gym";
+import { roomStatusPresentation, type RoomStatusMarker } from "@/shared/room-status-presentation";
 
 const wheelHours = Array.from({ length: 12 }, (_, index) => String(index + 1));
 const wheelMinutes = ["00", "15", "30", "45"];
@@ -22,7 +23,7 @@ const wheelPeriods = ["AM", "PM"];
 const rowHeight = 44;
 
 type AvailabilityFeedback = { success: boolean; title: string; message: string };
-type RoomOption = { id: string | number; name: string; maximumCapacity: number; openingTime?: string; closingTime?: string; defaultGym?: boolean };
+type RoomOption = { id: string | number; name: string; maximumCapacity: number; openingTime?: string; closingTime?: string; defaultGym?: boolean; eligible?: boolean; statusReason?: "available" | "temporarily_closed" | "inactive" };
 
 const previewRooms: RoomOption[] = [
   { id: "preview-studio-a", name: "Studio A", maximumCapacity: 8 },
@@ -91,7 +92,12 @@ export default function AvailabilityScreen() {
   const isAdmin = role === "admin";
   const isCoach = role === "coach";
   const [selectedCoachId, setSelectedCoachId] = useState(snapshot.coaches[0]?.id ?? "");
-  const activeRoomsQuery = trpc.availability.rooms.useQuery({ date: localDayString(new Date()) }, { enabled: !previewMode && Boolean(user) && (user?.role === "coach" || user?.role === "admin") });
+  const [showCreate, setShowCreate] = useState(false);
+  const [availabilityDate, setAvailabilityDate] = useState(() => localDayString(suggestedAvailabilityStart()));
+  const roomPickerQuery = trpc.availability.rooms.useQuery(
+    { date: availabilityDate },
+    { enabled: !previewMode && showCreate && Boolean(user) && (user?.role === "coach" || user?.role === "admin"), staleTime: 0, refetchOnMount: "always" },
+  );
   const productionCoaches = trpc.catalog.coaches.useQuery(undefined, { enabled: !previewMode && isAdmin });
   const serverWindows = trpc.availability.mine.useQuery(
     isAdmin && selectedCoachId ? { coachId: Number(selectedCoachId) } : undefined,
@@ -100,19 +106,23 @@ export default function AvailabilityScreen() {
   const createServerAvailability = trpc.availability.create.useMutation();
   const setServerAvailabilityStatus = trpc.availability.setStatus.useMutation();
   const utils = trpc.useUtils();
-  const [showCreate, setShowCreate] = useState(false);
   const [busy, setBusy] = useState(false);
   const [availabilityFeedback, setAvailabilityFeedback] = useState<AvailabilityFeedback | null>(null);
   const roomOptions = useMemo<RoomOption[]>(() => previewMode
     ? previewRooms
-    : (activeRoomsQuery.data?.rooms ?? []).map((room) => ({ id: room.id, name: room.name, maximumCapacity: room.maximumCapacity, openingTime: room.openingTime, closingTime: room.closingTime, defaultGym: room.defaultGym })), [activeRoomsQuery.data?.rooms, previewMode]);
-  const roomEmptyReason = activeRoomsQuery.isLoading
+    : (roomPickerQuery.data?.rooms ?? []).map((room) => ({ id: room.id, name: room.name, maximumCapacity: room.maximumCapacity, openingTime: room.openingTime, closingTime: room.closingTime, defaultGym: room.defaultGym, eligible: room.eligible, statusReason: room.statusReason === "inactive" ? "inactive" : room.statusReason === "temporarily_closed" ? "temporarily_closed" : "available" })), [previewMode, roomPickerQuery.data?.rooms]);
+  const roomEmptyReason = roomPickerQuery.isLoading
     ? t("loading")
-    : roomAvailabilityReason({ totalRooms: activeRoomsQuery.data?.totalRooms ?? 0, activeRooms: activeRoomsQuery.data?.activeRoomCount ?? 0, closedRooms: activeRoomsQuery.data?.closedRoomCount ?? 0 }) === "inactive"
+    : roomAvailabilityReason({ totalRooms: roomPickerQuery.data?.totalRooms ?? 0, activeRooms: roomPickerQuery.data?.activeRoomCount ?? 0, closedRooms: roomPickerQuery.data?.closedRoomCount ?? 0 }) === "inactive"
       ? t("noActiveRooms")
-      : roomAvailabilityReason({ totalRooms: activeRoomsQuery.data?.totalRooms ?? 0, activeRooms: activeRoomsQuery.data?.activeRoomCount ?? 0, closedRooms: activeRoomsQuery.data?.closedRoomCount ?? 0 }) === "closed"
+      : roomAvailabilityReason({ totalRooms: roomPickerQuery.data?.totalRooms ?? 0, activeRooms: roomPickerQuery.data?.activeRoomCount ?? 0, closedRooms: roomPickerQuery.data?.closedRoomCount ?? 0 }) === "closed"
         ? t("noRoomsOpenForDate")
         : t("noRooms");
+
+  const openCreate = () => {
+    setAvailabilityDate(localDayString(suggestedAvailabilityStart()));
+    setShowCreate(true);
+  };
 
   useEffect(() => {
     if (!previewMode && isAdmin && !selectedCoachId && productionCoaches.data?.[0]) setSelectedCoachId(String(productionCoaches.data[0].id));
@@ -170,8 +180,8 @@ export default function AvailabilityScreen() {
         keyExtractor={(window) => window.id}
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
-        ListHeaderComponent={<View style={styles.header}><ScreenHeader title={t("availability")} subtitle={t("availabilitySubtitle")} label={isAdmin ? t("admin") : t("coachLabel")} />{isAdmin ? <CoachPicker selectedId={selectedCoachId} onSelect={setSelectedCoachId} coaches={previewMode ? snapshot.coaches : (productionCoaches.data ?? []).map((coach) => ({ id: String(coach.id), fullName: coach.fullName }))} /> : null}<PrimaryButton title={t("addAvailability")} onPress={() => setShowCreate(true)} /><Text style={[styles.sectionLabel, { color: colors.muted }]}>{t("publishedWindows")}</Text></View>}
-        ListEmptyComponent={<SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("addFutureTime")}</Text><PrimaryButton title={t("addAvailability")} onPress={() => setShowCreate(true)} /></SurfaceCard>}
+        ListHeaderComponent={<View style={styles.header}><ScreenHeader title={t("availability")} subtitle={t("availabilitySubtitle")} label={isAdmin ? t("admin") : t("coachLabel")} />{isAdmin ? <CoachPicker selectedId={selectedCoachId} onSelect={setSelectedCoachId} coaches={previewMode ? snapshot.coaches : (productionCoaches.data ?? []).map((coach) => ({ id: String(coach.id), fullName: coach.fullName }))} /> : null}<PrimaryButton title={t("addAvailability")} onPress={openCreate} /><Text style={[styles.sectionLabel, { color: colors.muted }]}>{t("publishedWindows")}</Text></View>}
+        ListEmptyComponent={<SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("addFutureTime")}</Text><PrimaryButton title={t("addAvailability")} onPress={openCreate} /></SurfaceCard>}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         renderItem={({ item }) => <WindowCard window={item} bookedCount={bookedCount(item.id)} language={language} t={t} colors={colors} busy={busy} onBlock={() => updateStatus(item, "Blocked")} onOpen={() => updateStatus(item, "Available")} />}
       />
@@ -183,6 +193,8 @@ export default function AvailabilityScreen() {
         busy={busy}
         rooms={roomOptions}
         roomEmptyReason={roomEmptyReason}
+        date={availabilityDate}
+        onDateChange={setAvailabilityDate}
         onClose={() => setShowCreate(false)}
         onValidationError={(message) => {
           haptic.error();
@@ -232,11 +244,10 @@ function WindowCard({ window, bookedCount, language, t, colors, busy, onBlock, o
   return <SurfaceCard style={styles.windowCard}><View style={styles.windowTop}><View style={styles.windowCopy}><Text style={[styles.windowDate, { color: colors.foreground }]}>{formatDateLocalized(window.start, language, { weekday: "short", month: "short", day: "numeric", year: "numeric" })}</Text><Text style={[styles.windowTime, { color: colors.foreground }]}>{formatTimeLocalized(window.start, language)}–{formatTimeLocalized(window.end, language)}</Text></View><StatusBadge label={isOpen ? t("available") : t("blocked")} tone={isOpen ? "success" : "warning"} /></View><Text style={[styles.windowMeta, { color: colors.muted }]}>{window.location}{window.note ? ` · ${window.note}` : ""}</Text><View style={[styles.capacityPanel, { backgroundColor: colors.surface, borderColor: colors.border }]}><View><Text style={[styles.capacityValue, { color: colors.foreground }]}>{bookedCount}</Text><Text style={[styles.capacityLabel, { color: colors.muted }]}>{t("sessionsBooked")}</Text></View><View style={styles.capacityRight}><Text style={[styles.capacityValue, { color: "#ff82b7" }]}>{window.maximumCapacity}</Text><Text style={[styles.capacityLabel, { color: colors.muted }]}>{t("clientsAtATime")}</Text></View></View><Text style={[styles.windowHint, { color: colors.muted }]}>{t("continuousWindowHint")}</Text><View style={styles.cardAction}>{isOpen ? <GhostButton title={busy ? t("updating") : t("blockTime")} onPress={onBlock} /> : <PrimaryButton title={busy ? t("updating") : t("makeAvailable")} onPress={onOpen} disabled={busy} />}</View></SurfaceCard>;
 }
 
-function CreateAvailabilitySheet({ visible, coachId, language, t, busy, rooms, roomEmptyReason, onClose, onValidationError, onCreate }: { visible: boolean; coachId: string; language: "en" | "vi"; t: (key: any) => string; busy: boolean; rooms: RoomOption[]; roomEmptyReason: string; onClose: () => void; onValidationError: (message: string) => void; onCreate: (input: AvailabilityCreateInput) => Promise<void> }) {
+function CreateAvailabilitySheet({ visible, coachId, language, t, busy, rooms, roomEmptyReason, date, onDateChange, onClose, onValidationError, onCreate }: { visible: boolean; coachId: string; language: "en" | "vi"; t: (key: any) => string; busy: boolean; rooms: RoomOption[]; roomEmptyReason: string; date: string; onDateChange: (date: string) => void; onClose: () => void; onValidationError: (message: string) => void; onCreate: (input: AvailabilityCreateInput) => Promise<void> }) {
   const colors = useColors();
   const [today] = useState(() => new Date());
   const dates = useMemo(() => Array.from({ length: 10 }, (_, index) => addDays(today, index)), [today]);
-  const [date, setDate] = useState(() => localDayString(suggestedAvailabilityStart(today)));
   const [startTime, setStartTime] = useState(() => clockString(suggestedAvailabilityStart(today)));
   const [endTime, setEndTime] = useState(() => clockString(addMinutes(suggestedAvailabilityStart(today), 120)));
   const [capacity, setCapacity] = useState(3);
@@ -264,10 +275,12 @@ function CreateAvailabilitySheet({ visible, coachId, language, t, busy, rooms, r
     if (start === null || end === null) { onValidationError(t("chooseValidTime")); return; }
     if (violatesTodayLeadTime) { onValidationError(t("availabilityLeadTimeError")); return; }
     if (end <= start) { onValidationError(t("endAfterStart")); return; }
-    if (!selectedRoom) { onValidationError(t("selectRoom")); return; }
+    if (!selectedRoom || selectedRoom.eligible === false) { onValidationError(t("selectRoom")); return; }
     void onCreate({ coachId, startDate: date, startTime, endTime, maximumCapacity: capacity, roomId: selectedRoom.id, location: selectedRoom.name, note: note.trim() || undefined });
   }; 
-  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.modalBackdrop}><ScrollView style={[styles.sheet, { backgroundColor: "#151518", borderColor: colors.border }]} contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}><View style={styles.sheetHandle} /><Text style={styles.sheetEyebrow}>{t("publishFreeTime")}</Text><Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t("addAvailability")}</Text><Text style={[styles.sheetCopy, { color: colors.muted }]}>{t("continuousWindowHint")}</Text><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("availabilityDate")}</Text><FlatList horizontal data={dates} keyExtractor={(item) => item.toISOString()} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateRail} renderItem={({ item }) => <Pressable onPress={() => setDate(localDayString(item))} style={({ pressed }) => [styles.datePill, { borderColor: date === localDayString(item) ? "#f04488" : colors.border, backgroundColor: date === localDayString(item) ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.datePillText, { color: date === localDayString(item) ? "#ff82b7" : colors.muted }]}>{formatDateLocalized(item, language, { weekday: "short", day: "numeric" })}</Text></Pressable>} /><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("selectRoom")}</Text>{rooms.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={roomPickerStyles.rail}>{rooms.map((room) => <Pressable key={String(room.id)} onPress={() => setRoomId(room.id)} style={({ pressed }) => [roomPickerStyles.pill, { borderColor: String(room.id) === String(roomId) ? "#f04488" : colors.border, backgroundColor: String(room.id) === String(roomId) ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[roomPickerStyles.name, { color: String(room.id) === String(roomId) ? "#ff82b7" : colors.foreground }]}>{room.name}</Text><Text style={[roomPickerStyles.capacity, { color: colors.muted }]}>{room.maximumCapacity}{room.openingTime && room.closingTime ? ` · ${room.openingTime}–${room.closingTime}` : ""}</Text></Pressable>)}</ScrollView> : <Text style={[styles.fieldHint, { color: colors.error }]}>{roomEmptyReason}</Text>}<TimeChoice label={t("starts")} value={formatAvailabilityTime(startTime, language)} onPress={() => openPicker("start")} />{violatesTodayLeadTime ? <Text style={styles.leadTimeWarning}>{t("availabilityLeadTime")}</Text> : null}<TimeChoice label={t("ends")} value={formatAvailabilityTime(endTime, language)} onPress={() => openPicker("end")} /><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("maxConcurrentClients")}</Text><Text style={[styles.fieldHint, { color: colors.muted }]}>{t("maxConcurrentHint")}</Text><CapacityStepper value={capacity} maximum={selectedRoom?.maximumCapacity ?? 1} onChange={setCapacity} /><Pressable onPress={() => setShowMore((value) => !value)} style={({ pressed }) => [styles.moreRow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><View><Text style={[styles.moreTitle, { color: colors.foreground }]}>{t("moreOptions")}</Text><Text style={[styles.moreCopy, { color: colors.muted }]}>{t("noteOptional")}</Text></View><Text style={styles.moreToggle}>{showMore ? t("hide") : t("show")}</Text></Pressable>{showMore ? <Field label={t("noteOptional")} value={note} onChangeText={setNote} /> : null}<View style={styles.sheetActions}><GhostButton title={t("cancel")} onPress={onClose} /><View style={styles.createAction}><PrimaryButton title={busy ? t("publishing") : t("publish")} disabled={busy || !selectedRoom} onPress={publish} /></View></View></ScrollView>{activeTimeField ? <View style={styles.timePickerBackdrop}><View style={[styles.timePickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><View style={styles.timePickerHeader}><Pressable onPress={() => setActiveTimeField(null)} style={styles.timePickerAction}><Text style={styles.timePickerActionText}>{t("cancel")}</Text></Pressable><Text style={[styles.timePickerTitle, { color: colors.foreground }]}>{activeTimeField === "start" ? t("starts") : t("ends")}</Text><Pressable onPress={savePicker} style={styles.timePickerAction}><Text style={styles.timePickerActionText}>{t("save")}</Text></Pressable></View><TimeWheelPicker value={timeDraft} onChange={setTimeDraft} colors={colors} /></View></View> : null}</View></Modal>;
+  const roomMarker = (room: RoomOption): RoomStatusMarker => room.statusReason === "inactive" ? "inactive" : room.statusReason === "temporarily_closed" ? "temporarily_closed" : "available";
+  const roomStatus = (room: RoomOption) => room.statusReason === "inactive" ? t("roomStatusInactive") : room.statusReason === "temporarily_closed" ? t("roomStatusClosed") : t("roomStatusAvailable");
+  return <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}><View style={styles.modalBackdrop}><ScrollView style={[styles.sheet, { backgroundColor: "#151518", borderColor: colors.border }]} contentContainerStyle={styles.sheetContent} showsVerticalScrollIndicator={false}><View style={styles.sheetHandle} /><Text style={styles.sheetEyebrow}>{t("publishFreeTime")}</Text><Text style={[styles.sheetTitle, { color: colors.foreground }]}>{t("addAvailability")}</Text><Text style={[styles.sheetCopy, { color: colors.muted }]}>{t("continuousWindowHint")}</Text><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("availabilityDate")}</Text><FlatList horizontal data={dates} keyExtractor={(item) => item.toISOString()} showsHorizontalScrollIndicator={false} contentContainerStyle={styles.dateRail} renderItem={({ item }) => <Pressable onPress={() => onDateChange(localDayString(item))} style={({ pressed }) => [styles.datePill, { borderColor: date === localDayString(item) ? "#f04488" : colors.border, backgroundColor: date === localDayString(item) ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.datePillText, { color: date === localDayString(item) ? "#ff82b7" : colors.muted }]}>{formatDateLocalized(item, language, { weekday: "short", day: "numeric" })}</Text></Pressable>} /><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("selectRoom")}</Text>{rooms.length ? <><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={roomPickerStyles.rail}>{rooms.map((room) => { const disabled = room.eligible === false; const selected = String(room.id) === String(roomId); const marker = roomMarker(room); const visual = roomStatusPresentation(marker); return <Pressable key={String(room.id)} disabled={disabled} accessibilityRole="button" accessibilityLabel={`${room.name}. ${roomStatus(room)}${disabled ? `. ${roomStatus(room)}` : ""}`} accessibilityState={{ selected, disabled }} onPress={() => setRoomId(room.id)} style={({ pressed }) => [roomPickerStyles.pill, { borderColor: selected ? "#f04488" : colors.border, backgroundColor: selected ? "#2b1f2a" : colors.surface, opacity: disabled ? 0.46 : 1 }, pressed && !disabled && styles.pressed]}><Text style={[roomPickerStyles.name, { color: selected ? "#ff82b7" : colors.foreground }]}>{room.name}</Text><Text style={[roomPickerStyles.capacity, { color: colors.muted }]}>{room.maximumCapacity}{room.openingTime && room.closingTime ? ` · ${room.openingTime}–${room.closingTime}` : ""}</Text><View style={roomPickerStyles.statusRow}><View style={[roomPickerStyles.statusDot, { backgroundColor: visual.color }]} /><Text style={[roomPickerStyles.status, { color: visual.color }]}>{roomStatus(room)}</Text></View></Pressable>; })}</ScrollView>{!rooms.some((room) => room.eligible !== false) ? <Text style={[styles.fieldHint, { color: colors.error }]}>{roomEmptyReason}</Text> : null}</> : <Text style={[styles.fieldHint, { color: colors.error }]}>{roomEmptyReason}</Text>}<TimeChoice label={t("starts")} value={formatAvailabilityTime(startTime, language)} onPress={() => openPicker("start")} />{violatesTodayLeadTime ? <Text style={styles.leadTimeWarning}>{t("availabilityLeadTime")}</Text> : null}<TimeChoice label={t("ends")} value={formatAvailabilityTime(endTime, language)} onPress={() => openPicker("end")} /><Text style={[styles.fieldLabel, { color: colors.muted }]}>{t("maxConcurrentClients")}</Text><Text style={[styles.fieldHint, { color: colors.muted }]}>{t("maxConcurrentHint")}</Text><CapacityStepper value={capacity} maximum={selectedRoom?.maximumCapacity ?? 1} onChange={setCapacity} /><Pressable onPress={() => setShowMore((value) => !value)} style={({ pressed }) => [styles.moreRow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><View><Text style={[styles.moreTitle, { color: colors.foreground }]}>{t("moreOptions")}</Text><Text style={[styles.moreCopy, { color: colors.muted }]}>{t("noteOptional")}</Text></View><Text style={styles.moreToggle}>{showMore ? t("hide") : t("show")}</Text></Pressable>{showMore ? <Field label={t("noteOptional")} value={note} onChangeText={setNote} /> : null}<View style={styles.sheetActions}><GhostButton title={t("cancel")} onPress={onClose} /><View style={styles.createAction}><PrimaryButton title={busy ? t("publishing") : t("publish")} disabled={busy || !selectedRoom || selectedRoom.eligible === false} onPress={publish} /></View></View></ScrollView>{activeTimeField ? <View style={styles.timePickerBackdrop}><View style={[styles.timePickerSheet, { backgroundColor: "#151518", borderColor: colors.border }]}><View style={styles.timePickerHeader}><Pressable onPress={() => setActiveTimeField(null)} style={styles.timePickerAction}><Text style={styles.timePickerActionText}>{t("cancel")}</Text></Pressable><Text style={[styles.timePickerTitle, { color: colors.foreground }]}>{activeTimeField === "start" ? t("starts") : t("ends")}</Text><Pressable onPress={savePicker} style={styles.timePickerAction}><Text style={styles.timePickerActionText}>{t("save")}</Text></Pressable></View><TimeWheelPicker value={timeDraft} onChange={setTimeDraft} colors={colors} /></View></View> : null}</View></Modal>;
 }
 
 function AvailabilityFeedbackSheet({ feedback, onClose }: { feedback: AvailabilityFeedback | null; onClose: () => void }) {
@@ -320,4 +333,7 @@ const roomPickerStyles = StyleSheet.create({
   pill: { minWidth: 112, borderRadius: 13, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10 },
   name: { fontSize: 12, fontWeight: "800" },
   capacity: { fontSize: 10, fontWeight: "700", marginTop: 3 },
+  statusRow: { flexDirection: "row", alignItems: "center", gap: 5, marginTop: 4 },
+  statusDot: { width: 6, height: 6, borderRadius: 3 },
+  status: { fontSize: 10, fontWeight: "800" },
 });

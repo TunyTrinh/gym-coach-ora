@@ -31,6 +31,10 @@ describe("visible room status and service-independent Client discovery", () => {
     expect(scheduleUi).toContain("roomCalendarLegend");
     expect(scheduleUi).toContain("accessibilityLabel");
     expect(scheduleUi).toContain("trpc.availability.roomCalendar.useQuery");
+    expect(scheduleUi).toContain("visibleRoomCalendarMarkers");
+    expect(scheduleUi).toContain("roomCalendarDot");
+    expect(scheduleUi).toContain("roomFilterId");
+    expect(scheduleUi).not.toContain("markerSymbol");
     expect(availabilityUi).not.toContain("CoachRoomCalendar");
     expect(availabilityUi).toContain("utils.availability.roomCalendar.invalidate()");
   });

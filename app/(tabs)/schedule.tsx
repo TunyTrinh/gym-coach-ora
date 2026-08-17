@@ -15,6 +15,7 @@ import { adaptProductionSchedule } from "@/lib/production-schedule";
 import { trpc } from "@/lib/trpc";
 import { formatDateLocalized, formatTimeLocalized, localeFor } from "@/lib/i18n";
 import { getBookingSlot, getCoach, getService } from "@/shared/gym";
+import { roomStatusPresentation, visibleRoomCalendarMarkers, type RoomStatusMarker } from "@/shared/room-status-presentation";
 
 const weekDayReference = new Date(2024, 0, 7);
 
@@ -53,6 +54,7 @@ export default function ScheduleScreen() {
   const [now, setNow] = useState(() => new Date());
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => startOfLocalDay(new Date()));
+  const [roomFilterId, setRoomFilterId] = useState<number | "all">("all");
   const [feedbackSheet, setFeedbackSheet] = useState<FeedbackSheet | null>(null);
   const [cancellationBookingId, setCancellationBookingId] = useState<string | null>(null);
   const [cancellationBusy, setCancellationBusy] = useState(false);
@@ -64,7 +66,9 @@ export default function ScheduleScreen() {
     return lastDay;
   }, [visibleMonth]);
   const roomCalendarQuery = trpc.availability.roomCalendar.useQuery(
-    { from: localDayKey(visibleMonth), to: localDayKey(roomCalendarMonthEnd) },
+    roomFilterId === "all"
+      ? { from: localDayKey(visibleMonth), to: localDayKey(roomCalendarMonthEnd) }
+      : { from: localDayKey(visibleMonth), to: localDayKey(roomCalendarMonthEnd), roomId: roomFilterId },
     { enabled: !previewMode && isCoach },
   );
   const roomScheduleQuery = trpc.availability.roomSchedule.useQuery(
@@ -203,6 +207,13 @@ export default function ScheduleScreen() {
       </SurfaceCard> : null}
 
       {isCoach && !previewMode ? <>
+        {(roomScheduleQuery.data?.rooms.length ?? 0) > 4 ? <View style={styles.roomFilterSection}>
+          <Text style={[styles.roomFilterLabel, { color: colors.muted }]}>{t("filterRooms")}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomFilterRail}>
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: roomFilterId === "all" }} onPress={() => setRoomFilterId("all")} style={({ pressed }) => [styles.roomFilterChip, { borderColor: roomFilterId === "all" ? "#f04488" : colors.border, backgroundColor: roomFilterId === "all" ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.roomFilterChipText, { color: roomFilterId === "all" ? "#ff82b7" : colors.foreground }]}>{t("allRooms")}</Text></Pressable>
+            {(roomScheduleQuery.data?.rooms ?? []).map((room) => <Pressable key={room.id} accessibilityRole="button" accessibilityState={{ selected: roomFilterId === room.id }} onPress={() => setRoomFilterId(room.id)} style={({ pressed }) => [styles.roomFilterChip, { borderColor: roomFilterId === room.id ? "#f04488" : colors.border, backgroundColor: roomFilterId === room.id ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.roomFilterChipText, { color: roomFilterId === room.id ? "#ff82b7" : colors.foreground }]}>{room.name}</Text></Pressable>)}
+          </ScrollView>
+        </View> : null}
         <CoachRoomCalendar
           month={visibleMonth}
           selectedDate={localDayKey(selectedDate)}
@@ -211,12 +222,13 @@ export default function ScheduleScreen() {
           language={language}
           t={t}
           colors={colors}
+          roomFilterId={roomFilterId}
           onMonthChange={setVisibleMonth}
           onDateChange={(date) => setSelectedDate(startOfLocalDay(new Date(`${date}T00:00:00`)))}
         />
         <CoachRoomSchedule
           date={localDayKey(selectedDate)}
-          rooms={roomScheduleQuery.data?.rooms ?? []}
+          rooms={roomFilterId === "all" ? (roomScheduleQuery.data?.rooms ?? []) : (roomScheduleQuery.data?.rooms ?? []).filter((room) => room.id === roomFilterId)}
           loading={roomScheduleQuery.isLoading}
           language={language}
           t={t}
@@ -379,12 +391,11 @@ export default function ScheduleScreen() {
   </ScreenContainer>;
 }
 
-function CoachRoomCalendar({ month, selectedDate, rows, loading, language, t, colors, onMonthChange, onDateChange }: { month: Date; selectedDate: string; rows: { date: string; markers: string[]; publishedCount: number; bookingCount: number }[]; loading: boolean; language: "en" | "vi"; t: (key: any) => string; colors: ReturnType<typeof useColors>; onMonthChange: (month: Date) => void; onDateChange: (date: string) => void }) {
+function CoachRoomCalendar({ month, selectedDate, rows, loading, language, t, colors, roomFilterId, onMonthChange, onDateChange }: { month: Date; selectedDate: string; rows: { date: string; markers: string[]; publishedCount: number; bookingCount: number }[]; loading: boolean; language: "en" | "vi"; t: (key: any) => string; colors: ReturnType<typeof useColors>; roomFilterId: number | "all"; onMonthChange: (month: Date) => void; onDateChange: (date: string) => void }) {
   const days = buildMonthGrid(month);
   const rowByDate = new Map(rows.map((row) => [row.date, row]));
   const markerLabel = (marker: string) => marker === "partially_closed" ? t("roomStatusPartiallyClosed") : marker === "closed" ? t("roomStatusClosed") : marker === "full" ? t("roomStatusFull") : marker === "inactive" ? t("roomStatusInactive") : marker === "availability_published" ? t("roomStatusAvailabilityPublished") : marker === "client_booking" ? t("roomStatusClientBooking") : t("roomStatusAvailable");
-  const markerSymbol = (marker: string) => marker === "partially_closed" ? "P" : marker === "closed" ? "C" : marker === "full" ? "F" : marker === "inactive" ? "I" : marker === "availability_published" ? "A" : marker === "client_booking" ? "B" : "R";
-  const legendMarkers = ["available", "partially_closed", "closed", "full", "inactive", "availability_published", "client_booking"];
+  const legendMarkers: RoomStatusMarker[] = ["available", "partially_closed", "closed", "full", "inactive", "availability_published", "client_booking"];
 
   return <SurfaceCard style={styles.roomCalendarCard}>
     <View style={styles.roomCalendarTitleRow}>
@@ -405,11 +416,12 @@ function CoachRoomCalendar({ month, selectedDate, rows, loading, language, t, co
         const row = rowByDate.get(date);
         const selected = date === selectedDate;
         const inMonth = day.getMonth() === month.getMonth();
-        const markerText = row?.markers.map(markerSymbol).join(" ") ?? "";
-        return <Pressable key={date} onPress={() => onDateChange(date)} accessibilityRole="button" accessibilityLabel={`${formatDateLocalized(day, language, { weekday: "long", month: "long", day: "numeric" })}. ${(row?.markers ?? []).map(markerLabel).join(", ") || t("roomStatusAvailable")}`} accessibilityState={{ selected }} style={({ pressed }) => [styles.roomCalendarDay, { borderColor: selected ? "#f04488" : colors.border, backgroundColor: selected ? "#2b1f2a" : colors.surface, opacity: inMonth ? 1 : 0.44 }, pressed && styles.pressed]}><Text style={[styles.roomCalendarDayNumber, { color: selected ? "#ff82b7" : colors.foreground }]}>{day.getDate()}</Text><Text style={[styles.roomCalendarMarkerText, { color: colors.muted }]} numberOfLines={1}>{markerText || "—"}</Text></Pressable>;
+        const markers = visibleRoomCalendarMarkers(row?.markers ?? []);
+        const visibleMarkers = markers.slice(0, 3);
+        const overflow = markers.length - visibleMarkers.length;
+        return <Pressable key={date} onPress={() => onDateChange(date)} accessibilityRole="button" accessibilityLabel={`${formatDateLocalized(day, language, { weekday: "long", month: "long", day: "numeric" })}. ${roomFilterId === "all" ? `${t("allRooms")}. ` : ""}${markers.map(markerLabel).join(", ") || t("roomStatusAvailable")}`} accessibilityState={{ selected }} style={({ pressed }) => [styles.roomCalendarDay, { borderColor: selected ? "#f04488" : colors.border, backgroundColor: selected ? "#2b1f2a" : colors.surface, opacity: inMonth ? 1 : 0.44 }, pressed && styles.pressed]}><Text style={[styles.roomCalendarDayNumber, { color: selected ? "#ff82b7" : colors.foreground }]}>{day.getDate()}</Text><View style={styles.roomCalendarDots}>{visibleMarkers.map((marker) => <View key={marker} style={[styles.roomCalendarDot, { backgroundColor: roomStatusPresentation(marker).color }]} />)}{overflow > 0 ? <Text style={[styles.roomCalendarOverflow, { color: colors.muted }]}>+{overflow}</Text> : null}</View></Pressable>;
       })}</View>
-      <Text style={[styles.roomLegendTitle, { color: colors.muted }]}>{t("roomCalendarLegend")}</Text>
-      <View style={styles.roomLegendWrap}>{legendMarkers.map((marker) => <View key={marker} style={[styles.roomLegendItem, { borderColor: colors.border }]}><Text style={[styles.roomLegendSymbol, { color: colors.foreground }]}>{markerSymbol(marker)}</Text><Text style={[styles.roomLegendText, { color: colors.muted }]}>{markerLabel(marker)}</Text></View>)}</View>
+      <View accessibilityLabel={t("roomCalendarLegend")} style={styles.roomLegendWrap}>{legendMarkers.map((marker) => <View key={marker} style={styles.roomLegendItem}><View style={[styles.roomLegendDot, { backgroundColor: roomStatusPresentation(marker).color }]} /><Text style={[styles.roomLegendText, { color: colors.muted }]}>{markerLabel(marker)}</Text></View>)}</View>
     </>}
   </SurfaceCard>;
 }
@@ -419,8 +431,16 @@ function CoachRoomSchedule({ date, rooms, loading, language, t, colors }: { date
   return <View style={styles.roomSchedule}>
     <Text style={[styles.roomScheduleLabel, { color: colors.muted }]}>{`${t("roomScheduleToday").toUpperCase()} · ${formatDateLocalized(new Date(`${date}T00:00:00`), language, { weekday: "long", month: "long", day: "numeric" })}`}</Text>
     {loading ? <Text style={[styles.roomScheduleLoading, { color: colors.muted }]}>{t("loading")}</Text> : rooms.map((room) => {
-      const publishable = room.statusReason === "available";
-      return <SurfaceCard key={room.id} style={[styles.roomScheduleDetail, { borderColor: colors.border }]}><View style={styles.roomScheduleDetailTop}><View><Text style={[styles.roomScheduleName, { color: colors.foreground }]}>{room.name}</Text><Text style={[styles.roomScheduleMeta, { color: colors.muted }]}>{room.active ? t("roomStatusAvailable") : t("roomStatusInactive")} · {room.openingTime}–{room.closingTime}</Text></View><StatusBadge label={status(room.statusReason)} tone={publishable ? "success" : "warning"} /></View><Text style={[styles.roomScheduleMeta, { color: colors.muted }]}>{room.occupancy}/{room.maximumCapacity} · {room.remainingCapacity} {t("roomCapacityRemaining")}</Text><Text style={[styles.roomScheduleMeta, { color: publishable ? "#32d77b" : "#ff8b82" }]}>{publishable ? t("canPublishAvailability") : `${t("cannotPublishAvailability")}: ${room.closureReason ?? status(room.statusReason)}`}</Text><Text style={[styles.roomScheduleMeta, { color: colors.muted }]}>{t("nextAvailableTime")}: {room.nextAvailableSlot ? formatTimeLocalized(String(room.nextAvailableSlot), language) : "—"}</Text></SurfaceCard>;
+      const marker: RoomStatusMarker = room.statusReason === "outside_hours" ? "temporarily_closed" : room.statusReason;
+      const visual = roomStatusPresentation(marker);
+      const context = room.statusReason === "temporarily_closed"
+        ? (room.closureReason ?? `${t("nextAvailableTime")}: ${room.nextAvailableSlot ? formatTimeLocalized(String(room.nextAvailableSlot), language) : "—"}`)
+        : room.statusReason === "full"
+          ? `${room.occupancy}/${room.maximumCapacity} ${t("roomCapacityRemaining")}`
+          : room.windows?.some((window: any) => window.status === "available")
+            ? t("roomStatusAvailabilityPublished")
+            : `${room.occupancy}/${room.maximumCapacity} ${t("roomCapacityRemaining")}`;
+      return <SurfaceCard key={room.id} style={[styles.roomScheduleDetail, { borderColor: colors.border }]}><View style={styles.roomScheduleDetailTop}><View style={styles.roomScheduleCopy}><Text style={[styles.roomScheduleName, { color: colors.foreground }]}>{room.name}</Text><Text numberOfLines={1} style={[styles.roomScheduleMeta, { color: colors.muted }]}>{context}</Text></View><View style={[styles.roomStatusPill, { backgroundColor: visual.background }]}><View style={[styles.roomStatusPillDot, { backgroundColor: visual.color }]} /><Text style={[styles.roomStatusPillText, { color: visual.color }]}>{status(room.statusReason)}</Text></View></View></SurfaceCard>;
     })}
   </View>;
 }
@@ -429,7 +449,7 @@ const styles = StyleSheet.create({
   content: { paddingTop: 10, paddingBottom: 40, gap: 16 },
   staffRestricted: { paddingTop: 10, gap: 18 }, staffCard: { gap: 12, padding: 19 }, staffTitle: { fontSize: 20, fontWeight: "900" }, staffCopy: { fontSize: 13, lineHeight: 20 },
   coachActionCard: { padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }, coachActionCopy: { flex: 1, gap: 3 }, coachActionTitle: { fontSize: 15, fontWeight: "900" }, coachActionText: { fontSize: 11, lineHeight: 16 }, coachActionButton: { paddingHorizontal: 12, minHeight: 36, borderRadius: 12, justifyContent: "center", backgroundColor: "#f04488" }, coachActionButtonText: { color: "#ffffff", fontSize: 11, fontWeight: "900" },
-  roomCalendarCard: { padding: 14, gap: 10 }, roomCalendarTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }, roomCalendarEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, roomCalendarMonth: { fontSize: 20, fontWeight: "900", marginTop: 2 }, roomCalendarNav: { flexDirection: "row", alignItems: "center", gap: 6 }, roomCalendarNavButton: { width: 36, height: 36, borderWidth: 1, borderRadius: 18, alignItems: "center", justifyContent: "center" }, roomCalendarNavText: { fontSize: 25, fontWeight: "700", marginTop: -3 }, roomCalendarTodayButton: { height: 36, borderWidth: 1, borderRadius: 18, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" }, roomCalendarTodayText: { fontSize: 11, fontWeight: "900" }, roomCalendarWeekdays: { flexDirection: "row", marginTop: 2 }, roomCalendarWeekday: { width: "14.2857%", textAlign: "center", fontSize: 10, fontWeight: "800" }, roomCalendarGrid: { flexDirection: "row", flexWrap: "wrap", rowGap: 5 }, roomCalendarDay: { width: "14.2857%", minHeight: 52, borderWidth: 1, borderRadius: 9, paddingTop: 6, alignItems: "center" }, roomCalendarDayNumber: { fontSize: 13, fontWeight: "900" }, roomCalendarMarkerText: { marginTop: 4, minHeight: 12, fontSize: 8, fontWeight: "900", letterSpacing: 0.2 }, roomLegendTitle: { fontSize: 10, fontWeight: "900", letterSpacing: 0.8, marginTop: 2 }, roomLegendWrap: { flexDirection: "row", flexWrap: "wrap", gap: 6 }, roomLegendItem: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderRadius: 10, paddingHorizontal: 7, paddingVertical: 5, gap: 4 }, roomLegendSymbol: { fontSize: 10, fontWeight: "900" }, roomLegendText: { fontSize: 9, fontWeight: "700" }, roomSchedule: { gap: 7 }, roomScheduleLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.1, marginTop: 2 }, roomScheduleLoading: { fontSize: 12 }, roomScheduleDetail: { gap: 6, padding: 13 }, roomScheduleDetailTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }, roomScheduleName: { fontSize: 13, fontWeight: "900" }, roomScheduleMeta: { fontSize: 10, lineHeight: 14 },
+  roomFilterSection: { gap: 7 }, roomFilterLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.1 }, roomFilterRail: { gap: 8, paddingRight: 14 }, roomFilterChip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }, roomFilterChipText: { fontSize: 11, fontWeight: "800" }, roomCalendarCard: { padding: 14, gap: 10 }, roomCalendarTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }, roomCalendarEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, roomCalendarMonth: { fontSize: 20, fontWeight: "900", marginTop: 2 }, roomCalendarNav: { flexDirection: "row", alignItems: "center", gap: 6 }, roomCalendarNavButton: { width: 36, height: 36, borderWidth: 1, borderRadius: 18, alignItems: "center", justifyContent: "center" }, roomCalendarNavText: { fontSize: 25, fontWeight: "700", marginTop: -3 }, roomCalendarTodayButton: { height: 36, borderWidth: 1, borderRadius: 18, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" }, roomCalendarTodayText: { fontSize: 11, fontWeight: "900" }, roomCalendarWeekdays: { flexDirection: "row", marginTop: 2 }, roomCalendarWeekday: { width: "14.2857%", textAlign: "center", fontSize: 10, fontWeight: "800" }, roomCalendarGrid: { flexDirection: "row", flexWrap: "wrap", rowGap: 5 }, roomCalendarDay: { width: "14.2857%", minHeight: 52, borderWidth: 1, borderRadius: 9, paddingTop: 6, alignItems: "center" }, roomCalendarDayNumber: { fontSize: 13, fontWeight: "900" }, roomCalendarDots: { minHeight: 12, marginTop: 5, flexDirection: "row", alignItems: "center", gap: 3 }, roomCalendarDot: { width: 6, height: 6, borderRadius: 3 }, roomCalendarOverflow: { fontSize: 8, fontWeight: "900", marginLeft: 1 }, roomLegendWrap: { flexDirection: "row", flexWrap: "wrap", gap: 12, borderTopWidth: 1, borderTopColor: "#303036", paddingTop: 11 }, roomLegendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, roomLegendDot: { width: 7, height: 7, borderRadius: 3.5 }, roomLegendText: { fontSize: 10, fontWeight: "700" }, roomSchedule: { gap: 7 }, roomScheduleLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.1, marginTop: 2 }, roomScheduleLoading: { fontSize: 12 }, roomScheduleDetail: { padding: 13 }, roomScheduleDetailTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }, roomScheduleCopy: { flex: 1, gap: 3 }, roomScheduleName: { fontSize: 14, fontWeight: "900" }, roomScheduleMeta: { fontSize: 11, lineHeight: 15 }, roomStatusPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 10 }, roomStatusPillDot: { width: 6, height: 6, borderRadius: 3 }, roomStatusPillText: { fontSize: 10, fontWeight: "900" },
   calendarCard: { padding: 14, gap: 13 }, monthHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }, monthEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, monthTitle: { fontSize: 19, fontWeight: "800", marginTop: 3 }, monthActions: { flexDirection: "row", alignItems: "center", gap: 6 }, iconButton: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" }, iconButtonText: { fontSize: 28, lineHeight: 28, marginTop: -3 }, todayButton: { height: 34, borderRadius: 17, borderWidth: 1, paddingHorizontal: 11, justifyContent: "center" }, todayButtonText: { fontSize: 11, fontWeight: "800" },
   weekRow: { flexDirection: "row" }, weekDay: { width: "14.285%", textAlign: "center", fontSize: 9, fontWeight: "800" }, grid: { flexDirection: "row", flexWrap: "wrap" }, dayCell: { width: "14.285%", aspectRatio: 0.88, padding: 2 }, dayButton: { flex: 1, alignItems: "center", borderRadius: 10, paddingTop: 4 }, selectedDay: { backgroundColor: "#5b2141" }, selectedDayText: { color: "#ffffff", fontWeight: "900" }, dayNumber: { fontSize: 12, fontWeight: "800" }, dayBlocks: { width: "100%", gap: 2, paddingHorizontal: 2, marginTop: 3 }, miniBlock: { minHeight: 13, borderRadius: 3, paddingHorizontal: 2, justifyContent: "center" }, miniBlockText: { color: "#ffffff", fontSize: 6.5, fontWeight: "900", textAlign: "center" }, moreBlocks: { fontSize: 7, fontWeight: "900", textAlign: "center", marginTop: 1 }, bookingDot: { minWidth: 14, height: 14, paddingHorizontal: 3, borderRadius: 7, alignItems: "center", justifyContent: "center", marginTop: 3 }, bookingDotText: { fontSize: 8, color: "#ffffff", fontWeight: "900" }, dotSpacer: { height: 14, marginTop: 3 }, calendarHint: { borderTopWidth: 1, borderTopColor: "#303036", paddingTop: 11, fontSize: 10, fontWeight: "700", textAlign: "center" },
   daySummaryHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 4 }, summaryEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, summaryTitle: { fontSize: 20, fontWeight: "800", marginTop: 3 }, summaryCount: { fontSize: 12, fontWeight: "800", marginBottom: 2 },

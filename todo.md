@@ -102,3 +102,11 @@
 - [x] Move the Coach room-status calendar and selected-day room details from Availability to Schedule
 - [x] Keep Availability focused on publishing and blocking Coach availability windows
 - [x] Update calendar-placement regression coverage and validate the Schedule-tab rendering
+- [x] Trace why creating a later room can hide previously created active rooms from the Coach Add Availability selector
+- [x] Ensure the Coach room selector always refetches and displays the complete eligible gym-room collection after room changes
+- [x] Add a three-room creation regression test for the Coach Add Availability selector
+- [x] Define and apply one shared accessible status-color system for calendar dots, room-list pills, and availability room choices
+- [x] Replace Schedule calendar letter codes with capped distinct-status color dots and a compact dot legend
+- [x] Redesign selected-day room rows with status pills and concise capacity, closure, and availability context
+- [x] Add an all-room and per-room filter for Coaches and Admins when a gym has more than four rooms
+- [x] Validate the redesigned Schedule calendar and Availability room picker in responsive Preview and public PWA builds

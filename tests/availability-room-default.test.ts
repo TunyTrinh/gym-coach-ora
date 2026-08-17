@@ -24,4 +24,11 @@ describe("defaultAvailabilityRoomId", () => {
   it("returns null when there are no active rooms", () => {
     expect(defaultAvailabilityRoomId([], null)).toBeNull();
   });
+
+  it("never defaults to a visible but ineligible room", () => {
+    expect(defaultAvailabilityRoomId([
+      { id: "inactive", defaultGym: true, eligible: false },
+      { id: "open", defaultGym: false, eligible: true },
+    ], "inactive")).toBe("open");
+  });
 });

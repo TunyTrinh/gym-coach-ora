@@ -9,7 +9,7 @@ import { isValidGoogleEmail, normalizeGoogleEmail } from "./google-authorization
 import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, gymRooms, healthMeasurements, notifications, roomClosures, serviceTypes, timeSlots, users } from "../drizzle/schema";
 import { and, asc, eq, gt, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import { isRoomEligibleForAvailability } from "../shared/room-eligibility";
+import { buildAvailabilityRoomChoices } from "../shared/availability-room-collection";
 import { roomScheduleStatus } from "../shared/room-status";
 
 const availabilityInput = z.object({
@@ -359,7 +359,7 @@ export const appRouter = router({
   }),
   availability: router({
     roomCalendar: protectedProcedure
-      .input(z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+      .input(z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), roomId: z.number().int().positive().optional() }))
       .query(async ({ ctx, input }) => {
         if (!["client", "coach", "admin"].includes(ctx.user.role)) throw new Error("Authenticated access is required to view room calendars.");
         const db = await getDb();
@@ -369,7 +369,8 @@ export const appRouter = router({
         if (!from || !lastDay || lastDay < from) throw new Error("Choose a valid room calendar range.");
         const endExclusive = new Date(lastDay.getTime() + 24 * 60 * 60_000);
         if ((endExclusive.getTime() - from.getTime()) / 86_400_000 > 45) throw new Error("Room calendar ranges may not exceed 45 days.");
-        const rooms = await listRooms();
+        const allRooms = await listRooms();
+        const rooms = input.roomId ? allRooms.filter((room) => room.id === input.roomId) : allRooms;
         const roomIds = rooms.map((room) => room.id);
         const closures = roomIds.length ? await db.select({ roomId: roomClosures.roomId, closureDate: roomClosures.closureDate }).from(roomClosures).where(and(inArray(roomClosures.roomId, roomIds), gte(roomClosures.closureDate, input.from), lte(roomClosures.closureDate, input.to))) : [];
         const windows = roomIds.length ? await db.select({ roomId: availabilityShifts.roomId, startAt: availabilityShifts.startAt, endAt: availabilityShifts.endAt, status: availabilityShifts.status, maximumCapacity: availabilityShifts.maximumCapacity }).from(availabilityShifts).where(and(inArray(availabilityShifts.roomId, roomIds), lt(availabilityShifts.startAt, endExclusive), gt(availabilityShifts.endAt, from))) : [];
@@ -475,7 +476,6 @@ export const appRouter = router({
       const closures = roomIds.length ? await db.select({ roomId: roomClosures.roomId }).from(roomClosures).where(and(eq(roomClosures.closureDate, requestedDate), inArray(roomClosures.roomId, roomIds))) : [];
       const closedRoomIds = new Set(closures.map((closure) => closure.roomId));
       const activeRooms = allRooms.filter((room) => room.active);
-      const eligibleRooms = activeRooms.filter((room) => isRoomEligibleForAvailability({ active: room.active, closed: closedRoomIds.has(room.id) }));
       const defaultGymId = ctx.user.role === "coach" ? (await (async () => {
         const coachId = await getAuthorizedCoachIdForUser(db, ctx.user.id);
         if (!coachId) throw new Error("Your Coach access is inactive or revoked.");
@@ -483,7 +483,7 @@ export const appRouter = router({
         return coach[0]?.gymId ?? null;
       })()) : null;
       return {
-        rooms: eligibleRooms.map((room) => ({ ...room, defaultGym: defaultGymId !== null && room.gymId === defaultGymId })),
+        rooms: buildAvailabilityRoomChoices(allRooms, closedRoomIds, defaultGymId),
         totalRooms: allRooms.length,
         activeRoomCount: activeRooms.length,
         closedRoomCount: activeRooms.filter((room) => closedRoomIds.has(room.id)).length,
