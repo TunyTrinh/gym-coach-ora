@@ -358,6 +358,43 @@ export const appRouter = router({
       }),
   }),
   availability: router({
+    roomCalendar: protectedProcedure
+      .input(z.object({ from: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), to: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+      .query(async ({ ctx, input }) => {
+        if (!["client", "coach", "admin"].includes(ctx.user.role)) throw new Error("Authenticated access is required to view room calendars.");
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        const from = localDateTime(input.from, "00:00");
+        const lastDay = localDateTime(input.to, "00:00");
+        if (!from || !lastDay || lastDay < from) throw new Error("Choose a valid room calendar range.");
+        const endExclusive = new Date(lastDay.getTime() + 24 * 60 * 60_000);
+        if ((endExclusive.getTime() - from.getTime()) / 86_400_000 > 45) throw new Error("Room calendar ranges may not exceed 45 days.");
+        const rooms = await listRooms();
+        const roomIds = rooms.map((room) => room.id);
+        const closures = roomIds.length ? await db.select({ roomId: roomClosures.roomId, closureDate: roomClosures.closureDate }).from(roomClosures).where(and(inArray(roomClosures.roomId, roomIds), gte(roomClosures.closureDate, input.from), lte(roomClosures.closureDate, input.to))) : [];
+        const windows = roomIds.length ? await db.select({ roomId: availabilityShifts.roomId, startAt: availabilityShifts.startAt, endAt: availabilityShifts.endAt, status: availabilityShifts.status, maximumCapacity: availabilityShifts.maximumCapacity }).from(availabilityShifts).where(and(inArray(availabilityShifts.roomId, roomIds), lt(availabilityShifts.startAt, endExclusive), gt(availabilityShifts.endAt, from))) : [];
+        const bookingRows = roomIds.length ? await db.select({ roomId: timeSlots.roomId, startAt: timeSlots.startAt, endAt: timeSlots.endAt }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(inArray(timeSlots.roomId, roomIds), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endExclusive), gt(timeSlots.endAt, from))) : [];
+        const rows: { date: string; markers: string[]; publishedCount: number; bookingCount: number }[] = [];
+        for (let cursor = new Date(from); cursor < endExclusive; cursor = new Date(cursor.getTime() + 24 * 60 * 60_000)) {
+          const date = localDayKey(cursor);
+          const dayEnd = new Date(cursor.getTime() + 24 * 60 * 60_000);
+          const closedIds = new Set(closures.filter((closure) => closure.closureDate === date).map((closure) => closure.roomId));
+          const activeRooms = rooms.filter((room) => room.active);
+          const dayWindows = windows.filter((window) => window.startAt < dayEnd && window.endAt > cursor);
+          const dayBookings = bookingRows.filter((booking) => booking.startAt < dayEnd && booking.endAt > cursor);
+          const fullyOccupied = rooms.some((room) => dayBookings.filter((booking) => booking.roomId === room.id).length >= room.maximumCapacity);
+          const markers: string[] = [];
+          if (rooms.some((room) => !room.active)) markers.push("inactive");
+          if (activeRooms.length && closedIds.size >= activeRooms.length) markers.push("closed");
+          else if (closedIds.size) markers.push("partially_closed");
+          if (fullyOccupied) markers.push("full");
+          if (activeRooms.some((room) => !closedIds.has(room.id))) markers.push("available");
+          if (dayWindows.some((window) => window.status === "available")) markers.push("availability_published");
+          if (dayBookings.length) markers.push("client_booking");
+          rows.push({ date, markers, publishedCount: dayWindows.filter((window) => window.status === "available").length, bookingCount: dayBookings.length });
+        }
+        return rows;
+      }),
     roomSchedule: protectedProcedure
       .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
       .query(async ({ ctx, input }) => {
@@ -388,12 +425,15 @@ export const appRouter = router({
           .where(and(inArray(timeSlots.roomId, roomIds), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, dayEnd), gt(timeSlots.endAt, dayStart))) : [];
         const availabilityRows = roomIds.length ? await db.select({
           id: availabilityShifts.externalId,
+          coachId: availabilityShifts.coachId,
           roomId: availabilityShifts.roomId,
+          serviceTypeId: availabilityShifts.serviceTypeId,
           startAt: availabilityShifts.startAt,
           endAt: availabilityShifts.endAt,
           status: availabilityShifts.status,
           maximumCapacity: availabilityShifts.maximumCapacity,
           coachName: coaches.fullName,
+          coachSpecialty: coaches.specialty,
           note: availabilityShifts.note,
         }).from(availabilityShifts)
           .innerJoin(coaches, eq(availabilityShifts.coachId, coaches.id))

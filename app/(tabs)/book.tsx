@@ -30,6 +30,14 @@ type TimeOption = { start: Date; end: Date; remaining: number; availabilityShift
 type Translation = ReturnType<typeof useLanguage>["t"];
 type BookingFeedback = { title: string; message: string; tone: "success" | "error" };
 
+function roomAvailabilityMessage(reason: string, t: Translation) {
+  if (reason === "temporarily_closed") return t("roomStatusClosed");
+  if (reason === "inactive") return t("roomStatusInactive");
+  if (reason === "outside_hours") return t("roomStatusOutsideHours");
+  if (reason === "full") return t("roomStatusFull");
+  return t("roomStatusAvailable");
+}
+
 function buildStartTimes(window: AvailabilityShift, duration: number, now: Date, snapshot: GymSnapshot): TimeOption[] {
   const start = new Date(window.start);
   const end = new Date(window.end);
@@ -133,6 +141,9 @@ export default function BookScreen() {
   const role = previewMode ? snapshot.member.role : user?.role ?? "client";
   const [now, setNow] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(0);
+  const days = createLocalDateRail(now, 7);
+  const selectedDate = days[selectedDay] ?? days[0];
+  const productionRoomSchedule = trpc.availability.roomSchedule.useQuery({ date: localDayKey(selectedDate) }, { enabled: !previewMode && role === "client" });
   const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);
   const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [duration, setDuration] = useState(60);
@@ -146,24 +157,23 @@ export default function BookScreen() {
   const [timeError, setTimeError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [bookingFeedback, setBookingFeedback] = useState<BookingFeedback | null>(null);
-  const availabilityRange = useMemo(() => {
-    const start = startOfLocalDay(now);
-    const end = new Date(start);
-    end.setDate(end.getDate() + 8);
-    return { dateStart: start.toISOString(), dateEnd: end.toISOString() };
-  }, [now]);
-  const productionAvailability = trpc.availability.bookableAll.useQuery(availabilityRange, { enabled: !previewMode && role === "client" });
   const productionServices = trpc.catalog.services.useQuery(undefined, { enabled: !previewMode && role === "client" });
   const productionBooking = trpc.availability.book.useMutation();
   const utils = trpc.useUtils();
   const activeSnapshot = useMemo(() => {
     if (previewMode) return snapshot;
-    const serverWindows = productionAvailability.data ?? [];
+    const serverWindows = (productionRoomSchedule.data?.rooms ?? []).flatMap((room) => room.windows.map((window) => ({
+      ...window,
+      roomName: room.name,
+      roomStatusReason: room.statusReason,
+      roomClosureReason: room.closureReason,
+      roomActive: room.active,
+    })));
     const coachById = new Map<number, { id: string; fullName: string; specialty: string; initials: string; accent: string; active: boolean }>();
     for (const window of serverWindows) {
       if (!coachById.has(window.coachId)) {
         const initials = window.coachName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "C";
-        coachById.set(window.coachId, { id: String(window.coachId), fullName: window.coachName, specialty: window.coachSpecialty, initials, accent: "#9660bd", active: true });
+        coachById.set(window.coachId, { id: String(window.coachId), fullName: window.coachName, specialty: window.coachSpecialty ?? "", initials, accent: "#9660bd", active: true });
       }
     }
     return {
@@ -174,36 +184,34 @@ export default function BookScreen() {
         id: window.id,
         gymId: "database-gym",
         coachId: String(window.coachId),
-        roomId: window.roomId ? String(window.roomId) : undefined,
+        roomId: String(window.roomId),
         serviceTypeId: window.serviceTypeId ? String(window.serviceTypeId) : undefined,
         start: new Date(window.startAt).toISOString(),
         end: new Date(window.endAt).toISOString(),
         maximumCapacity: window.maximumCapacity,
-        location: window.location,
-        note: window.note ?? undefined,
-        status: "Available" as const,
+        location: window.roomName,
+        note: window.statusReason === "available" && window.roomStatusReason === "available" ? window.note ?? undefined : window.roomClosureReason ?? roomAvailabilityMessage(window.statusReason === "available" ? window.roomStatusReason : window.statusReason, t),
+        status: window.statusReason === "available" && window.roomStatusReason === "available" ? "Available" as const : "Blocked" as const,
         createdBy: "database",
       })),
       bookings: [],
     };
-  }, [previewMode, productionAvailability.data, role, snapshot, user]);
+  }, [previewMode, productionRoomSchedule.data, role, snapshot, t, user]);
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
 
-  const days = createLocalDateRail(now, 7);
-  const selectedDate = days[selectedDay] ?? days[0];
   const windows = useMemo(
     () => activeSnapshot.availabilityShifts
-      .filter((window) => window.status === "Available" && isSameLocalDay(new Date(window.start), selectedDate) && new Date(window.end) > now)
+      .filter((window) => isSameLocalDay(new Date(window.start), selectedDate) && new Date(window.end) > now)
       .sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime()),
     [activeSnapshot.availabilityShifts, now, selectedDate],
   );
   const selectedWindow = windows.find((window) => window.id === selectedWindowId) ?? null;
   const selectedCoachWindows = useMemo(
-    () => selectedWindow ? windows.filter((window) => window.coachId === selectedWindow.coachId) : [],
+    () => selectedWindow ? windows.filter((window) => window.coachId === selectedWindow.coachId && window.status === "Available") : [],
     [selectedWindow, windows],
   );
   const timeOptions = useMemo(
@@ -278,8 +286,7 @@ export default function BookScreen() {
           .catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "That time is no longer available." }));
       if (result.success) {
         if (!previewMode) {
-          await utils.availability.bookableAll.invalidate();
-          await utils.member.schedule.invalidate();
+          await Promise.all([utils.availability.bookableAll.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.roomCalendar.invalidate(), utils.member.schedule.invalidate()]);
         }
         haptic.success();
         setShowReview(false);
@@ -339,7 +346,7 @@ export default function BookScreen() {
           <Text style={[styles.stepLabel, { color: colors.muted }]}>2. {t("chooseAvailability")}</Text>
         </View>
 
-        {productionAvailability.isLoading && !previewMode ? <ActivityIndicator color="#ff82b7" style={styles.activityLoading} /> : windows.length ? <View style={styles.windowList}>{windows.map((window) => <AvailabilityCard key={window.id} window={window} selected={selectedWindowId === window.id} snapshot={activeSnapshot} language={language} t={t} colors={colors} onPress={() => { setSelectedWindowId(window.id); setSelectedStart(null); }} />)}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noSlotsAvailable")}</Text></SurfaceCard>}
+        {productionRoomSchedule.isLoading && !previewMode ? <ActivityIndicator color="#ff82b7" style={styles.activityLoading} /> : windows.length ? <View style={styles.windowList}>{windows.map((window) => <AvailabilityCard key={window.id} window={window} selected={selectedWindowId === window.id} snapshot={activeSnapshot} language={language} t={t} colors={colors} onPress={() => { setSelectedWindowId(window.id); setSelectedStart(null); }} />)}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noSlotsAvailable")}</Text></SurfaceCard>}
 
         {selectedWindow ? <View style={styles.bookingPanel}>
           <Text style={[styles.stepLabel, { color: colors.muted }]}>3. {t("service")}</Text>
@@ -442,13 +449,14 @@ function RoomAccessPanel({ selectedDate, duration, colors, t, language, onFeedba
 
 function AvailabilityCard({ window, selected, snapshot, language, t, colors, onPress }: { window: AvailabilityShift; selected: boolean; snapshot: GymSnapshot; language: "en" | "vi"; t: Translation; colors: ReturnType<typeof useColors>; onPress: () => void }) {
   const coach = getCoach(snapshot, window.coachId);
-  return <SurfaceCard style={[styles.windowCard, { borderColor: selected ? "#f04488" : colors.border }]} onPress={onPress}>
+  const available = window.status === "Available";
+  return <SurfaceCard style={[styles.windowCard, { borderColor: selected ? "#f04488" : colors.border, opacity: available ? 1 : 0.72 }]} onPress={available ? onPress : undefined}>
     <View style={styles.windowTop}>
       {coach ? <View style={styles.coachRow}><Avatar initials={coach.initials} accent={coach.accent} size={38} /><View><Text style={[styles.coachName, { color: colors.foreground }]}>{coach.fullName}</Text><Text style={[styles.coachMeta, { color: colors.muted }]}>{window.location}</Text></View></View> : null}
-      <StatusBadge label={`${window.maximumCapacity} ${t("clients")}`} tone="success" />
+      <StatusBadge label={available ? `${window.maximumCapacity} ${t("clients")}` : t("blocked")} tone={available ? "success" : "warning"} />
     </View>
     <Text style={[styles.windowTime, { color: colors.foreground }]}>{formatTimeLocalized(window.start, language)}–{formatTimeLocalized(window.end, language)}</Text>
-    <Text style={[styles.windowHint, { color: colors.muted }]}>{t("continuousWindowHint")}</Text>
+    <Text style={[styles.windowHint, { color: available ? colors.muted : "#ff8b82" }]}>{available ? t("continuousWindowHint") : window.note ?? t("blocked")}</Text>
   </SurfaceCard>;
 }
 

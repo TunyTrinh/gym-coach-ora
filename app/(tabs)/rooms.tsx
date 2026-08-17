@@ -41,23 +41,23 @@ export default function RoomsScreen() {
   const dayEnd = useMemo(() => addDays(selectedDay, 1), [selectedDay]);
   const schedule = trpc.admin.roomSchedule.useQuery({ roomId: selectedRoomId ?? 0, from: selectedDay.toISOString(), to: dayEnd.toISOString() }, { enabled: user?.role === "admin" && Boolean(selectedRoomId) });
   const createRoom = trpc.admin.createRoom.useMutation({
-    onSuccess: async () => { await Promise.all([rooms.refetch(), utils.availability.rooms.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.bookableAll.invalidate()]); setShowForm(false); setForm(emptyForm()); setFeedback({ title: t("roomCreated"), body: t("roomsBody"), tone: "success" }); },
+    onSuccess: async () => { await Promise.all([rooms.refetch(), utils.availability.rooms.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.roomCalendar.invalidate(), utils.availability.bookableAll.invalidate()]); setShowForm(false); setForm(emptyForm()); setFeedback({ title: t("roomCreated"), body: t("roomsBody"), tone: "success" }); },
     onError: (error) => setFeedback({ title: t("createRoom"), body: error.message, tone: "error" }),
   });
   const updateRoom = trpc.admin.updateRoom.useMutation({
-    onSuccess: async () => { await Promise.all([rooms.refetch(), schedule.refetch(), utils.availability.rooms.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.bookableAll.invalidate()]); setShowForm(false); setForm(emptyForm()); setFeedback({ title: t("roomUpdated"), body: t("roomsBody"), tone: "success" }); },
+    onSuccess: async () => { await Promise.all([rooms.refetch(), schedule.refetch(), utils.availability.rooms.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.roomCalendar.invalidate(), utils.availability.bookableAll.invalidate()]); setShowForm(false); setForm(emptyForm()); setFeedback({ title: t("roomUpdated"), body: t("roomsBody"), tone: "success" }); },
     onError: (error) => setFeedback({ title: t("editRoom"), body: error.message, tone: "error" }),
   });
   const deleteRoom = trpc.admin.deleteRoom.useMutation({
-    onSuccess: async () => { await Promise.all([rooms.refetch(), schedule.refetch(), roomClosures.refetch(), utils.availability.rooms.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.bookableAll.invalidate()]); setRoomToDelete(null); setSelectedRoomId(null); setFeedback({ title: t("deleteRoomSuccess"), body: t("deleteConfirmationBody"), tone: "success" }); },
+    onSuccess: async () => { await Promise.all([rooms.refetch(), schedule.refetch(), roomClosures.refetch(), utils.availability.rooms.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.roomCalendar.invalidate(), utils.availability.bookableAll.invalidate()]); setRoomToDelete(null); setSelectedRoomId(null); setFeedback({ title: t("deleteRoomSuccess"), body: t("deleteConfirmationBody"), tone: "success" }); },
     onError: (error) => setFeedback({ title: t("deleteRoom"), body: error.message || t("deleteRoom"), tone: "error" }),
   });
   const setRoomClosure = trpc.admin.setRoomClosure.useMutation({
-    onSuccess: async () => { await Promise.all([roomClosures.refetch(), schedule.refetch(), utils.availability.rooms.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.bookableAll.invalidate()]); setClosureReason(""); setFeedback({ title: t("closureSaved"), body: t("roomClosuresBody"), tone: "success" }); },
+    onSuccess: async () => { await Promise.all([roomClosures.refetch(), schedule.refetch(), utils.availability.rooms.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.roomCalendar.invalidate(), utils.availability.bookableAll.invalidate()]); setClosureReason(""); setFeedback({ title: t("closureSaved"), body: t("roomClosuresBody"), tone: "success" }); },
     onError: (error) => setFeedback({ title: t("manageClosures"), body: error.message, tone: "error" }),
   });
   const removeRoomClosure = trpc.admin.removeRoomClosure.useMutation({
-    onSuccess: async () => { await Promise.all([roomClosures.refetch(), schedule.refetch(), utils.availability.rooms.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.bookableAll.invalidate()]); setFeedback({ title: t("closureRemoved"), body: t("roomClosuresBody"), tone: "success" }); },
+    onSuccess: async () => { await Promise.all([roomClosures.refetch(), schedule.refetch(), utils.availability.rooms.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.roomCalendar.invalidate(), utils.availability.bookableAll.invalidate()]); setFeedback({ title: t("closureRemoved"), body: t("roomClosuresBody"), tone: "success" }); },
     onError: (error) => setFeedback({ title: t("manageClosures"), body: error.message, tone: "error" }),
   });
   const selectedRoom = rooms.data?.find((room) => room.id === selectedRoomId);

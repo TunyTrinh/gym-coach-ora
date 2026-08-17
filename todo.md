@@ -89,3 +89,13 @@
 - [x] Add complete English and Vietnamese messages for room and booking eligibility outcomes
 - [x] Add regression coverage for no-service Coach availability, room-only booking, capacity, closures, cancellation, and concurrent requests
 - [ ] Complete real end-to-end checks for Coach availability, room-only booking, Coach booking, capacity, closures, Preview, native App, and public PWA
+
+- [x] Trace the exact August 19 Coach availability record through database, authorization, time zone, room eligibility, API response, Client filtering, and cache state
+- [x] Add accessible Coach calendar indicators and a non-color-only legend for room availability, partial/full closure, full, inactive, out-of-hours, published availability, and client booking states
+- [x] Show selected-date room details for every Coach room, including status, hours, closure reason, occupancy, remaining capacity, next available time, and publishing permission
+- [x] Keep unavailable Coach rooms visible but disabled with exact actionable reason text
+- [x] Correct Client Coach-discovery so service-independent availability is visible and compatible with all active Coach services
+- [x] Show unavailable Coach availability with the exact no-active-service explanation instead of silently hiding it
+- [x] Invalidate and refetch Coach calendar, Client discovery, selected-date, availability, booking, and PWA caches after availability or room changes
+- [x] Add regression coverage for accessible calendar state, date/time-zone behavior, service-independent Coach availability discovery, and unavailable-state explanations
+- [ ] Complete authenticated Coach and Client live verification of the exact August 19 record across Preview, public PWA, and native App
