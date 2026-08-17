@@ -99,3 +99,6 @@
 - [x] Invalidate and refetch Coach calendar, Client discovery, selected-date, availability, booking, and PWA caches after availability or room changes
 - [x] Add regression coverage for accessible calendar state, date/time-zone behavior, service-independent Coach availability discovery, and unavailable-state explanations
 - [ ] Complete authenticated Coach and Client live verification of the exact August 19 record across Preview, public PWA, and native App
+- [x] Move the Coach room-status calendar and selected-day room details from Availability to Schedule
+- [x] Keep Availability focused on publishing and blocking Coach availability windows
+- [x] Update calendar-placement regression coverage and validate the Schedule-tab rendering
