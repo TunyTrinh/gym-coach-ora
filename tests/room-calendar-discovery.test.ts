@@ -34,6 +34,8 @@ describe("visible room status and service-independent Client discovery", () => {
     expect(scheduleUi).toContain("visibleRoomCalendarMarkers");
     expect(scheduleUi).toContain("roomCalendarDot");
     expect(scheduleUi).toContain("roomFilterId");
+    expect(scheduleUi).toContain('marker !== "availability_published" && marker !== "client_booking"');
+    expect(scheduleUi).toContain('["available", "partially_closed", "closed", "full", "inactive"]');
     expect(scheduleUi).not.toContain("markerSymbol");
     expect(availabilityUi).not.toContain("CoachRoomCalendar");
     expect(availabilityUi).toContain("utils.availability.roomCalendar.invalidate()");

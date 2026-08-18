@@ -395,7 +395,7 @@ function CoachRoomCalendar({ month, selectedDate, rows, loading, language, t, co
   const days = buildMonthGrid(month);
   const rowByDate = new Map(rows.map((row) => [row.date, row]));
   const markerLabel = (marker: string) => marker === "partially_closed" ? t("roomStatusPartiallyClosed") : marker === "closed" ? t("roomStatusClosed") : marker === "full" ? t("roomStatusFull") : marker === "inactive" ? t("roomStatusInactive") : marker === "availability_published" ? t("roomStatusAvailabilityPublished") : marker === "client_booking" ? t("roomStatusClientBooking") : t("roomStatusAvailable");
-  const legendMarkers: RoomStatusMarker[] = ["available", "partially_closed", "closed", "full", "inactive", "availability_published", "client_booking"];
+  const legendMarkers: RoomStatusMarker[] = ["available", "partially_closed", "closed", "full", "inactive"];
 
   return <SurfaceCard style={styles.roomCalendarCard}>
     <View style={styles.roomCalendarTitleRow}>
@@ -416,7 +416,7 @@ function CoachRoomCalendar({ month, selectedDate, rows, loading, language, t, co
         const row = rowByDate.get(date);
         const selected = date === selectedDate;
         const inMonth = day.getMonth() === month.getMonth();
-        const markers = visibleRoomCalendarMarkers(row?.markers ?? []);
+        const markers = visibleRoomCalendarMarkers(row?.markers ?? []).filter((marker) => marker !== "availability_published" && marker !== "client_booking");
         const visibleMarkers = markers.slice(0, 3);
         const overflow = markers.length - visibleMarkers.length;
         return <Pressable key={date} onPress={() => onDateChange(date)} accessibilityRole="button" accessibilityLabel={`${formatDateLocalized(day, language, { weekday: "long", month: "long", day: "numeric" })}. ${roomFilterId === "all" ? `${t("allRooms")}. ` : ""}${markers.map(markerLabel).join(", ") || t("roomStatusAvailable")}`} accessibilityState={{ selected }} style={({ pressed }) => [styles.roomCalendarDay, { borderColor: selected ? "#f04488" : colors.border, backgroundColor: selected ? "#2b1f2a" : colors.surface, opacity: inMonth ? 1 : 0.44 }, pressed && styles.pressed]}><Text style={[styles.roomCalendarDayNumber, { color: selected ? "#ff82b7" : colors.foreground }]}>{day.getDate()}</Text><View style={styles.roomCalendarDots}>{visibleMarkers.map((marker) => <View key={marker} style={[styles.roomCalendarDot, { backgroundColor: roomStatusPresentation(marker).color }]} />)}{overflow > 0 ? <Text style={[styles.roomCalendarOverflow, { color: colors.muted }]}>+{overflow}</Text> : null}</View></Pressable>;

@@ -115,3 +115,11 @@
 - [x] Preserve selected-date authoritative room and Coach discovery when navigating the Client week selector
 - [x] Add regression coverage for Client week-card ordering, selection, local-date behavior, and booking-query synchronization
 - [x] Validate the responsive Client booking flow in Preview and public PWA builds
+
+- [x] Remove Coach-mode calendar dots for Coach availability published and Client booking received
+- [x] Remove the matching Coach-mode legend entries while retaining other room-status indicators
+- [x] Verify Client and Admin calendars retain their existing availability and booking indicators
+- [x] Run targeted regression tests and PWA validation for the Coach-only calendar visibility change
+- [ ] Save the verified Coach-only calendar checkpoint
+
+Validation evidence: type check passed; targeted room-calendar and room-status presentation tests passed (5/5); full lint passed; full test suite passed (all executable tests, one expected environment-dependent skip); web/PWA export passed.
