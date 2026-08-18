@@ -120,6 +120,20 @@
 - [x] Remove the matching Coach-mode legend entries while retaining other room-status indicators
 - [x] Verify Client and Admin calendars retain their existing availability and booking indicators
 - [x] Run targeted regression tests and PWA validation for the Coach-only calendar visibility change
-- [ ] Save the verified Coach-only calendar checkpoint
+- [x] Save the verified Coach-only calendar checkpoint
 
 Validation evidence: type check passed; targeted room-calendar and room-status presentation tests passed (5/5); full lint passed; full test suite passed (all executable tests, one expected environment-dependent skip); web/PWA export passed.
+
+- [x] Audit current role navigation, shared UI primitives, priority dashboards, and token usage against the global design-system specification
+- [x] Confirm the role-navigation change required by the new specification before modifying routes or visible tabs
+- [x] Create global tokens and shared primary/secondary/icon button, card/list row, status pill, avatar, bottom-nav, and stat-card components
+- [x] Migrate Client Home, Coach Today, and Admin Overview to the shared visual system
+- [x] Apply the same visual layer across booking, schedule, history, room management, and profile without changing business logic
+- [x] Add regression coverage and validate responsive role workflows, production build, and preserved navigation
+- [x] Implement confirmed Client, Coach, and Admin four-item tab sets without hiding a required workflow
+- [x] Route Client booking through Home only and move Client Progress into the History Upcoming/Past/Progress segmented view
+- [x] Add Coach availability access from Today and the Schedule header icon
+- [x] Build the Admin Reports screen from existing summary data with day/week/room/coach filters and no backend changes
+- [x] Create the global design tokens and shared component set specified for the visual system
+- [x] Migrate role dashboards and all remaining workflow screens to the shared visual system
+- [x] Add regression coverage and validate role navigation, reports filters, responsive layouts, and existing booking/room flows

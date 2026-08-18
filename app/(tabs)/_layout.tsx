@@ -23,15 +23,17 @@ export default function TabLayout() {
 
   const isCoach = role === "coach";
   const isAdmin = role === "admin";
+  const isClient = !isCoach && !isAdmin;
 
-  return <Tabs screenOptions={{ tabBarActiveTintColor: "#ff82b7", tabBarInactiveTintColor: "#777780", headerShown: false, tabBarButton: HapticTab, tabBarStyle: { paddingTop: 9, paddingBottom: bottomPadding, height: tabBarHeight, backgroundColor: "#151518", borderTopColor: colors.border, borderTopWidth: 1 }, tabBarLabelStyle: { fontSize: 10, fontWeight: "800", letterSpacing: 0.1 } }}>
-    <Tabs.Screen name="index" options={{ title: isCoach ? t("dashboard") : isAdmin ? t("schedule") : t("home"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="house.fill" color={color} /> }} />
+  return <Tabs screenOptions={{ tabBarActiveTintColor: colors.primary, tabBarInactiveTintColor: colors.mutedStrong, headerShown: false, tabBarButton: HapticTab, tabBarStyle: { paddingTop: 9, paddingBottom: bottomPadding, height: tabBarHeight, backgroundColor: colors.surface, borderTopColor: colors.border, borderTopWidth: 1 }, tabBarLabelStyle: { fontSize: 10, fontWeight: "600", letterSpacing: 0.5 } }}>
+    <Tabs.Screen name="index" options={{ title: isCoach ? "Today" : isAdmin ? "Overview" : t("home"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="house.fill" color={color} /> }} />
     <Tabs.Screen name="schedule" options={{ href: isAdmin ? null : undefined, title: t("schedule"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="calendar" color={color} /> }} />
-    <Tabs.Screen name="book" options={{ title: isCoach ? t("availabilityWorkspace") : t("book"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="calendar.badge.plus" color={color} /> }} />
-    <Tabs.Screen name="progress" options={{ title: isCoach ? t("clients") : isAdmin ? t("user") : t("progress"), tabBarIcon: ({ color }) => <IconSymbol size={22} name={isCoach || isAdmin ? "person.2.fill" : "chart.line.uptrend.xyaxis"} color={color} /> }} />
-    <Tabs.Screen name="profile" options={{ title: t("profile"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.fill" color={color} /> }} />
-    <Tabs.Screen name="history" options={{ href: null }} />
-    <Tabs.Screen name="admin" options={{ href: null }} />
-    <Tabs.Screen name="rooms" options={{ href: null }} />
+    <Tabs.Screen name="book" options={{ href: null }} />
+    <Tabs.Screen name="progress" options={{ href: isCoach ? undefined : null, title: t("clients"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.2.fill" color={color} /> }} />
+    <Tabs.Screen name="profile" options={{ href: isAdmin ? null : undefined, title: t("profile"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.fill" color={color} /> }} />
+    <Tabs.Screen name="history" options={{ href: isClient ? undefined : null, title: t("history"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="clock" color={color} /> }} />
+    <Tabs.Screen name="admin" options={{ href: isAdmin ? undefined : null, title: t("coaches"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.2.fill" color={color} /> }} />
+    <Tabs.Screen name="rooms" options={{ href: isAdmin ? undefined : null, title: t("rooms"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="map" color={color} /> }} />
+    <Tabs.Screen name="reports" options={{ href: isAdmin ? undefined : null, title: "Reports", tabBarIcon: ({ color }) => <IconSymbol size={22} name="chart.bar" color={color} /> }} />
   </Tabs>;
 }

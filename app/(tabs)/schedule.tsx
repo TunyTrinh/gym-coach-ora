@@ -194,6 +194,9 @@ export default function ScheduleScreen() {
         title={isCoach ? t("coachSchedule") : t("scheduleTitle")}
         subtitle={isCoach ? t("manageCoachTime") : t("scheduleSubtitle")}
         label={isCoach ? t("coachLabel").toUpperCase() : t("scheduleHeader")}
+        onPress={isCoach ? () => router.push("/book") : undefined}
+        icon="plus"
+        buttonAccessibilityLabel={t("addAvailability")}
       />
 
       {isCoach ? <SurfaceCard style={styles.coachActionCard}>
