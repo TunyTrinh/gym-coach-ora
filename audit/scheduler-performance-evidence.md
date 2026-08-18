@@ -8,4 +8,6 @@ After parallelizing independent closure, booking-overlap, Coach-availability, an
 
 ## Public PWA verification status
 
-On August 18, 2026, an authenticated Client public-PWA check at `/book` successfully returned current room data after the checkpoint. However, its visible navigation remained `Home`, `Schedule`, `Profile`, `History` even after a cache-bypassing refresh. This is the previous published artifact, not the current source order. Deployment propagation or public release routing requires further verification before claiming public-PWA navigation parity.
+On August 18, 2026, the first authenticated Client public-PWA check at `/book` returned current room data but continued to serve the preceding bundle after a cache-bypassing refresh. A subsequent public release check confirmed a new bundle and modification timestamp. The authenticated Client PWA then showed room data and the requested visible order: `Home`, `Schedule`, `History`, `Profile`. The Client booking surface no longer displayed two independent schedule fetch states; the room cards and Coach availability section resolved from the single selected-date schedule response.
+
+Installed native-App verification remains pending because no connected device or installed-build session is available in this workspace. The Expo export, type checking, linting, and deterministic regression suite provide the available cross-platform build evidence.
