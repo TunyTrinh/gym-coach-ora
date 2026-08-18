@@ -17,8 +17,19 @@ describe("service-independent availability contract", () => {
   it("publishes Coach availability without selecting or inferring an active service", () => {
     const routers = readFileSync(resolve(root, "server/routers.ts"), "utf8");
     const createRoute = routers.slice(routers.indexOf("create: protectedProcedure"), routers.indexOf("setStatus: protectedProcedure"));
+    const bookingRoute = routers.slice(routers.indexOf("book: protectedProcedure"), routers.indexOf("bookRoom: protectedProcedure"));
+    const bookingScreen = readFileSync(resolve(root, "app/(tabs)/book.tsx"), "utf8");
+    const translations = readFileSync(resolve(root, "lib/i18n.ts"), "utf8");
     expect(createRoute).not.toContain("No active coaching service is available.");
+    expect(createRoute).not.toContain("serviceTypeId: input");
     expect(createRoute).toContain("serviceTypeId: null");
+    expect(bookingRoute).not.toContain("serviceTypeId: z.number");
+    expect(bookingRoute).not.toContain("Select an active coaching service");
+    expect(bookingRoute).toContain("serviceTypeId: null");
+    expect(bookingScreen).not.toContain("catalog.services");
+    expect(bookingScreen).not.toContain("chooseServiceForBooking");
+    expect(translations).not.toContain("chooseServiceForBooking");
+    expect(translations).not.toContain("noActiveServicesForBooking");
     expect(routers).toContain("bookRoom: protectedProcedure");
   });
 });

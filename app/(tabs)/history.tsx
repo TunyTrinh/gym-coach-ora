@@ -8,7 +8,7 @@ import { useColors } from "@/hooks/use-colors";
 import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
-import { getBookingSlot, getCoach, getService } from "@/shared/gym";
+import { getBookingSlot, getCoach } from "@/shared/gym";
 
 export default function HistoryScreen() {
   const colors = useColors();
@@ -32,10 +32,9 @@ export default function HistoryScreen() {
       <View style={styles.list}>{filtered.length === 0 ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noActivityYet")}</Text><Text style={[styles.emptyText, { color: colors.muted }]}>{t("historyEmpty")}</Text></SurfaceCard> : filtered.map((booking) => {
         const slot = getBookingSlot(snapshot, booking);
         if (!slot) return null;
-        const service = getService(snapshot, slot.serviceTypeId);
         const coach = getCoach(snapshot, slot.coachId);
         const tone = booking.status === "Completed" ? "success" : booking.status === "Cancelled" ? "neutral" : "error";
-        return <SurfaceCard key={booking.id} style={styles.historyCard}><View style={styles.historyTop}><View><Text style={[styles.historyDate, { color: colors.foreground }]}>{formatDateLocalized(slot.start, language, { month: "short", day: "numeric", year: "numeric" })}</Text><Text style={[styles.historyTime, { color: colors.muted }]}>{formatDateLocalized(slot.start, language, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeLocalized(slot.start, language)}</Text></View><StatusBadge label={statusLabel(booking.status, t)} tone={tone} /></View><View style={[styles.historyRule, { backgroundColor: colors.border }]} /><Text style={[styles.historyService, { color: colors.foreground }]}>{service?.name}</Text><Text style={[styles.historyMeta, { color: colors.muted }]}>{coach?.fullName ?? t("openGym")} · {slot.room}</Text>{booking.checkInTime ? <Text style={[styles.checkInText, { color: colors.success }]}>{t("checkedInAt")} {formatTimeLocalized(booking.checkInTime, language)}</Text> : booking.cancellationReason ? <Text style={[styles.checkInText, { color: colors.muted }]}>{t("reason")}: {booking.cancellationReason}</Text> : null}</SurfaceCard>;
+        return <SurfaceCard key={booking.id} style={styles.historyCard}><View style={styles.historyTop}><View><Text style={[styles.historyDate, { color: colors.foreground }]}>{formatDateLocalized(slot.start, language, { month: "short", day: "numeric", year: "numeric" })}</Text><Text style={[styles.historyTime, { color: colors.muted }]}>{formatDateLocalized(slot.start, language, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeLocalized(slot.start, language)}</Text></View><StatusBadge label={statusLabel(booking.status, t)} tone={tone} /></View><View style={[styles.historyRule, { backgroundColor: colors.border }]} /><Text style={[styles.historyService, { color: colors.foreground }]}>{coach ? t("session") : t("openGym")}</Text><Text style={[styles.historyMeta, { color: colors.muted }]}>{coach?.fullName ?? t("openGym")} · {slot.room}</Text>{booking.checkInTime ? <Text style={[styles.checkInText, { color: colors.success }]}>{t("checkedInAt")} {formatTimeLocalized(booking.checkInTime, language)}</Text> : booking.cancellationReason ? <Text style={[styles.checkInText, { color: colors.muted }]}>{t("reason")}: {booking.cancellationReason}</Text> : null}</SurfaceCard>;
       })}</View>
       <GhostButton title={t("exportAttendance")} onPress={() => undefined} icon="arrow.right" /></> : null}
     </ScrollView>

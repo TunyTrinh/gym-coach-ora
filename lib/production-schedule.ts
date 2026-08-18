@@ -11,7 +11,6 @@ type ScheduleRow = {
   endAt: Date | string;
   room: string;
   maximumCapacity: number;
-  serviceName: string | null;
   availabilityId: string | null;
   coachName?: string | null;
   clientId?: number;
@@ -31,25 +30,12 @@ export function adaptProductionSchedule(
   base: GymSnapshot,
   input: { role: Role; user?: { id?: number | null; name?: string | null; email?: string | null } | null; rows: ScheduleRow[] },
 ): GymSnapshot {
-  const services = new Map<string, GymSnapshot["services"][number]>();
   const coaches = new Map<string, GymSnapshot["coaches"][number]>();
   const availability = new Map<string, GymSnapshot["availabilityShifts"][number]>();
   const slots: GymSnapshot["slots"] = [];
   const bookings: GymSnapshot["bookings"] = [];
 
   for (const row of input.rows) {
-    const serviceId = row.serviceName ? `service-${row.serviceName.replace(/\s+/g, "-").toLowerCase()}` : undefined;
-    if (serviceId && !services.has(serviceId)) {
-      services.set(serviceId, {
-        id: serviceId,
-        name: row.serviceName ?? "Coach session",
-        description: "",
-        durationMinutes: Math.round((new Date(row.endAt).getTime() - new Date(row.startAt).getTime()) / 60_000),
-        defaultCapacity: row.maximumCapacity,
-        coachRequired: true,
-        cancellationWindowMinutes: 0,
-      });
-    }
     const coachId = row.coachName ? `coach-${row.availabilityId ?? row.id}` : undefined;
     if (coachId && !coaches.has(coachId)) {
       coaches.set(coachId, { id: coachId, fullName: row.coachName!, specialty: "", initials: initials(row.coachName!), accent: "#9660bd", active: true });
@@ -59,7 +45,7 @@ export function adaptProductionSchedule(
       gymId: "database-gym",
       coachId,
       availabilityShiftId: row.availabilityId ?? undefined,
-      serviceTypeId: serviceId,
+      serviceTypeId: undefined,
       start: new Date(row.startAt).toISOString(),
       end: new Date(row.endAt).toISOString(),
       maximumCapacity: row.maximumCapacity,
@@ -83,7 +69,7 @@ export function adaptProductionSchedule(
         id: row.availabilityId,
         gymId: "database-gym",
         coachId: "database-coach",
-        serviceTypeId: serviceId,
+        serviceTypeId: undefined,
         start: new Date(row.startAt).toISOString(),
         end: new Date(row.endAt).toISOString(),
         maximumCapacity: row.availabilityCapacity ?? row.maximumCapacity,
@@ -98,7 +84,7 @@ export function adaptProductionSchedule(
   return {
     ...base,
     member: { ...base.member, id: `member-${input.user?.id ?? "anonymous"}`, fullName, email: input.user?.email ?? "", initials: initials(fullName), role: input.role },
-    services: [...services.values()],
+    services: [],
     coaches: [...coaches.values()],
     availabilityShifts: [...availability.values()],
     slots,

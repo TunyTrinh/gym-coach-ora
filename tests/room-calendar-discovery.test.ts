@@ -15,8 +15,8 @@ describe("visible room status and service-independent Client discovery", () => {
     expect(routers).toContain('markers.push("availability_published")');
     expect(routers).toContain('markers.push("client_booking")');
     expect(routers).toContain("roomSchedule: protectedProcedure");
-    expect(routers).toContain("serviceTypeId: availabilityShifts.serviceTypeId");
     expect(routers).toContain("coachId: availabilityShifts.coachId");
+    expect(routers).not.toContain("serviceTypeId: availabilityShifts.serviceTypeId");
   });
 
   it("drives Client Coach discovery from the selected-date room schedule and retains blocked windows with reasons", () => {

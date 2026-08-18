@@ -14,7 +14,7 @@ import { isLocalTestMode } from "@/lib/local-test-mode";
 import { adaptProductionSchedule } from "@/lib/production-schedule";
 import { trpc } from "@/lib/trpc";
 import { formatDateLocalized, formatTimeLocalized, localeFor } from "@/lib/i18n";
-import { getBookingSlot, getCoach, getService } from "@/shared/gym";
+import { getBookingSlot, getCoach } from "@/shared/gym";
 import { roomStatusPresentation, visibleRoomCalendarMarkers, type RoomStatusMarker } from "@/shared/room-status-presentation";
 
 const weekDayReference = new Date(2024, 0, 7);
@@ -286,9 +286,8 @@ export default function ScheduleScreen() {
       </SurfaceCard> : selectedBookings.map((booking) => {
         const slot = getBookingSlot(activeSnapshot, booking);
         if (!slot) return null;
-        const service = getService(activeSnapshot, slot.serviceTypeId);
         const coach = getCoach(activeSnapshot, slot.coachId);
-        const bookingDuration = booking.durationMinutes ?? service?.durationMinutes ?? Math.round((new Date(slot.end).getTime() - new Date(slot.start).getTime()) / 60_000);
+        const bookingDuration = booking.durationMinutes ?? Math.round((new Date(slot.end).getTime() - new Date(slot.start).getTime()) / 60_000);
         const minutesUntil = Math.round((new Date(slot.start).getTime() - now.getTime()) / 60_000);
         const checkInOpen = minutesUntil <= 30 && minutesUntil >= -30;
 
@@ -304,7 +303,7 @@ export default function ScheduleScreen() {
           return <SurfaceCard key={booking.id} style={styles.coachBookingCard}>
             <View style={styles.bookingTop}><View><Text style={[styles.bookingTime, { color: colors.foreground }]}>{formatTimeLocalized(slot.start, language)}–{formatTimeLocalized(slot.end, language)}</Text><Text style={[styles.bookingDate, { color: "#ff82b7" }]}>{bookingDuration} {t("minutes")} · {slot.room}</Text></View><StatusBadge label={statusLabel(booking.status, t)} tone={booking.status === "Confirmed" ? "success" : booking.status === "Pending" ? "warning" : "neutral"} /></View>
             <View style={[styles.timeBlock, { backgroundColor: blockColor(slot.start) }]}><Text style={styles.timeBlockTime}>{formatTimeLocalized(slot.start, language)}–{formatTimeLocalized(slot.end, language)}</Text><Text style={styles.timeBlockClient}>{clientName}</Text></View>
-            <View style={styles.clientRow}><Avatar initials={initials(clientName)} accent="#b7e4dd" size={36} /><View style={styles.clientCopy}><Text style={[styles.clientName, { color: colors.foreground }]}>{clientName}</Text><Text style={[styles.clientMeta, { color: colors.muted }]}>{service?.name ?? t("session")}</Text></View></View>
+            <View style={styles.clientRow}><Avatar initials={initials(clientName)} accent="#b7e4dd" size={36} /><View style={styles.clientCopy}><Text style={[styles.clientName, { color: colors.foreground }]}>{clientName}</Text><Text style={[styles.clientMeta, { color: colors.muted }]}>{t("session")}</Text></View></View>
             <View style={[styles.capacityPanel, { borderColor: colors.border, backgroundColor: colors.surface }]}><View><Text style={[styles.capacityValue, { color: colors.foreground }]}>{concurrent}</Text><Text style={[styles.capacityLabel, { color: colors.muted }]}>{t("concurrentBooked")}</Text></View><View style={styles.capacityRight}><Text style={[styles.capacityValue, { color: "#ff82b7" }]}>{remaining}</Text><Text style={[styles.capacityLabel, { color: colors.muted }]}>{t("remainingCapacity")}</Text></View></View>
             {booking.status === "Confirmed" ? <View style={styles.coachActions}><Pressable onPress={() => handleAttendance(booking.id, "Completed")} style={[styles.attendanceButton, { backgroundColor: `${colors.success}18` }]}><Text style={[styles.attendanceButtonText, { color: colors.success }]}>{t("markDone")}</Text></Pressable><Pressable onPress={() => handleAttendance(booking.id, "No-show")} style={[styles.attendanceButton, { backgroundColor: `${colors.error}14` }]}><Text style={[styles.attendanceButtonText, { color: colors.error }]}>{t("noShow")}</Text></Pressable></View> : null}
           </SurfaceCard>;
@@ -313,7 +312,7 @@ export default function ScheduleScreen() {
         return <SurfaceCard key={booking.id} style={styles.bookingCard}>
           <View style={styles.bookingTop}><View><Text style={[styles.bookingTime, { color: colors.foreground }]}>{formatTimeLocalized(slot.start, language)} <Text style={[styles.bookingDuration, { color: colors.muted }]}>· {bookingDuration} {t("minutes")}</Text></Text><Text style={[styles.bookingDate, { color: "#ff82b7" }]}>{formatDateLocalized(slot.start, language, { weekday: "short", month: "short", day: "numeric" }).toUpperCase()}</Text></View><StatusBadge label={booking.checkInTime ? t("checkedIn") : statusLabel(booking.status, t)} tone={booking.checkInTime ? "success" : "accent"} /></View>
           <View style={[styles.bookingRule, { backgroundColor: colors.border }]} />
-          <View style={styles.bookingMain}>{coach ? <Avatar initials={coach.initials} accent={coach.accent} size={40} /> : <View style={styles.openIcon}><Text style={styles.openIconText}>⌁</Text></View>}<View style={styles.bookingCopy}><Text style={[styles.bookingService, { color: colors.foreground }]}>{service?.name}</Text><Text style={[styles.bookingCoach, { color: colors.muted }]}>{coach?.fullName ?? t("selfGuidedAccess")}</Text><Text style={[styles.bookingLocation, { color: colors.muted }]}>{slot.room}</Text></View></View>
+          <View style={styles.bookingMain}>{coach ? <Avatar initials={coach.initials} accent={coach.accent} size={40} /> : <View style={styles.openIcon}><Text style={styles.openIconText}>⌁</Text></View>}<View style={styles.bookingCopy}><Text style={[styles.bookingService, { color: colors.foreground }]}>{coach ? t("session") : t("selfGuidedAccess")}</Text><Text style={[styles.bookingCoach, { color: colors.muted }]}>{coach?.fullName ?? t("selfGuidedAccess")}</Text><Text style={[styles.bookingLocation, { color: colors.muted }]}>{slot.room}</Text></View></View>
           <View style={styles.actionRow}>{checkInOpen && !booking.checkInTime ? <View style={styles.actionFill}><PrimaryButton title={t("checkIn")} onPress={() => handleCheckIn(booking.id)} icon="checkmark.circle.fill" /></View> : <View style={styles.windowNote}><Text style={[styles.windowText, { color: colors.muted }]}>{booking.checkInTime ? t("checkInRecorded") : `${t("checkInOpens")} ${Math.max(1, minutesUntil - 30)} ${t("minutes")} `}</Text></View>}<Pressable onPress={() => handleCancel(booking.id)} accessibilityRole="button" accessibilityLabel={t("cancelBooking")} style={({ pressed }) => [styles.cancelButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.cancelText, { color: colors.error }]}>{t("cancel")}</Text></Pressable></View>
         </SurfaceCard>;
       })}

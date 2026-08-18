@@ -6,7 +6,7 @@ import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_
 import { bookGymSlot, cancelGymBooking, getGymSnapshot, markGymAttendance } from "./gym-store";
 import { createGymRoom, deleteCoachAccount, deleteGymRoom, getAdminRoomSchedule, getAuthorizedCoachIdForUser, getDb, getRoomClosures, grantCoachGoogleAccess, listActiveGyms, listCoachAccounts, listRooms, removeRoomClosure, setCoachGoogleAccess, setRoomClosure, updateGymRoom } from "./db";
 import { isValidGoogleEmail, normalizeGoogleEmail } from "./google-authorization";
-import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, gymRooms, healthMeasurements, notifications, roomClosures, serviceTypes, timeSlots, users } from "../drizzle/schema";
+import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, gymRooms, healthMeasurements, notifications, roomClosures, timeSlots, users } from "../drizzle/schema";
 import { and, asc, eq, gt, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { buildAvailabilityRoomChoices } from "../shared/availability-room-collection";
@@ -133,17 +133,6 @@ export const appRouter = router({
         gymId: coaches.gymId,
       }).from(coaches).where(eq(coaches.active, true)).orderBy(asc(coaches.fullName));
     }),
-    services: protectedProcedure.query(async () => {
-      const db = await getDb();
-      if (!db) throw new Error("Database unavailable");
-      return db.select({
-        id: serviceTypes.id,
-        name: serviceTypes.name,
-        description: serviceTypes.description,
-        durationMinutes: serviceTypes.durationMinutes,
-        cancellationWindowMinutes: serviceTypes.cancellationWindowMinutes,
-      }).from(serviceTypes).where(eq(serviceTypes.active, true)).orderBy(asc(serviceTypes.name));
-    }),
   }),
   member: router({
     schedule: protectedProcedure.query(async ({ ctx }) => {
@@ -162,12 +151,10 @@ export const appRouter = router({
         room: timeSlots.room,
         maximumCapacity: timeSlots.maximumCapacity,
         coachName: coaches.fullName,
-        serviceName: serviceTypes.name,
         availabilityId: availabilityShifts.externalId,
         }).from(bookings)
         .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
         .leftJoin(coaches, eq(timeSlots.coachId, coaches.id))
-        .leftJoin(serviceTypes, eq(timeSlots.serviceTypeId, serviceTypes.id))
         .leftJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
         .where(eq(bookings.memberUserId, ctx.user.id))
         .orderBy(asc(timeSlots.startAt));
@@ -416,19 +403,16 @@ export const appRouter = router({
           startAt: timeSlots.startAt,
           endAt: timeSlots.endAt,
           coachName: coaches.fullName,
-          serviceName: serviceTypes.name,
           availabilityId: availabilityShifts.externalId,
         }).from(bookings)
           .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
           .leftJoin(coaches, eq(timeSlots.coachId, coaches.id))
-          .leftJoin(serviceTypes, eq(timeSlots.serviceTypeId, serviceTypes.id))
           .leftJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
           .where(and(inArray(timeSlots.roomId, roomIds), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, dayEnd), gt(timeSlots.endAt, dayStart))) : [];
         const availabilityRows = roomIds.length ? await db.select({
           id: availabilityShifts.externalId,
           coachId: availabilityShifts.coachId,
           roomId: availabilityShifts.roomId,
-          serviceTypeId: availabilityShifts.serviceTypeId,
           startAt: availabilityShifts.startAt,
           endAt: availabilityShifts.endAt,
           status: availabilityShifts.status,
@@ -516,7 +500,6 @@ export const appRouter = router({
         const windows = await db.select({
           id: availabilityShifts.externalId,
           coachId: availabilityShifts.coachId,
-          serviceTypeId: availabilityShifts.serviceTypeId,
           roomId: availabilityShifts.roomId,
           startAt: availabilityShifts.startAt,
           endAt: availabilityShifts.endAt,
@@ -554,7 +537,6 @@ export const appRouter = router({
           coachId: availabilityShifts.coachId,
           coachName: coaches.fullName,
           coachSpecialty: coaches.specialty,
-          serviceTypeId: availabilityShifts.serviceTypeId,
           roomId: availabilityShifts.roomId,
           startAt: availabilityShifts.startAt,
           endAt: availabilityShifts.endAt,
@@ -662,7 +644,7 @@ export const appRouter = router({
         return { success: true as const };
       }),
     book: protectedProcedure
-      .input(z.object({ windowId: z.string().min(1).max(64), serviceTypeId: z.number().int().positive(), startAt: z.string().datetime(), durationMinutes: durationInput }))
+      .input(z.object({ windowId: z.string().min(1).max(64), startAt: z.string().datetime(), durationMinutes: durationInput }))
       .mutation(async ({ ctx, input }) => {
         if (ctx.user.role !== "client") throw new Error("Only members can book a coach shift.");
         const db = await getDb();
@@ -670,8 +652,6 @@ export const appRouter = router({
         return db.transaction(async (tx: any) => {
           const shift = await tx.select().from(availabilityShifts).where(eq(availabilityShifts.externalId, input.windowId)).limit(1);
           if (!shift[0]) throw new Error("Availability window not found.");
-          const service = await tx.select({ id: serviceTypes.id }).from(serviceTypes).where(and(eq(serviceTypes.id, input.serviceTypeId), eq(serviceTypes.active, true))).limit(1);
-          if (!service[0]) throw new Error("Select an active coaching service for this session.");
           await tx.execute(sql`SELECT id FROM availabilityShifts WHERE id = ${shift[0].id} FOR UPDATE`);
           // A Client record lock also serializes bookings across different Coach windows for the same Client.
           await tx.execute(sql`SELECT id FROM users WHERE id = ${ctx.user.id} FOR UPDATE`);
@@ -695,7 +675,7 @@ export const appRouter = router({
           }
           const bookingExternalId = `booking-${randomUUID()}`;
           const slotExternalId = `booking-slot-${bookingExternalId}`;
-          await tx.insert(timeSlots).values({ externalId: slotExternalId, gymId: shift[0].gymId, coachId: shift[0].coachId, roomId: shift[0].roomId, serviceTypeId: service[0].id, startAt, endAt, maximumCapacity: shift[0].maximumCapacity, bookedCount: 1, status: "Full", room: shift[0].location });
+          await tx.insert(timeSlots).values({ externalId: slotExternalId, gymId: shift[0].gymId, coachId: shift[0].coachId, roomId: shift[0].roomId, serviceTypeId: null, startAt, endAt, maximumCapacity: shift[0].maximumCapacity, bookedCount: 1, status: "Full", room: shift[0].location });
           const slot = await tx.select({ id: timeSlots.id }).from(timeSlots).where(eq(timeSlots.externalId, slotExternalId)).limit(1);
           await tx.insert(bookings).values({ externalId: bookingExternalId, memberUserId: ctx.user.id, timeSlotId: slot[0].id, availabilityShiftId: shift[0].id, status: "confirmed" });
           const booking = await tx.select({ id: bookings.id }).from(bookings).where(eq(bookings.externalId, bookingExternalId)).limit(1);
@@ -813,13 +793,11 @@ export const appRouter = router({
         endAt: timeSlots.endAt,
         room: timeSlots.room,
         maximumCapacity: timeSlots.maximumCapacity,
-        serviceName: serviceTypes.name,
         availabilityId: availabilityShifts.externalId,
         availabilityCapacity: availabilityShifts.maximumCapacity,
       }).from(bookings)
         .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
         .innerJoin(users, eq(bookings.memberUserId, users.id))
-        .innerJoin(serviceTypes, eq(timeSlots.serviceTypeId, serviceTypes.id))
         .innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
         .where(eq(availabilityShifts.coachId, coachId))
         .orderBy(asc(timeSlots.startAt));

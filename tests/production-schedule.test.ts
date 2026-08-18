@@ -20,7 +20,6 @@ describe("production schedule adapter", () => {
         endAt: "2026-08-18T10:00:00.000Z",
         room: "Studio A",
         maximumCapacity: 3,
-        serviceName: "Strength Training",
         availabilityId: "availability-live-1",
         coachName: "Maya Chen",
       }],

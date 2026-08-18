@@ -13,7 +13,7 @@ describe("restoreUpcomingAvailability", () => {
     expect(refreshed.bookings).toEqual(staleSnapshot.bookings);
     expect(refreshed.measurements).toEqual(staleSnapshot.measurements);
     expect(refreshed.slots).toHaveLength(staleSnapshot.slots.length + freshOpenSlotCount);
-    expect(refreshed.slots.some((slot) => slot.serviceTypeId === "service-open" && slot.status === "Open" && new Date(slot.start).getTime() > now.getTime())).toBe(true);
+    expect(refreshed.slots.some((slot) => slot.status === "Open" && new Date(slot.start).getTime() > now.getTime())).toBe(true);
   });
 
   it("does not duplicate availability when a saved snapshot already has future open slots", () => {

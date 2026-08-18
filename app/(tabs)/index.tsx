@@ -10,7 +10,7 @@ import { useLanguage } from "@/lib/language-provider";
 import { isLocalTestMode } from "@/lib/local-test-mode";
 import { trpc } from "@/lib/trpc";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
-import { getBookingSlot, getService } from "@/shared/gym";
+import { getBookingSlot } from "@/shared/gym";
 
 import { useAuth } from "@/hooks/use-auth";
 
@@ -25,7 +25,6 @@ export default function HomeScreen() {
   const productionNotifications = trpc.member.notifications.useQuery(undefined, { enabled: !previewMode && Boolean(user) });
   const nextBooking = previewMode ? upcomingBookings[0] : undefined;
   const nextSlot = nextBooking ? getBookingSlot(snapshot, nextBooking) : undefined;
-  const nextService = nextSlot ? getService(snapshot, nextSlot.serviceTypeId) : undefined;
   const nextServerBooking = useMemo(() => (productionSchedule.data ?? []).find((booking) => ["pending", "confirmed"].includes(booking.status) && new Date(booking.startAt) > new Date()), [productionSchedule.data]);
   const hasNextBooking = previewMode ? Boolean(nextBooking) : Boolean(nextServerBooking);
   const firstName = (previewMode ? snapshot.member.fullName : user?.name?.trim() || "Coachora member").split(" ")[0];
@@ -44,7 +43,7 @@ export default function HomeScreen() {
       {role === "client" ? <>
         <PrimaryButton title={t("bookSessionTitle")} onPress={() => router.push("/book")} icon="calendar.badge.plus" />
         <Text style={[styles.sectionLabel, { color: "#A1A1AA" }]}>{t("upcomingSchedule").toUpperCase()}</Text>
-        <SurfaceCard style={styles.nextSessionCard} onPress={() => router.push("/schedule")} accessibilityLabel={t("upcomingSchedule")}><View style={styles.listCopy}><Text style={styles.listTitle}>{previewMode ? nextService?.name ?? t("noSessionYet") : nextServerBooking?.serviceName ?? t("noSessionYet")}</Text><Text style={styles.listMeta}>{previewMode && nextSlot ? `${formatDateLocalized(nextSlot.start, language)} · ${formatTimeLocalized(nextSlot.start, language)}` : nextServerBooking ? `${formatDateLocalized(new Date(nextServerBooking.startAt).toISOString(), language)} · ${formatTimeLocalized(new Date(nextServerBooking.startAt).toISOString(), language)}` : t("bookSessionSubtitle")}</Text></View><StatusBadge label={hasNextBooking ? t("booked") : t("available")} tone={hasNextBooking ? "pro" : "success"} /></SurfaceCard>
+        <SurfaceCard style={styles.nextSessionCard} onPress={() => router.push("/schedule")} accessibilityLabel={t("upcomingSchedule")}><View style={styles.listCopy}><Text style={styles.listTitle}>{hasNextBooking ? t("session") : t("noSessionYet")}</Text><Text style={styles.listMeta}>{previewMode && nextSlot ? `${formatDateLocalized(nextSlot.start, language)} · ${formatTimeLocalized(nextSlot.start, language)}` : nextServerBooking ? `${formatDateLocalized(new Date(nextServerBooking.startAt).toISOString(), language)} · ${formatTimeLocalized(new Date(nextServerBooking.startAt).toISOString(), language)}` : t("bookSessionSubtitle")}</Text></View><StatusBadge label={hasNextBooking ? t("booked") : t("available")} tone={hasNextBooking ? "pro" : "success"} /></SurfaceCard>
       </> : null}
 
       {role === "coach" ? <>

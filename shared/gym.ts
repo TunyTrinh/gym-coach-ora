@@ -41,7 +41,7 @@ export interface TimeSlot {
   roomId?: string;
   /** Present when this booked session belongs to a coach availability window. */
   availabilityShiftId?: string;
-  /** Service is present for Coach-led bookings and absent for room-only gym access. */
+  /** Legacy compatibility metadata. New runtime bookings always leave this empty. */
   serviceTypeId?: string;
   start: string;
   end: string;
@@ -56,7 +56,7 @@ export interface AvailabilityShift {
   gymId: string;
   coachId: string;
   roomId?: string;
-  /** A Coach publishes time and a room; a service is chosen only for a Coach-led booking. */
+  /** Legacy compatibility metadata. New runtime availability always leaves this empty. */
   serviceTypeId?: string;
   start: string;
   end: string;
@@ -74,8 +74,6 @@ export interface AvailabilityShift {
 
 export interface AvailabilityCreateInput {
   coachId: string | number;
-  /** Retained for service metadata; coach publication no longer asks for it. */
-  serviceTypeId?: string | number;
   startDate: string;
   startTime: string;
   endTime: string;
@@ -188,39 +186,33 @@ export function seedGymData(now = new Date()): GymSnapshot {
     { id: "coach-jordan", fullName: "Jordan Brooks", specialty: "Conditioning & boxing", initials: "JB", accent: "#7dd3c7", active: true },
   ];
 
-  const services: ServiceType[] = [
-    { id: "service-strength", name: "Strength Training", description: "Build confidence with a focused strength session.", durationMinutes: 60, defaultCapacity: 8, coachRequired: true, price: 38, cancellationWindowMinutes: 120 },
-    { id: "service-yoga", name: "Yoga Flow", description: "A grounded mobility flow for every level.", durationMinutes: 45, defaultCapacity: 18, coachRequired: true, price: 22, cancellationWindowMinutes: 90 },
-    { id: "service-open", name: "Open Gym", description: "Train independently with full floor access.", durationMinutes: 90, defaultCapacity: 24, coachRequired: false, cancellationWindowMinutes: 60 },
-  ];
+  const services: ServiceType[] = [];
 
   const slotBlueprints = [
-    { day: 0, hour: 6, minute: 30, serviceTypeId: "service-open", coachId: undefined, room: "Main floor", capacity: 24 },
-    { day: 0, hour: 18, minute: 0, serviceTypeId: "service-strength", coachId: "coach-maya", room: "Studio A", capacity: 8 },
-    { day: 1, hour: 7, minute: 0, serviceTypeId: "service-yoga", coachId: "coach-jordan", room: "Studio B", capacity: 18 },
-    { day: 1, hour: 12, minute: 30, serviceTypeId: "service-open", coachId: undefined, room: "Main floor", capacity: 24 },
-    { day: 1, hour: 18, minute: 30, serviceTypeId: "service-strength", coachId: "coach-maya", room: "Studio A", capacity: 8 },
-    { day: 2, hour: 6, minute: 30, serviceTypeId: "service-strength", coachId: "coach-jordan", room: "Studio B", capacity: 8 },
-    { day: 2, hour: 17, minute: 30, serviceTypeId: "service-yoga", coachId: "coach-maya", room: "Studio B", capacity: 18 },
-    { day: 3, hour: 9, minute: 0, serviceTypeId: "service-open", coachId: undefined, room: "Main floor", capacity: 24 },
-    { day: 3, hour: 18, minute: 0, serviceTypeId: "service-strength", coachId: "coach-jordan", room: "Studio A", capacity: 8 },
-    { day: 4, hour: 7, minute: 30, serviceTypeId: "service-yoga", coachId: "coach-maya", room: "Studio B", capacity: 18 },
-    { day: 5, hour: 10, minute: 0, serviceTypeId: "service-open", coachId: undefined, room: "Main floor", capacity: 24 },
-    { day: 6, hour: 16, minute: 30, serviceTypeId: "service-strength", coachId: "coach-maya", room: "Studio A", capacity: 8 },
+    { day: 0, hour: 6, minute: 30, durationMinutes: 90, coachId: undefined, room: "Main floor", capacity: 24 },
+    { day: 0, hour: 18, minute: 0, durationMinutes: 60, coachId: "coach-maya", room: "Studio A", capacity: 8 },
+    { day: 1, hour: 7, minute: 0, durationMinutes: 45, coachId: "coach-jordan", room: "Studio B", capacity: 18 },
+    { day: 1, hour: 12, minute: 30, durationMinutes: 90, coachId: undefined, room: "Main floor", capacity: 24 },
+    { day: 1, hour: 18, minute: 30, durationMinutes: 60, coachId: "coach-maya", room: "Studio A", capacity: 8 },
+    { day: 2, hour: 6, minute: 30, durationMinutes: 60, coachId: "coach-jordan", room: "Studio B", capacity: 8 },
+    { day: 2, hour: 17, minute: 30, durationMinutes: 45, coachId: "coach-maya", room: "Studio B", capacity: 18 },
+    { day: 3, hour: 9, minute: 0, durationMinutes: 90, coachId: undefined, room: "Main floor", capacity: 24 },
+    { day: 3, hour: 18, minute: 0, durationMinutes: 60, coachId: "coach-jordan", room: "Studio A", capacity: 8 },
+    { day: 4, hour: 7, minute: 30, durationMinutes: 45, coachId: "coach-maya", room: "Studio B", capacity: 18 },
+    { day: 5, hour: 10, minute: 30, durationMinutes: 90, coachId: undefined, room: "Main floor", capacity: 24 },
+    { day: 6, hour: 16, minute: 30, durationMinutes: 60, coachId: "coach-maya", room: "Studio A", capacity: 8 },
   ];
 
   const slots: TimeSlot[] = slotBlueprints.map((blueprint, index) => {
     let start = atDay(now, blueprint.day + 1, blueprint.hour, blueprint.minute);
     if (index === 0) start = addMinutes(now, 90);
-    const service = services.find((item) => item.id === blueprint.serviceTypeId)!;
     const bookedCount = index === 1 ? 5 : index === 4 ? 7 : index === 6 ? 13 : index === 8 ? 8 : index % 3 === 0 ? 4 : 2;
     return {
       id: `slot-${index + 1}`,
       gymId: gym.id,
       coachId: blueprint.coachId,
-      serviceTypeId: blueprint.serviceTypeId,
       start: iso(start),
-      end: iso(addMinutes(start, service.durationMinutes)),
+      end: iso(addMinutes(start, blueprint.durationMinutes)),
       maximumCapacity: blueprint.capacity,
       bookedCount,
       status: bookedCount >= blueprint.capacity ? "Full" : "Open",
@@ -241,16 +233,15 @@ export function seedGymData(now = new Date()): GymSnapshot {
   const yesterday = new Date(now);
   yesterday.setDate(yesterday.getDate() - 2);
   const coachAvailabilityBlueprints = [
-    { day: 1, startHour: 8, endHour: 21, coachId: "coach-maya", serviceTypeId: "service-strength", room: "Gym floor 2", note: "Strength and mobility sessions", maximumCapacity: 3 },
-    { day: 2, startHour: 9, endHour: 18, coachId: "coach-jordan", serviceTypeId: "service-strength", room: "Studio B", note: "Online coaching is available", maximumCapacity: 2 },
-    { day: 3, startHour: 10, endHour: 20, coachId: "coach-maya", serviceTypeId: "service-strength", room: "Studio A", note: "Form-focused sessions", maximumCapacity: 3 },
+    { day: 1, startHour: 8, endHour: 21, coachId: "coach-maya", room: "Gym floor 2", note: "Coaching availability", maximumCapacity: 3 },
+    { day: 2, startHour: 9, endHour: 18, coachId: "coach-jordan", room: "Studio B", note: "Coaching availability", maximumCapacity: 2 },
+    { day: 3, startHour: 10, endHour: 20, coachId: "coach-maya", room: "Studio A", note: "Coaching availability", maximumCapacity: 3 },
   ];
 
   const historySlot: TimeSlot = {
     id: "slot-history-1",
     gymId: gym.id,
     coachId: "coach-jordan",
-    serviceTypeId: "service-strength",
     start: iso(atDay(yesterday, 0, 18, 0)),
     end: iso(atDay(yesterday, 0, 19, 0)),
     maximumCapacity: 8,
@@ -262,7 +253,6 @@ export function seedGymData(now = new Date()): GymSnapshot {
     id: "slot-history-2",
     gymId: gym.id,
     coachId: "coach-maya",
-    serviceTypeId: "service-yoga",
     start: iso(atDay(yesterday, -3, 7, 0)),
     end: iso(atDay(yesterday, -3, 7, 45)),
     maximumCapacity: 18,
@@ -279,7 +269,6 @@ export function seedGymData(now = new Date()): GymSnapshot {
       id: `availability-seed-${index + 1}`,
       gymId: gym.id,
       coachId: blueprint.coachId,
-      serviceTypeId: blueprint.serviceTypeId,
       start: iso(start),
       end: iso(end),
       maximumCapacity: blueprint.maximumCapacity,
@@ -336,7 +325,6 @@ export const formatShortDate = (value: string) =>
 export const formatDateLabel = (value: string) =>
   new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" }).format(new Date(value));
 
-export const getService = (snapshot: GymSnapshot, serviceTypeId?: string) => serviceTypeId ? snapshot.services.find((service) => service.id === serviceTypeId) : undefined;
 export const getCoach = (snapshot: GymSnapshot, coachId?: string) => snapshot.coaches.find((coach) => coach.id === coachId);
 export const getSlot = (snapshot: GymSnapshot, slotId: string) => snapshot.slots.find((slot) => slot.id === slotId);
 export const getBookingSlot = (snapshot: GymSnapshot, booking: Booking) => getSlot(snapshot, booking.timeSlotId);

@@ -137,3 +137,11 @@ Validation evidence: type check passed; targeted room-calendar and room-status p
 - [x] Create the global design tokens and shared component set specified for the visual system
 - [x] Migrate role dashboards and all remaining workflow screens to the shared visual system
 - [x] Add regression coverage and validate role navigation, reports filters, responsive layouts, and existing booking/room flows
+- [x] Audit all service-related runtime dependencies, schema relationships, API inputs/outputs, validation, translations, tests, and seed data
+- [x] Make legacy service associations nullable through a non-destructive versioned migration while preserving historical data
+- [x] Remove the Client Service step, service messages, service queries, and service validation from Coach booking
+- [x] Remove service dependencies from Coach availability publishing and discovery without inferring or creating a service
+- [x] Ensure new Coach bookings persist availability, coach, room, Client, timing, duration, capacity, and status without service data
+- [x] Keep room-only booking independent of Coach, availability, and services
+- [x] Add service-free booking, historical booking readability, capacity, translation, and cross-surface regression coverage
+- [ ] Verify the completed authenticated Coach and Client flows, Preview/PWA/App parity, and document protected legacy fields before any destructive cleanup decision

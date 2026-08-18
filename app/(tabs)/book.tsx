@@ -154,7 +154,6 @@ export default function BookScreen() {
   );
   const productionRoomSchedule = trpc.availability.roomSchedule.useQuery({ date: localDayKey(selectedDate) }, { enabled: !previewMode && role === "client" });
   const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);
-  const [selectedServiceId, setSelectedServiceId] = useState<number | null>(null);
   const [duration, setDuration] = useState(60);
   const [customDurationSelected, setCustomDurationSelected] = useState(false);
   const [selectedStart, setSelectedStart] = useState<Date | null>(null);
@@ -166,7 +165,6 @@ export default function BookScreen() {
   const [timeError, setTimeError] = useState(false);
   const [busy, setBusy] = useState(false);
   const [bookingFeedback, setBookingFeedback] = useState<BookingFeedback | null>(null);
-  const productionServices = trpc.catalog.services.useQuery(undefined, { enabled: !previewMode && role === "client" });
   const productionBooking = trpc.availability.book.useMutation();
   const utils = trpc.useUtils();
   const activeSnapshot = useMemo(() => {
@@ -194,7 +192,6 @@ export default function BookScreen() {
         gymId: "database-gym",
         coachId: String(window.coachId),
         roomId: String(window.roomId),
-        serviceTypeId: window.serviceTypeId ? String(window.serviceTypeId) : undefined,
         start: new Date(window.startAt).toISOString(),
         end: new Date(window.endAt).toISOString(),
         maximumCapacity: window.maximumCapacity,
@@ -234,7 +231,6 @@ export default function BookScreen() {
 
   useEffect(() => {
     setSelectedWindowId(null);
-    setSelectedServiceId(null);
     setSelectedStart(null);
   }, [selectedDay]);
 
@@ -282,15 +278,11 @@ export default function BookScreen() {
 
   const handleBook = async () => {
     if (!selectedBookingWindow || !selectedOption) return;
-    if (!previewMode && !selectedServiceId) {
-      setBookingFeedback({ title: t("couldntBook"), message: t("chooseServiceForBooking"), tone: "error" });
-      return;
-    }
     setBusy(true);
     try {
       const result = previewMode
         ? await bookAvailability(selectedBookingWindow.id, selectedOption.start.toISOString(), duration)
-        : await productionBooking.mutateAsync({ windowId: selectedBookingWindow.id, serviceTypeId: selectedServiceId!, startAt: selectedOption.start.toISOString(), durationMinutes: duration })
+        : await productionBooking.mutateAsync({ windowId: selectedBookingWindow.id, startAt: selectedOption.start.toISOString(), durationMinutes: duration })
           .then(() => ({ success: true as const, message: "You’re booked. Your session is now in My Schedule." }))
           .catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "That time is no longer available." }));
       if (result.success) {
@@ -357,16 +349,14 @@ export default function BookScreen() {
         {productionRoomSchedule.isLoading && !previewMode ? <ActivityIndicator color="#ff82b7" style={styles.activityLoading} /> : windows.length ? <View style={styles.windowList}>{windows.map((window) => <AvailabilityCard key={window.id} window={window} selected={selectedWindowId === window.id} snapshot={activeSnapshot} language={language} t={t} colors={colors} onPress={() => { setSelectedWindowId(window.id); setSelectedStart(null); }} />)}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noSlotsAvailable")}</Text></SurfaceCard>}
 
         {selectedWindow ? <View style={styles.bookingPanel}>
-          <Text style={[styles.stepLabel, { color: colors.muted }]}>3. {t("service")}</Text>
-          {!previewMode ? productionServices.isLoading ? <ActivityIndicator color="#ff82b7" /> : productionServices.data?.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.serviceRail}>{productionServices.data.map((service) => <Pressable key={service.id} onPress={() => setSelectedServiceId(service.id)} accessibilityRole="button" accessibilityState={{ selected: selectedServiceId === service.id }} style={({ pressed }) => [styles.serviceChip, { borderColor: selectedServiceId === service.id ? "#f04488" : colors.border, backgroundColor: selectedServiceId === service.id ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.serviceName, { color: selectedServiceId === service.id ? "#ff82b7" : colors.foreground }]}>{service.name}</Text><Text style={[styles.serviceMeta, { color: colors.muted }]}>{service.durationMinutes} {t("minutes")}</Text></Pressable>)}</ScrollView> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noActiveServicesForBooking")}</Text></SurfaceCard> : null}
-          <Text style={[styles.stepLabel, { color: colors.muted }]}>4. {t("sessionDuration")}</Text>
+          <Text style={[styles.stepLabel, { color: colors.muted }]}>3. {t("sessionDuration")}</Text>
           <View style={styles.durationRail}>
             {quickDurations.map((item) => <Pressable key={item} onPress={() => selectQuickDuration(item)} style={({ pressed }) => [styles.durationChip, { borderColor: !customDurationSelected && duration === item ? "#f04488" : colors.border, backgroundColor: !customDurationSelected && duration === item ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.durationText, { color: !customDurationSelected && duration === item ? "#ff82b7" : colors.foreground }]}>{item} {t("minutes")}</Text></Pressable>)}
             <Pressable onPress={openCustomDuration} style={({ pressed }) => [styles.durationChip, { borderColor: customDurationSelected ? "#f04488" : colors.border, backgroundColor: customDurationSelected ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.durationText, { color: customDurationSelected ? "#ff82b7" : colors.foreground }]}>{customDurationSelected ? `${t("otherDuration")} · ${duration}m` : t("otherDuration")}</Text></Pressable>
           </View>
 
           <View style={styles.timeHeading}>
-            <Text style={[styles.stepLabel, { color: colors.muted }]}>5. {t("chooseStartTime")}</Text>
+            <Text style={[styles.stepLabel, { color: colors.muted }]}>4. {t("chooseStartTime")}</Text>
           </View>
           {timeOptions.length ? <Pressable onPress={openTimePicker} style={({ pressed }) => [styles.timeChoice, { backgroundColor: colors.surface, borderColor: selectedOption ? "#f04488" : colors.border }, pressed && styles.pressed]}>
             <View>

@@ -138,7 +138,6 @@ export default function AvailabilityScreen() {
       gymId: String(window.gymId),
       coachId: String(window.coachId),
       roomId: window.roomId ? String(window.roomId) : undefined,
-      serviceTypeId: window.serviceTypeId ? String(window.serviceTypeId) : undefined,
       start: new Date(window.startAt).toISOString(),
       end: new Date(window.endAt).toISOString(),
       maximumCapacity: window.maximumCapacity,
