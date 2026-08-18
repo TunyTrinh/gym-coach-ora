@@ -20,7 +20,8 @@ describe("visible room status and service-independent Client discovery", () => {
   });
 
   it("drives Client Coach discovery from the selected-date room schedule and retains blocked windows with reasons", () => {
-    expect(bookingUi).toContain("trpc.availability.roomSchedule.useQuery({ date: localDayKey(selectedDate) }");
+    expect(bookingUi).toContain("trpc.availability.roomSchedule.useQuery(");
+    expect(bookingUi).toContain("{ date: selectedDateKey }");
     expect(bookingUi).toContain("roomAvailabilityMessage");
     expect(bookingUi).toContain('window.statusReason === "available" && window.roomStatusReason === "available" ? "Available" as const : "Blocked" as const');
     expect(bookingUi).toContain('window.coachId === selectedWindow.coachId && window.status === "Available"');

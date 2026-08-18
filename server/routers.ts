@@ -56,6 +56,16 @@ function localDayKey(value: Date) {
   return `${year}-${month}-${day}`;
 }
 
+type SchedulerReadTiming = { name: string; durationMs: number; rows: number };
+
+async function measureSchedulerRead<T>(timings: SchedulerReadTiming[] | null, name: string, read: () => Promise<T>) {
+  if (!timings) return read();
+  const startedAt = Date.now();
+  const result = await read();
+  timings.push({ name, durationMs: Date.now() - startedAt, rows: Array.isArray(result) ? result.length : 1 });
+  return result;
+}
+
 async function assertRoomOpenForInterval(db: any, roomId: number, startAt: Date, endAt: Date) {
   const room = await db.select({ id: gymRooms.id, active: gymRooms.active, openingTime: gymRooms.openingTime, closingTime: gymRooms.closingTime }).from(gymRooms).where(eq(gymRooms.id, roomId)).limit(1);
   if (!room[0] || !room[0].active) throw new Error("This room is no longer available for booking.");
@@ -359,9 +369,11 @@ export const appRouter = router({
         const allRooms = await listRooms();
         const rooms = input.roomId ? allRooms.filter((room) => room.id === input.roomId) : allRooms;
         const roomIds = rooms.map((room) => room.id);
-        const closures = roomIds.length ? await db.select({ roomId: roomClosures.roomId, closureDate: roomClosures.closureDate }).from(roomClosures).where(and(inArray(roomClosures.roomId, roomIds), gte(roomClosures.closureDate, input.from), lte(roomClosures.closureDate, input.to))) : [];
-        const windows = roomIds.length ? await db.select({ roomId: availabilityShifts.roomId, startAt: availabilityShifts.startAt, endAt: availabilityShifts.endAt, status: availabilityShifts.status, maximumCapacity: availabilityShifts.maximumCapacity }).from(availabilityShifts).where(and(inArray(availabilityShifts.roomId, roomIds), lt(availabilityShifts.startAt, endExclusive), gt(availabilityShifts.endAt, from))) : [];
-        const bookingRows = roomIds.length ? await db.select({ roomId: timeSlots.roomId, startAt: timeSlots.startAt, endAt: timeSlots.endAt }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(inArray(timeSlots.roomId, roomIds), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endExclusive), gt(timeSlots.endAt, from))) : [];
+        const [closures, windows, bookingRows] = roomIds.length ? await Promise.all([
+          db.select({ roomId: roomClosures.roomId, closureDate: roomClosures.closureDate }).from(roomClosures).where(and(inArray(roomClosures.roomId, roomIds), gte(roomClosures.closureDate, input.from), lte(roomClosures.closureDate, input.to))),
+          db.select({ roomId: availabilityShifts.roomId, startAt: availabilityShifts.startAt, endAt: availabilityShifts.endAt, status: availabilityShifts.status }).from(availabilityShifts).where(and(inArray(availabilityShifts.roomId, roomIds), lt(availabilityShifts.startAt, endExclusive), gt(availabilityShifts.endAt, from))),
+          db.select({ roomId: timeSlots.roomId, startAt: timeSlots.startAt, endAt: timeSlots.endAt }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(inArray(timeSlots.roomId, roomIds), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endExclusive), gt(timeSlots.endAt, from))),
+        ]) : [[], [], []];
         const rows: { date: string; markers: string[]; publishedCount: number; bookingCount: number }[] = [];
         for (let cursor = new Date(from); cursor < endExclusive; cursor = new Date(cursor.getTime() + 24 * 60 * 60_000)) {
           const date = localDayKey(cursor);
@@ -384,71 +396,71 @@ export const appRouter = router({
         return rows;
       }),
     roomSchedule: protectedProcedure
-      .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/) }))
+      .input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/), diagnostics: z.literal(true).optional() }))
       .query(async ({ ctx, input }) => {
         if (!["client", "coach", "admin"].includes(ctx.user.role)) throw new Error("Authenticated access is required to view room schedules.");
+        if (input.diagnostics && ctx.user.role !== "admin") throw new Error("Scheduler diagnostics require Admin access.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
-        const rooms = await listRooms();
+        const timings: SchedulerReadTiming[] | null = input.diagnostics ? [] : null;
+        const startedAt = Date.now();
+        const rooms = await measureSchedulerRead(timings, "room_metadata", () => listRooms());
         const dayStart = localDateTime(input.date, "00:00");
         const dayEnd = dayStart ? new Date(dayStart.getTime() + 24 * 60 * 60_000) : null;
         if (!dayStart || !dayEnd) throw new Error("Choose a valid room schedule date.");
         const roomIds = rooms.map((room) => room.id);
-        const closures = roomIds.length ? await db.select({ roomId: roomClosures.roomId, reason: roomClosures.reason }).from(roomClosures).where(and(eq(roomClosures.closureDate, input.date), inArray(roomClosures.roomId, roomIds))) : [];
+        const [closures, bookingRows, availabilityRows] = roomIds.length ? await Promise.all([
+          measureSchedulerRead(timings, "room_closures", () => db.select({ roomId: roomClosures.roomId, reason: roomClosures.reason }).from(roomClosures).where(and(eq(roomClosures.closureDate, input.date), inArray(roomClosures.roomId, roomIds)))),
+          measureSchedulerRead(timings, "active_room_bookings", () => db.select({
+            roomId: timeSlots.roomId,
+            startAt: timeSlots.startAt,
+            endAt: timeSlots.endAt,
+          }).from(bookings)
+            .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
+            .where(and(inArray(timeSlots.roomId, roomIds), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, dayEnd), gt(timeSlots.endAt, dayStart)))),
+          measureSchedulerRead(timings, "coach_availability", () => db.select({
+            id: availabilityShifts.externalId,
+            coachId: availabilityShifts.coachId,
+            roomId: availabilityShifts.roomId,
+            startAt: availabilityShifts.startAt,
+            endAt: availabilityShifts.endAt,
+            status: availabilityShifts.status,
+            maximumCapacity: availabilityShifts.maximumCapacity,
+            coachName: coaches.fullName,
+            coachSpecialty: coaches.specialty,
+            note: availabilityShifts.note,
+          }).from(availabilityShifts)
+            .innerJoin(coaches, eq(availabilityShifts.coachId, coaches.id))
+            .where(and(inArray(availabilityShifts.roomId, roomIds), lt(availabilityShifts.startAt, dayEnd), gt(availabilityShifts.endAt, dayStart)))),
+        ]) : [[], [], []];
         const closuresByRoom = new Map(closures.map((closure) => [closure.roomId, closure.reason]));
-        const bookingRows = roomIds.length ? await db.select({
-          bookingId: bookings.externalId,
-          status: bookings.status,
-          roomId: timeSlots.roomId,
-          startAt: timeSlots.startAt,
-          endAt: timeSlots.endAt,
-          coachName: coaches.fullName,
-          availabilityId: availabilityShifts.externalId,
-        }).from(bookings)
-          .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
-          .leftJoin(coaches, eq(timeSlots.coachId, coaches.id))
-          .leftJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
-          .where(and(inArray(timeSlots.roomId, roomIds), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, dayEnd), gt(timeSlots.endAt, dayStart))) : [];
-        const availabilityRows = roomIds.length ? await db.select({
-          id: availabilityShifts.externalId,
-          coachId: availabilityShifts.coachId,
-          roomId: availabilityShifts.roomId,
-          startAt: availabilityShifts.startAt,
-          endAt: availabilityShifts.endAt,
-          status: availabilityShifts.status,
-          maximumCapacity: availabilityShifts.maximumCapacity,
-          coachName: coaches.fullName,
-          coachSpecialty: coaches.specialty,
-          note: availabilityShifts.note,
-        }).from(availabilityShifts)
-          .innerJoin(coaches, eq(availabilityShifts.coachId, coaches.id))
-          .where(and(inArray(availabilityShifts.roomId, roomIds), lt(availabilityShifts.startAt, dayEnd), gt(availabilityShifts.endAt, dayStart))) : [];
-        return {
-          date: input.date,
-          rooms: rooms.map((room) => {
-            const closed = closuresByRoom.has(room.id);
-            const activeBookings = bookingRows.filter((booking) => booking.roomId === room.id);
-            const windows = availabilityRows.filter((window) => window.roomId === room.id).map((window) => {
-              const occupancy = activeBookings.filter((booking) => booking.startAt < window.endAt && booking.endAt > window.startAt).length;
-              return {
-                ...window,
-                occupancy,
-                remainingCapacity: Math.max(0, Math.min(room.maximumCapacity, window.maximumCapacity) - occupancy),
-                statusReason: roomScheduleStatus({ active: room.active, closed, occupancy, maximumCapacity: Math.min(room.maximumCapacity, window.maximumCapacity) }),
-              };
-            });
+        const scheduledRooms = rooms.map((room) => {
+          const closed = closuresByRoom.has(room.id);
+          const activeBookings = bookingRows.filter((booking) => booking.roomId === room.id);
+          const windows = availabilityRows.filter((window) => window.roomId === room.id).map((window) => {
+            const occupancy = activeBookings.filter((booking) => booking.startAt < window.endAt && booking.endAt > window.startAt).length;
             return {
-              ...room,
-              closureReason: closuresByRoom.get(room.id) ?? null,
-              occupancy: activeBookings.length,
-              remainingCapacity: Math.max(0, room.maximumCapacity - activeBookings.length),
-              statusReason: roomScheduleStatus({ active: room.active, closed, occupancy: activeBookings.length, maximumCapacity: room.maximumCapacity }),
-              nextAvailableSlot: windows.find((window) => window.statusReason === "available")?.startAt ?? null,
-              windows,
-              bookings: activeBookings,
+              ...window,
+              occupancy,
+              remainingCapacity: Math.max(0, Math.min(room.maximumCapacity, window.maximumCapacity) - occupancy),
+              statusReason: roomScheduleStatus({ active: room.active, closed, occupancy, maximumCapacity: Math.min(room.maximumCapacity, window.maximumCapacity) }),
             };
-          }),
+          });
+          return {
+            ...room,
+            closureReason: closuresByRoom.get(room.id) ?? null,
+            occupancy: activeBookings.length,
+            remainingCapacity: Math.max(0, room.maximumCapacity - activeBookings.length),
+            statusReason: roomScheduleStatus({ active: room.active, closed, occupancy: activeBookings.length, maximumCapacity: room.maximumCapacity }),
+            nextAvailableSlot: windows.find((window) => window.statusReason === "available")?.startAt ?? null,
+            windows,
+          };
+        });
+        const response = {
+          date: input.date,
+          rooms: scheduledRooms,
         };
+        return timings ? { ...response, diagnostics: { totalMs: Date.now() - startedAt, queries: timings } } : response;
       }),
     rooms: protectedProcedure.input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).optional()).query(async ({ ctx, input }) => {
       if (ctx.user.role !== "coach" && ctx.user.role !== "admin") throw new Error("Coach access is required to view rooms.");

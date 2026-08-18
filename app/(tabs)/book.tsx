@@ -140,19 +140,24 @@ export default function BookScreen() {
   const { language, t } = useLanguage();
   const previewMode = isLocalTestMode();
   const role = previewMode ? snapshot.member.role : user?.role ?? "client";
+  const utils = trpc.useUtils();
   const [now, setNow] = useState(() => new Date());
   const [selectedDay, setSelectedDay] = useState(0);
-  const days = createLocalDateRail(now, 7);
+  const days = useMemo(() => createLocalDateRail(now, 7), [now]);
   const selectedDate = days[selectedDay] ?? days[0];
+  const selectedDateKey = localDayKey(selectedDate);
   const productionWeekCalendar = trpc.availability.roomCalendar.useQuery(
     { from: localDayKey(days[0]), to: localDayKey(days[days.length - 1]) },
-    { enabled: !previewMode && role === "client" && days.length === 7 },
+    { enabled: !previewMode && role === "client" && days.length === 7, staleTime: 30_000, gcTime: 5 * 60_000, refetchOnMount: false, refetchOnWindowFocus: false },
   );
   const weekStatusByDate = useMemo(
     () => new Map((productionWeekCalendar.data ?? []).map((row) => [row.date, row.markers])),
     [productionWeekCalendar.data],
   );
-  const productionRoomSchedule = trpc.availability.roomSchedule.useQuery({ date: localDayKey(selectedDate) }, { enabled: !previewMode && role === "client" });
+  const productionRoomSchedule = trpc.availability.roomSchedule.useQuery(
+    { date: selectedDateKey },
+    { enabled: !previewMode && role === "client", staleTime: 10_000, gcTime: 5 * 60_000, refetchOnMount: false, refetchOnWindowFocus: false, refetchInterval: 15_000, refetchIntervalInBackground: false },
+  );
   const [selectedWindowId, setSelectedWindowId] = useState<string | null>(null);
   const [duration, setDuration] = useState(60);
   const [customDurationSelected, setCustomDurationSelected] = useState(false);
@@ -166,7 +171,7 @@ export default function BookScreen() {
   const [busy, setBusy] = useState(false);
   const [bookingFeedback, setBookingFeedback] = useState<BookingFeedback | null>(null);
   const productionBooking = trpc.availability.book.useMutation();
-  const utils = trpc.useUtils();
+  const previousScheduleDate = useRef<string | null>(null);
   const activeSnapshot = useMemo(() => {
     if (previewMode) return snapshot;
     const serverWindows = (productionRoomSchedule.data?.rooms ?? []).flatMap((room) => room.windows.map((window) => ({
@@ -208,6 +213,15 @@ export default function BookScreen() {
     const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
+
+  useEffect(() => {
+    if (previewMode || role !== "client") return;
+    const previousDate = previousScheduleDate.current;
+    if (previousDate && previousDate !== selectedDateKey) void utils.availability.roomSchedule.cancel({ date: previousDate });
+    previousScheduleDate.current = selectedDateKey;
+    const nearbyDates = [days[selectedDay - 1], days[selectedDay + 1]].filter((day): day is Date => Boolean(day));
+    void Promise.all(nearbyDates.map((day) => utils.availability.roomSchedule.prefetch({ date: localDayKey(day) }, { staleTime: 10_000 })));
+  }, [days, previewMode, role, selectedDateKey, selectedDay, utils]);
 
   const windows = useMemo(
     () => activeSnapshot.availabilityShifts
@@ -342,11 +356,11 @@ export default function BookScreen() {
               <View style={styles.clientWeekDots}>{visibleMarkers.map((marker) => <View key={marker} style={[styles.clientWeekDot, { backgroundColor: roomStatusPresentation(marker).color }]} />)}{overflow > 0 ? <Text style={[styles.clientWeekOverflow, { color: colors.muted }]}>+{overflow}</Text> : null}</View>
             </Pressable>;
           })}</View>
-          {!previewMode ? <RoomAccessPanel selectedDate={selectedDate} duration={duration} colors={colors} t={t} language={language} onFeedback={setBookingFeedback} /> : null}
+          {!previewMode ? <RoomAccessPanel selectedDate={selectedDate} duration={duration} colors={colors} t={t} language={language} rooms={productionRoomSchedule.data?.rooms} roomsLoading={productionRoomSchedule.isLoading} onFeedback={setBookingFeedback} /> : null}
           <Text style={[styles.stepLabel, { color: colors.muted }]}>2. {t("chooseAvailability")}</Text>
         </View>
 
-        {productionRoomSchedule.isLoading && !previewMode ? <ActivityIndicator color="#ff82b7" style={styles.activityLoading} /> : windows.length ? <View style={styles.windowList}>{windows.map((window) => <AvailabilityCard key={window.id} window={window} selected={selectedWindowId === window.id} snapshot={activeSnapshot} language={language} t={t} colors={colors} onPress={() => { setSelectedWindowId(window.id); setSelectedStart(null); }} />)}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noSlotsAvailable")}</Text></SurfaceCard>}
+        {productionRoomSchedule.isLoading && !previewMode ? <BookingScheduleSkeleton variant="coach" /> : windows.length ? <View style={styles.windowList}>{windows.map((window) => <AvailabilityCard key={window.id} window={window} selected={selectedWindowId === window.id} snapshot={activeSnapshot} language={language} t={t} colors={colors} onPress={() => { setSelectedWindowId(window.id); setSelectedStart(null); }} />)}</View> : <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noAvailabilityYet")}</Text><Text style={[styles.emptyCopy, { color: colors.muted }]}>{t("noSlotsAvailable")}</Text></SurfaceCard>}
 
         {selectedWindow ? <View style={styles.bookingPanel}>
           <Text style={[styles.stepLabel, { color: colors.muted }]}>3. {t("sessionDuration")}</Text>
@@ -393,10 +407,11 @@ function roomStatusCopy(status: string, t: Translation) {
   return t("roomStatusAvailable");
 }
 
-function RoomAccessPanel({ selectedDate, duration, colors, t, language, onFeedback }: { selectedDate: Date; duration: number; colors: ReturnType<typeof useColors>; t: Translation; language: "en" | "vi"; onFeedback: (feedback: BookingFeedback) => void }) {
+type BookingScheduleRoom = { id: number; name: string; openingTime: string; closingTime: string; maximumCapacity: number; active: boolean; statusReason: string };
+
+function RoomAccessPanel({ selectedDate, duration, colors, t, language, rooms, roomsLoading, onFeedback }: { selectedDate: Date; duration: number; colors: ReturnType<typeof useColors>; t: Translation; language: "en" | "vi"; rooms: BookingScheduleRoom[] | undefined; roomsLoading: boolean; onFeedback: (feedback: BookingFeedback) => void }) {
   const utils = trpc.useUtils();
   const date = localDayKey(selectedDate);
-  const schedule = trpc.availability.roomSchedule.useQuery({ date });
   const bookRoom = trpc.availability.bookRoom.useMutation();
   const [selectedRoomId, setSelectedRoomId] = useState<number | null>(null);
   const [time, setTime] = useState("09:00");
@@ -407,11 +422,11 @@ function RoomAccessPanel({ selectedDate, duration, colors, t, language, onFeedba
     { roomId: selectedRoomId ?? 0, startAt: startAt.toISOString(), durationMinutes: duration },
     { enabled: selectedRoomId !== null && startAt.getTime() > Date.now() },
   );
-  const selectedRoom = schedule.data?.rooms.find((room) => room.id === selectedRoomId) ?? null;
+  const selectedRoom = rooms?.find((room) => room.id === selectedRoomId) ?? null;
 
   useEffect(() => {
-    if (!selectedRoomId && schedule.data?.rooms.find((room) => room.active)) setSelectedRoomId(schedule.data.rooms.find((room) => room.active)?.id ?? null);
-  }, [schedule.data?.rooms, selectedRoomId]);
+    if (!selectedRoomId && rooms?.find((room) => room.active)) setSelectedRoomId(rooms.find((room) => room.active)?.id ?? null);
+  }, [rooms, selectedRoomId]);
 
   useEffect(() => { setSelectedRoomId(null); }, [date]);
 
@@ -420,7 +435,7 @@ function RoomAccessPanel({ selectedDate, duration, colors, t, language, onFeedba
     setBusy(true);
     try {
       const result = await bookRoom.mutateAsync({ roomId: selectedRoomId, startAt: startAt.toISOString(), durationMinutes: duration });
-      await Promise.all([utils.availability.roomSchedule.invalidate(), utils.member.schedule.invalidate(), utils.availability.bookableAll.invalidate()]);
+      await Promise.all([utils.availability.roomSchedule.invalidate(), utils.availability.roomCalendar.invalidate(), utils.member.schedule.invalidate(), utils.availability.bookableAll.invalidate()]);
       haptic.success();
       onFeedback({ title: t("roomAccessConfirmed"), message: `${selectedRoom.name} · ${formatTimeLocalized(result.startAt, language)}–${formatTimeLocalized(result.endAt, language)}`, tone: "success" });
     } catch (error) {
@@ -435,7 +450,7 @@ function RoomAccessPanel({ selectedDate, duration, colors, t, language, onFeedba
     <Text style={[styles.roomAccessTitle, { color: colors.foreground }]}>{t("roomAccessBooking")}</Text>
     <Text style={[styles.roomAccessCopy, { color: colors.muted }]}>{t("roomAccessBookingBody")}</Text>
     <Text style={[styles.stepLabel, { color: colors.muted }]}>{t("roomScheduleToday").toUpperCase()}</Text>
-    {schedule.isLoading ? <ActivityIndicator color="#ff82b7" /> : schedule.data?.rooms.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomAccessRail}>{schedule.data.rooms.map((room) => {
+    {roomsLoading ? <BookingScheduleSkeleton variant="room" /> : rooms?.length ? <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomAccessRail}>{rooms.map((room) => {
       const selected = room.id === selectedRoomId;
       const available = room.statusReason === "available";
       return <Pressable key={room.id} onPress={() => setSelectedRoomId(room.id)} accessibilityRole="button" accessibilityState={{ selected }} style={({ pressed }) => [styles.roomAccessPill, { borderColor: selected ? "#f04488" : colors.border, backgroundColor: selected ? "#2b1f2a" : colors.surface, opacity: available ? 1 : 0.72 }, pressed && styles.pressed]}><Text style={[styles.roomAccessName, { color: selected ? "#ff82b7" : colors.foreground }]}>{room.name}</Text><Text style={[styles.roomAccessMeta, { color: colors.muted }]}>{room.openingTime}–{room.closingTime} · {room.maximumCapacity}</Text><Text style={[styles.roomAccessStatus, { color: available ? "#32d77b" : "#ff8b82" }]}>{roomStatusCopy(room.statusReason, t)}</Text></Pressable>;
@@ -443,6 +458,16 @@ function RoomAccessPanel({ selectedDate, duration, colors, t, language, onFeedba
     {selectedRoom ? <><Text style={[styles.stepLabel, { color: colors.muted }]}>{t("roomAccessTime").toUpperCase()}</Text><Pressable onPress={() => setShowTimePicker(true)} style={({ pressed }) => [styles.timeChoice, { backgroundColor: colors.surface, borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.timeChoiceValue, { color: colors.foreground }]}>{formatTimeLocalized(startAt, language)}</Text><Text style={[styles.timeChoiceChevron, { color: colors.muted }]}>›</Text></Pressable><Text style={[styles.roomAccessHours, { color: colors.muted }]}>{t("roomOpeningHours")}: {selectedRoom.openingTime}–{selectedRoom.closingTime}</Text>{preview.isFetching ? <ActivityIndicator color="#ff82b7" /> : preview.data ? <Text style={[styles.roomAccessCapacity, { color: preview.data.remainingCapacity > 0 ? "#32d77b" : "#ff8b82" }]}>{preview.data.remainingCapacity} {t("roomCapacityRemaining")}</Text> : preview.error ? <Text style={styles.roomAccessError}>{preview.error.message.includes("opening hours") ? t("roomTimeOutsideHours") : preview.error.message}</Text> : null}<PrimaryButton title={busy ? t("publishing") : t("roomAccessBooking")} disabled={busy || selectedRoom.statusReason !== "available" || !preview.data || preview.data.remainingCapacity < 1} onPress={confirm} /></> : null}
     <StartTimePicker visible={showTimePicker} value={time} colors={colors} t={t} error={Boolean(preview.error)} onChange={setTime} onClose={() => setShowTimePicker(false)} onSave={() => setShowTimePicker(false)} />
   </SurfaceCard>;
+}
+
+function BookingScheduleSkeleton({ variant }: { variant: "room" | "coach" }) {
+  return <View accessibilityRole="progressbar" style={variant === "room" ? styles.roomSkeletonRail : styles.coachSkeletonList}>
+    {Array.from({ length: 2 }, (_, index) => <View key={index} style={variant === "room" ? styles.roomSkeletonCard : styles.coachSkeletonCard}>
+      <View style={[styles.skeletonLine, variant === "room" ? styles.skeletonRoomTitle : styles.skeletonCoachTitle]} />
+      <View style={[styles.skeletonLine, styles.skeletonMeta]} />
+      {variant === "coach" ? <View style={[styles.skeletonLine, styles.skeletonTime]} /> : null}
+    </View>)}
+  </View>;
 }
 
 function AvailabilityCard({ window, selected, snapshot, language, t, colors, onPress }: { window: AvailabilityShift; selected: boolean; snapshot: GymSnapshot; language: "en" | "vi"; t: Translation; colors: ReturnType<typeof useColors>; onPress: () => void }) {
@@ -567,6 +592,15 @@ const styles = StyleSheet.create({
   roomAccessHours: { fontSize: 11, marginTop: -4 },
   roomAccessCapacity: { fontSize: 12, fontWeight: "800" },
   roomAccessError: { color: "#ff8b82", fontSize: 11, fontWeight: "700", lineHeight: 16 },
+  roomSkeletonRail: { flexDirection: "row", gap: 8, paddingRight: 14 },
+  roomSkeletonCard: { width: 160, minHeight: 84, borderRadius: 14, borderWidth: 1, borderColor: "#32323a", padding: 11, gap: 8, backgroundColor: "#202026" },
+  coachSkeletonList: { gap: 10 },
+  coachSkeletonCard: { minHeight: 102, borderRadius: 16, borderWidth: 1, borderColor: "#32323a", padding: 16, gap: 10, backgroundColor: "#202026" },
+  skeletonLine: { height: 10, borderRadius: 5, backgroundColor: "#383842" },
+  skeletonRoomTitle: { width: "62%" },
+  skeletonCoachTitle: { width: "46%" },
+  skeletonMeta: { width: "78%" },
+  skeletonTime: { width: "32%", height: 18 },
   serviceRail: { gap: 8, paddingRight: 14 },
   serviceChip: { minWidth: 135, borderRadius: 13, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 10, gap: 3 },
   serviceName: { fontSize: 13, fontWeight: "900" },

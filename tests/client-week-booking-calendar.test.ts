@@ -17,7 +17,8 @@ describe("Client weekly booking calendar", () => {
     expect(clientBookingUi).toContain("trpc.availability.roomCalendar.useQuery");
     expect(clientBookingUi).toContain("weekStatusByDate");
     expect(clientBookingUi).toContain("visibleRoomCalendarMarkers");
-    expect(clientBookingUi).toContain("trpc.availability.roomSchedule.useQuery({ date: localDayKey(selectedDate) }");
+    expect(clientBookingUi).toContain("trpc.availability.roomSchedule.useQuery(");
+    expect(clientBookingUi).toContain("{ date: selectedDateKey }");
     expect(clientBookingUi).toContain("<RoomAccessPanel selectedDate={selectedDate}");
   });
 });

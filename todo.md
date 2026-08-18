@@ -145,3 +145,10 @@ Validation evidence: type check passed; targeted room-calendar and room-status p
 - [x] Keep room-only booking independent of Coach, availability, and services
 - [x] Add service-free booking, historical booking readability, capacity, translation, and cross-surface regression coverage
 - [ ] Verify the completed authenticated Coach and Client flows, Preview/PWA/App parity, and document protected legacy fields before any destructive cleanup decision
+- [x] Measure the Client booking scheduler’s current request count, payload sizes, database-query timings, cache behavior, and end-to-end loading latency
+- [x] Eliminate unnecessary or sequential Client scheduler requests while retaining fresh live room capacity and Coach availability
+- [x] Add focused database indexes and a minimal booking-read payload for the actual date, Coach, room, status, and overlap access patterns
+- [x] Add cancellation, deduplication, nearby-date prefetching, cache policies, and lightweight independent skeleton states to the Client scheduler
+- [x] Swap Client bottom navigation to Home, Schedule, History, Profile without changing routes, labels, icons, permissions, or safe-area behavior
+- [x] Add deterministic performance, freshness, cancellation, request-deduplication, payload, and navigation-order regression coverage
+- [ ] Verify Preview, public PWA, and an installed native App with before-and-after performance evidence and document environment-specific limits

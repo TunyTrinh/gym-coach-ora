@@ -30,8 +30,8 @@ export default function TabLayout() {
     <Tabs.Screen name="schedule" options={{ href: isAdmin ? null : undefined, title: t("schedule"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="calendar" color={color} /> }} />
     <Tabs.Screen name="book" options={{ href: null }} />
     <Tabs.Screen name="progress" options={{ href: isCoach ? undefined : null, title: t("clients"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.2.fill" color={color} /> }} />
-    <Tabs.Screen name="profile" options={{ href: isAdmin ? null : undefined, title: t("profile"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.fill" color={color} /> }} />
     <Tabs.Screen name="history" options={{ href: isClient ? undefined : null, title: t("history"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="clock" color={color} /> }} />
+    <Tabs.Screen name="profile" options={{ href: isAdmin ? null : undefined, title: t("profile"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.fill" color={color} /> }} />
     <Tabs.Screen name="admin" options={{ href: isAdmin ? undefined : null, title: t("coaches"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="person.2.fill" color={color} /> }} />
     <Tabs.Screen name="rooms" options={{ href: isAdmin ? undefined : null, title: t("rooms"), tabBarIcon: ({ color }) => <IconSymbol size={22} name="map" color={color} /> }} />
     <Tabs.Screen name="reports" options={{ href: isAdmin ? undefined : null, title: "Reports", tabBarIcon: ({ color }) => <IconSymbol size={22} name="chart.bar" color={color} /> }} />

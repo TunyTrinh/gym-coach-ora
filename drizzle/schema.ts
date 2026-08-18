@@ -113,7 +113,10 @@ export const timeSlots = mysqlTable("timeSlots", {
   room: varchar("room", { length: 128 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  roomStartIndex: index("time_slots_room_start_idx").on(table.roomId, table.startAt),
+  coachStartIndex: index("time_slots_coach_start_idx").on(table.coachId, table.startAt),
+}));
 
 export const availabilityShifts = mysqlTable("availabilityShifts", {
   id: int("id").autoincrement().primaryKey(),
@@ -140,6 +143,7 @@ export const availabilityShifts = mysqlTable("availabilityShifts", {
   coachStartIndex: index("availability_shifts_coach_start_idx").on(table.coachId, table.startAt),
   statusStartIndex: index("availability_shifts_status_start_idx").on(table.status, table.startAt),
   roomStartIndex: index("availability_shifts_room_start_idx").on(table.roomId, table.startAt),
+  roomStatusStartIndex: index("availability_shifts_room_status_start_idx").on(table.roomId, table.status, table.startAt),
 }));
 
 export const bookings = mysqlTable("bookings", {
@@ -160,6 +164,7 @@ export const bookings = mysqlTable("bookings", {
 }, (table) => ({
   availabilityStatusSlotIndex: index("bookings_availability_status_slot_idx").on(table.availabilityShiftId, table.status, table.timeSlotId),
   memberStatusSlotIndex: index("bookings_member_status_slot_idx").on(table.memberUserId, table.status, table.timeSlotId),
+  timeSlotStatusIndex: index("bookings_time_slot_status_idx").on(table.timeSlotId, table.status),
 }));
 
 export const notifications = mysqlTable("notifications", {
