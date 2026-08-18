@@ -1,7 +1,8 @@
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useState } from "react";
 
 import { useColors } from "@/hooks/use-colors";
+import { CenteredDialog } from "@/components/centered-dialog";
 import { matchesConfirmationName } from "@/shared/confirmation-name";
 
 type TypedConfirmSheetProps = {
@@ -33,9 +34,7 @@ export function TypedConfirmSheet({ visible, title, message, itemName, inputLabe
     onConfirm(confirmationName.trim());
   };
 
-  return <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-    <View style={styles.backdrop}>
-      <View style={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+  return <CenteredDialog visible={visible} onRequestClose={close} dismissible={!pending} accessibilityLabel={title} contentStyle={[styles.sheet, { backgroundColor: colors.surface, borderColor: colors.border }]}>
         <View style={styles.icon}><Text style={styles.iconText}>!</Text></View>
         <Text style={[styles.title, { color: colors.foreground }]}>{title}</Text>
         <Text style={[styles.name, { color: "#ff9994" }]} numberOfLines={2}>{itemName}</Text>
@@ -46,13 +45,10 @@ export function TypedConfirmSheet({ visible, title, message, itemName, inputLabe
           <Pressable onPress={close} accessibilityRole="button" disabled={pending} style={styles.cancelButton}><Text style={[styles.cancelText, { color: colors.foreground }]}>{cancelLabel}</Text></Pressable>
           <Pressable onPress={confirm} accessibilityRole="button" disabled={!confirmed || pending} style={({ pressed }) => [styles.confirmButton, (!confirmed || pending) && styles.confirmDisabled, pressed && confirmed && styles.confirmPressed]}><Text style={styles.confirmText}>{pending ? "…" : confirmLabel}</Text></Pressable>
         </View>
-      </View>
-    </View>
-  </Modal>;
+  </CenteredDialog>;
 }
 
 const styles = StyleSheet.create({
-  backdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.68)", padding: 16 },
   sheet: { borderRadius: 25, borderWidth: 1, padding: 20, gap: 10 },
   icon: { width: 36, height: 36, borderRadius: 18, alignItems: "center", justifyContent: "center", backgroundColor: "#391f22" },
   iconText: { color: "#ff9994", fontSize: 19, fontWeight: "900" },

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, FlatList, Modal, NativeScrollEvent, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleProp, StyleSheet, Text, TextStyle, View, ViewStyle } from "react-native";
 
 import AvailabilityScreen from "@/app/availability";
+import { CenteredDialog } from "@/components/centered-dialog";
 import { Avatar, GhostButton, PrimaryButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
@@ -489,7 +490,7 @@ function BookingReview({ visible, window, option, duration, colors, language, t,
 
 function BookingFeedbackSheet({ feedback, colors, t, onClose }: { feedback: BookingFeedback | null; colors: ReturnType<typeof useColors>; t: Translation; onClose: () => void }) {
   const success = feedback?.tone === "success";
-  return <Modal visible={Boolean(feedback)} transparent animationType="fade" onRequestClose={onClose}><View style={styles.modalBackdrop}><View style={[styles.resultSheet, { backgroundColor: "#151518", borderColor: success ? "#32d77b" : "#f04488" }]}><View style={[styles.resultIcon, { backgroundColor: success ? "#173629" : "#3a1f2b" }]}><Text style={[styles.resultIconText, { color: success ? "#5ce49a" : "#ff82b7" }]}>{success ? "✓" : "!"}</Text></View><Text style={[styles.resultTitle, { color: colors.foreground }]}>{feedback?.title}</Text><Text style={[styles.resultMessage, { color: colors.muted }]}>{feedback?.message}</Text><View style={styles.resultAction}><PrimaryButton title={t("bookingFeedbackDone")} onPress={onClose} /></View></View></View></Modal>;
+  return <CenteredDialog visible={Boolean(feedback)} onRequestClose={onClose} accessibilityLabel={feedback?.title ?? t("bookingFeedbackDone")} contentStyle={[styles.resultSheet, { backgroundColor: "#151518", borderColor: success ? "#32d77b" : "#f04488" }]}><View style={[styles.resultIcon, { backgroundColor: success ? "#173629" : "#3a1f2b" }]}><Text style={[styles.resultIconText, { color: success ? "#5ce49a" : "#ff82b7" }]}>{success ? "✓" : "!"}</Text></View><Text style={[styles.resultTitle, { color: colors.foreground }]}>{feedback?.title}</Text><Text style={[styles.resultMessage, { color: colors.muted }]}>{feedback?.message}</Text><View style={styles.resultAction}><PrimaryButton title={t("bookingFeedbackDone")} onPress={onClose} /></View></CenteredDialog>;
 }
 
 function DurationPicker({ visible, value, colors, t, onChange, onClose, onSave }: { visible: boolean; value: number; colors: ReturnType<typeof useColors>; t: Translation; onChange: (value: number) => void; onClose: () => void; onSave: () => void }) {
@@ -632,7 +633,7 @@ const styles = StyleSheet.create({
   sheetMeta: { fontSize: 12, lineHeight: 18 },
   policyText: { fontSize: 12, lineHeight: 18, marginTop: 4 },
   sheetActions: { flexDirection: "row", gap: 10, alignItems: "center", marginTop: 3 },
-  resultSheet: { width: "88%", maxWidth: 420, borderRadius: 24, borderWidth: 1, padding: 24, alignItems: "center" },
+  resultSheet: { borderRadius: 24, borderWidth: 1, padding: 24, alignItems: "center" },
   resultIcon: { width: 50, height: 50, borderRadius: 25, justifyContent: "center", alignItems: "center", marginBottom: 14 },
   resultIconText: { fontSize: 26, fontWeight: "900" },
   resultTitle: { fontSize: 20, fontWeight: "900", textAlign: "center" },

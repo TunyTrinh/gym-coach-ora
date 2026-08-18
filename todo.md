@@ -152,3 +152,8 @@ Validation evidence: type check passed; targeted room-calendar and room-status p
 - [x] Swap Client bottom navigation to Home, Schedule, History, Profile without changing routes, labels, icons, permissions, or safe-area behavior
 - [x] Add deterministic performance, freshness, cancellation, request-deduplication, payload, and navigation-order regression coverage
 - [ ] Verify Preview, public PWA, and an installed native App with before-and-after performance evidence and document environment-specific limits
+- [x] Trace all success, information, confirmation, warning, and error popup implementations and identify layout ownership defects
+- [x] Create one shared full-viewport, safe-area-aware, responsive dialog foundation with background scroll locking
+- [x] Migrate booking feedback and all existing shared dialog consumers to the centered dialog foundation
+- [x] Add deterministic regressions for viewport centering, safe-area padding, responsive maximum width, overlay coverage, and dialog scroll behavior
+- [ ] Validate the popup fix in Preview, public PWA, and an installed native App when a device session is available
