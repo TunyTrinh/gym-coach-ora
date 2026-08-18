@@ -2,7 +2,6 @@ import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-nati
 import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
-import { CapacityCalendar, type CapacityCalendarDay } from "@/components/capacity-calendar";
 import { Avatar, PrimaryButton, ScreenHeader, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
@@ -16,27 +15,12 @@ import { adaptProductionSchedule } from "@/lib/production-schedule";
 import { trpc } from "@/lib/trpc";
 import { formatDateLocalized, formatTimeLocalized, localeFor } from "@/lib/i18n";
 import { getBookingSlot, getCoach, getService } from "@/shared/gym";
-import { roomStatusPresentation, type RoomStatusMarker } from "@/shared/room-status-presentation";
+import { roomStatusPresentation, visibleRoomCalendarMarkers, type RoomStatusMarker } from "@/shared/room-status-presentation";
+
+const weekDayReference = new Date(2024, 0, 7);
 
 function initials(name: string) {
   return name.split(" ").filter(Boolean).map((part) => part[0]).slice(0, 2).join("").toUpperCase() || "C";
-}
-
-function buildClientCapacityDays(month: Date, rows: { date: string; capacityRatio: number | null; bookingCount: number; markers: string[] }[], bookingsByDay: Map<string, readonly unknown[]>, t: (key: any) => string): CapacityCalendarDay[] {
-  const rowsByDate = new Map(rows.map((row) => [row.date, row]));
-  return buildMonthGrid(month).map((day) => {
-    const date = localDayKey(day);
-    const row = rowsByDate.get(date);
-    const bookedByViewer = (bookingsByDay.get(date)?.length ?? 0) > 0;
-    return {
-      date,
-      capacity: row ? (row.capacityRatio === null ? null : 100) : null,
-      booked: Math.round((row?.capacityRatio ?? 0) * 100),
-      utilization: row?.capacityRatio ?? null,
-      bookedByViewer,
-      summary: bookedByViewer ? t("booked") : row?.capacityRatio === null ? t("noSlotsAvailable") : row?.bookingCount ? `${row.bookingCount} ${t("booked")}` : t("roomStatusAvailable"),
-    };
-  });
 }
 
 function blockColor(start: string) {
@@ -85,7 +69,7 @@ export default function ScheduleScreen() {
     roomFilterId === "all"
       ? { from: localDayKey(visibleMonth), to: localDayKey(roomCalendarMonthEnd) }
       : { from: localDayKey(visibleMonth), to: localDayKey(roomCalendarMonthEnd), roomId: roomFilterId },
-    { enabled: !previewMode && (isCoach || role === "client") },
+    { enabled: !previewMode && isCoach },
   );
   const roomScheduleQuery = trpc.availability.roomSchedule.useQuery(
     { date: localDayKey(selectedDate) },
@@ -126,10 +110,22 @@ export default function ScheduleScreen() {
     return result;
   }, [activeSnapshot, calendarBookings]);
 
+  const calendarDays = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
   const selectedBookings = bookingsByDay.get(localDayKey(selectedDate)) ?? [];
+  const monthTitle = new Intl.DateTimeFormat(localeFor(language), { month: "long", year: "numeric" }).format(visibleMonth);
   const selectedTitle = isSameLocalDay(selectedDate, now)
     ? t("today")
     : formatDateLocalized(selectedDate, language, { weekday: "long", month: "long", day: "numeric" });
+  const weekDays = Array.from(
+    { length: 7 },
+    (_, index) => new Intl.DateTimeFormat(localeFor(language), { weekday: "short" }).format(new Date(weekDayReference.getTime() + index * 86_400_000)),
+  );
+
+  const resetToToday = () => {
+    const today = startOfLocalDay(new Date());
+    setSelectedDate(today);
+    setVisibleMonth(startOfMonth(today));
+  };
 
   const handleCancel = (bookingId: string) => {
     setCancellationBookingId(bookingId);
@@ -229,7 +225,6 @@ export default function ScheduleScreen() {
           roomFilterId={roomFilterId}
           onMonthChange={setVisibleMonth}
           onDateChange={(date) => setSelectedDate(startOfLocalDay(new Date(`${date}T00:00:00`)))}
-          onInfo={() => setFeedbackSheet({ success: true, title: t("roomCalendarLegend"), message: [t("roomStatusAvailable"), t("roomStatusPartiallyClosed"), t("roomStatusClosed"), t("roomStatusFull"), t("roomStatusInactive"), t("roomStatusAvailabilityPublished"), t("roomStatusClientBooking")].join(" · ") })}
         />
         <CoachRoomSchedule
           date={localDayKey(selectedDate)}
@@ -241,20 +236,40 @@ export default function ScheduleScreen() {
         />
       </> : null}
 
-      {!isCoach || previewMode ? <CapacityCalendar
-        role={isCoach ? "coach" : "client"}
-        month={visibleMonth}
-        selectedDate={localDayKey(selectedDate)}
-        days={buildClientCapacityDays(visibleMonth, roomCalendarQuery.data ?? [], bookingsByDay, t)}
-        locale={localeFor(language)}
-        title={t("monthView")}
-        loading={!previewMode && roomCalendarQuery.isLoading}
-        todayLabel={t("today")}
-        previousLabel={t("previous")}
-        nextLabel={t("next")}
-        onMonthChange={setVisibleMonth}
-        onDateChange={(date) => { const next = startOfLocalDay(new Date(`${date}T00:00:00`)); setSelectedDate(next); if (next.getMonth() !== visibleMonth.getMonth()) setVisibleMonth(startOfMonth(next)); }}
-      /> : null}
+      {!isCoach || previewMode ? <SurfaceCard style={styles.calendarCard}>
+        <View style={styles.monthHeader}>
+          <View><Text style={[styles.monthEyebrow, { color: "#ff82b7" }]}>{t("monthView")}</Text><Text style={[styles.monthTitle, { color: colors.foreground }]}>{monthTitle}</Text></View>
+          <View style={styles.monthActions}>
+            <Pressable onPress={() => setVisibleMonth((month) => addMonths(month, -1))} accessibilityRole="button" accessibilityLabel={t("previous")} style={({ pressed }) => [styles.iconButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.iconButtonText, { color: colors.foreground }]}>‹</Text></Pressable>
+            <Pressable onPress={resetToToday} accessibilityRole="button" style={({ pressed }) => [styles.todayButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.todayButtonText, { color: colors.foreground }]}>{t("today")}</Text></Pressable>
+            <Pressable onPress={() => setVisibleMonth((month) => addMonths(month, 1))} accessibilityRole="button" accessibilityLabel={t("next")} style={({ pressed }) => [styles.iconButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.iconButtonText, { color: colors.foreground }]}>›</Text></Pressable>
+          </View>
+        </View>
+        <View style={styles.weekRow}>{weekDays.map((day) => <Text key={day} style={[styles.weekDay, { color: colors.muted }]}>{day}</Text>)}</View>
+        <View style={styles.grid}>{calendarDays.map((day) => {
+          const key = localDayKey(day);
+          const dayBookings = bookingsByDay.get(key) ?? [];
+          const visibleBlocks = isCoach ? dayBookings.slice(0, 2) : [];
+          const isSelected = isSameLocalDay(day, selectedDate);
+          const isToday = isSameLocalDay(day, now);
+          const isCurrentMonth = day.getMonth() === visibleMonth.getMonth();
+          return <View key={key} style={styles.dayCell}>
+            <Pressable
+              onPress={() => { setSelectedDate(startOfLocalDay(day)); if (!isCurrentMonth) setVisibleMonth(startOfMonth(day)); }}
+              accessibilityRole="button"
+              accessibilityLabel={`${formatDateLocalized(day.toISOString(), language)}${dayBookings.length ? ` · ${dayBookings.length} ${dayBookings.length === 1 ? t("session") : t("sessions")}` : ""}`}
+              style={({ pressed }) => [styles.dayButton, isSelected && styles.selectedDay, isToday && !isSelected && { borderColor: "#975bd7", borderWidth: 1 }, pressed && styles.pressed]}
+            >
+              <Text style={[styles.dayNumber, { color: isCurrentMonth ? colors.foreground : colors.muted }, isSelected && styles.selectedDayText]}>{day.getDate()}</Text>
+              {isCoach ? <View style={styles.dayBlocks}>{visibleBlocks.map((booking) => {
+                const slot = getBookingSlot(activeSnapshot, booking);
+                return slot ? <View key={booking.id} style={[styles.miniBlock, { backgroundColor: blockColor(slot.start) }]}><Text numberOfLines={1} style={styles.miniBlockText}>{formatTimeLocalized(slot.start, language)}</Text></View> : null;
+              })}{dayBookings.length > 2 ? <Text style={[styles.moreBlocks, { color: isSelected ? "#ffffff" : "#ff82b7"}]}>+{dayBookings.length - 2}</Text> : null}</View> : dayBookings.length > 0 ? <View style={[styles.bookingDot, { backgroundColor: dayBookings.length > 1 ? "#ff82b7" : "#8a77ef" }]}><Text style={styles.bookingDotText}>{dayBookings.length}</Text></View> : <View style={styles.dotSpacer} />}
+            </Pressable>
+          </View>;
+        })}</View>
+        <Text style={[styles.calendarHint, { color: colors.muted }]}>{t("calendarHint")}</Text>
+      </SurfaceCard> : null}
 
       <View style={styles.daySummaryHeader}>
         <View><Text style={[styles.summaryEyebrow, { color: "#a98af0" }]}>{t("selectedDay")}</Text><Text style={[styles.summaryTitle, { color: colors.foreground }]}>{selectedTitle}</Text></View>
@@ -376,10 +391,39 @@ export default function ScheduleScreen() {
   </ScreenContainer>;
 }
 
-function CoachRoomCalendar({ month, selectedDate, rows, loading, language, t, roomFilterId, onMonthChange, onDateChange, onInfo }: { month: Date; selectedDate: string; rows: { date: string; markers: string[]; publishedCount: number; bookingCount: number; capacityRatio: number | null }[]; loading: boolean; language: "en" | "vi"; t: (key: any) => string; colors: ReturnType<typeof useColors>; roomFilterId: number | "all"; onMonthChange: (month: Date) => void; onDateChange: (date: string) => void; onInfo: () => void }) {
+function CoachRoomCalendar({ month, selectedDate, rows, loading, language, t, colors, roomFilterId, onMonthChange, onDateChange }: { month: Date; selectedDate: string; rows: { date: string; markers: string[]; publishedCount: number; bookingCount: number }[]; loading: boolean; language: "en" | "vi"; t: (key: any) => string; colors: ReturnType<typeof useColors>; roomFilterId: number | "all"; onMonthChange: (month: Date) => void; onDateChange: (date: string) => void }) {
+  const days = buildMonthGrid(month);
+  const rowByDate = new Map(rows.map((row) => [row.date, row]));
   const markerLabel = (marker: string) => marker === "partially_closed" ? t("roomStatusPartiallyClosed") : marker === "closed" ? t("roomStatusClosed") : marker === "full" ? t("roomStatusFull") : marker === "inactive" ? t("roomStatusInactive") : marker === "availability_published" ? t("roomStatusAvailabilityPublished") : marker === "client_booking" ? t("roomStatusClientBooking") : t("roomStatusAvailable");
-  const capacityDays: CapacityCalendarDay[] = rows.map((row) => ({ date: row.date, capacity: row.capacityRatio === null ? null : 100, booked: Math.round((row.capacityRatio ?? 0) * 100), utilization: row.capacityRatio, summary: `${roomFilterId === "all" ? `${t("allRooms")}. ` : ""}${row.markers.map(markerLabel).join(", ") || t("roomStatusAvailable")}` }));
-  return <CapacityCalendar role="coach" month={month} selectedDate={selectedDate} days={capacityDays} locale={localeFor(language)} title={t("monthView")} loading={loading} todayLabel={t("today")} previousLabel={t("previousMonth")} nextLabel={t("nextMonth")} infoLabel={t("roomCalendarLegend")} loadingLabel={t("loading")} onMonthChange={onMonthChange} onDateChange={onDateChange} onInfoPress={onInfo} />;
+  const legendMarkers: RoomStatusMarker[] = ["available", "partially_closed", "closed", "full", "inactive", "availability_published", "client_booking"];
+
+  return <SurfaceCard style={styles.roomCalendarCard}>
+    <View style={styles.roomCalendarTitleRow}>
+      <View>
+        <Text style={[styles.roomCalendarEyebrow, { color: "#ff82b7" }]}>{t("monthView")}</Text>
+        <Text style={[styles.roomCalendarMonth, { color: colors.foreground }]}>{formatDateLocalized(month, language, { month: "long", year: "numeric" })}</Text>
+      </View>
+      <View style={styles.roomCalendarNav}>
+        <Pressable onPress={() => onMonthChange(addMonths(month, -1))} accessibilityRole="button" accessibilityLabel={t("previousMonth")} style={({ pressed }) => [styles.roomCalendarNavButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.roomCalendarNavText, { color: colors.foreground }]}>‹</Text></Pressable>
+        <Pressable onPress={() => onMonthChange(startOfMonth(new Date()))} accessibilityRole="button" accessibilityLabel={t("today")} style={({ pressed }) => [styles.roomCalendarTodayButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.roomCalendarTodayText, { color: colors.foreground }]}>{t("today")}</Text></Pressable>
+        <Pressable onPress={() => onMonthChange(addMonths(month, 1))} accessibilityRole="button" accessibilityLabel={t("nextMonth")} style={({ pressed }) => [styles.roomCalendarNavButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.roomCalendarNavText, { color: colors.foreground }]}>›</Text></Pressable>
+      </View>
+    </View>
+    {loading ? <Text style={[styles.roomScheduleLoading, { color: colors.muted }]}>{t("loading")}</Text> : <>
+      <View style={styles.roomCalendarWeekdays}>{days.slice(0, 7).map((day) => <Text key={day.toISOString()} style={[styles.roomCalendarWeekday, { color: colors.muted }]}>{formatDateLocalized(day, language, { weekday: "narrow" })}</Text>)}</View>
+      <View style={styles.roomCalendarGrid}>{days.map((day) => {
+        const date = localDayKey(day);
+        const row = rowByDate.get(date);
+        const selected = date === selectedDate;
+        const inMonth = day.getMonth() === month.getMonth();
+        const markers = visibleRoomCalendarMarkers(row?.markers ?? []);
+        const visibleMarkers = markers.slice(0, 3);
+        const overflow = markers.length - visibleMarkers.length;
+        return <Pressable key={date} onPress={() => onDateChange(date)} accessibilityRole="button" accessibilityLabel={`${formatDateLocalized(day, language, { weekday: "long", month: "long", day: "numeric" })}. ${roomFilterId === "all" ? `${t("allRooms")}. ` : ""}${markers.map(markerLabel).join(", ") || t("roomStatusAvailable")}`} accessibilityState={{ selected }} style={({ pressed }) => [styles.roomCalendarDay, { borderColor: selected ? "#f04488" : colors.border, backgroundColor: selected ? "#2b1f2a" : colors.surface, opacity: inMonth ? 1 : 0.44 }, pressed && styles.pressed]}><Text style={[styles.roomCalendarDayNumber, { color: selected ? "#ff82b7" : colors.foreground }]}>{day.getDate()}</Text><View style={styles.roomCalendarDots}>{visibleMarkers.map((marker) => <View key={marker} style={[styles.roomCalendarDot, { backgroundColor: roomStatusPresentation(marker).color }]} />)}{overflow > 0 ? <Text style={[styles.roomCalendarOverflow, { color: colors.muted }]}>+{overflow}</Text> : null}</View></Pressable>;
+      })}</View>
+      <View accessibilityLabel={t("roomCalendarLegend")} style={styles.roomLegendWrap}>{legendMarkers.map((marker) => <View key={marker} style={styles.roomLegendItem}><View style={[styles.roomLegendDot, { backgroundColor: roomStatusPresentation(marker).color }]} /><Text style={[styles.roomLegendText, { color: colors.muted }]}>{markerLabel(marker)}</Text></View>)}</View>
+    </>}
+  </SurfaceCard>;
 }
 
 function CoachRoomSchedule({ date, rooms, loading, language, t, colors }: { date: string; rooms: any[]; loading: boolean; language: "en" | "vi"; t: (key: any) => string; colors: ReturnType<typeof useColors> }) {

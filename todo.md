@@ -115,9 +115,3 @@
 - [x] Preserve selected-date authoritative room and Coach discovery when navigating the Client week selector
 - [x] Add regression coverage for Client week-card ordering, selection, local-date behavior, and booking-query synchronization
 - [x] Validate the responsive Client booking flow in Preview and public PWA builds
-- [x] Audit the existing Coach, Admin, and Client screens, shared UI components, role styling, and calendar variants against the visual-redesign specification
-- [x] Create the shared dark-surface, typography, role-accent, status-pill, header, hero, and button visual system without changing flows
-- [x] Replace role-specific calendar presentations with one shared capacity-calendar component that retains role-specific data and selection behavior
-- [x] Apply the role-aware visual hierarchy and screen-specific Coach, Admin, and Client redesign requirements
-- [x] Add regression coverage for the one-gradient rule, shared calendar usage, role accents, disabled closed-room booking, and non-duplicated Client headline
-- [x] Validate the responsive redesign across Coach, Admin, and Client flows before delivery
