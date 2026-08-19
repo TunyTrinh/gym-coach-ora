@@ -11,6 +11,7 @@
     "build:web": "rm -rf web && npx expo export --platform web --output-dir web && node scripts/stamp-pwa-release.mjs web",
     "start": "NODE_ENV=production node dist/index.js",
     "db:migrate": "drizzle-kit migrate",
+    "db:validate:history": "node scripts/validate-migration-history.mjs",
     "check": "node scripts/typecheck.mjs",
     "lint": "expo lint",
     "format": "prettier --write .",
