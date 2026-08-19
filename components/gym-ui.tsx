@@ -8,7 +8,7 @@ import { useReducedMotion } from "@/hooks/use-reduced-motion";
 import { haptic } from "@/lib/haptics";
 
 const SPECTRUM_COLORS = ["#e53f87", "#ed5f68", "#d87870", "#9660bd", "#5266e6"];
-const AVATAR_COLORS = ["#7C3AED", "#3B82F6", "#EC4899", "#F59E0B", "#34D399"];
+const AVATAR_COLORS = ["#A78BFA", "#3B82F6", "#EC4899", "#F59E0B", "#34D399"];
 
 function SpectrumFill({ opacity = 1 }: { opacity?: number }) {
   return (
@@ -122,13 +122,13 @@ const styles = StyleSheet.create({
   eyebrow: { fontSize: 10, fontWeight: "600", letterSpacing: 0.5, marginBottom: 4 },
   title: { fontSize: 22, fontWeight: "600", letterSpacing: -0.25, lineHeight: 27 },
   subtitle: { fontSize: 13, lineHeight: 18, marginTop: 4 },
-  iconButton: { width: 40, height: 40, borderRadius: 10, borderWidth: 1, alignItems: "center", justifyContent: "center", position: "relative" },
+  iconButton: { width: 44, height: 44, borderRadius: 11, borderWidth: 1, alignItems: "center", justifyContent: "center", position: "relative" },
   badgeDot: { position: "absolute", top: -4, right: -4, minWidth: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", paddingHorizontal: 4, borderWidth: 2, borderColor: "#0d0d0f" },
   badgeText: { color: "#ffffff", fontSize: 9, fontWeight: "800" },
   sectionRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 12 },
   sectionEyebrow: { fontSize: 9, fontWeight: "800", letterSpacing: 1.5, marginBottom: 4 },
   sectionTitle: { fontSize: 18, fontWeight: "800", letterSpacing: -0.3 },
-  sectionAction: { fontSize: 13, fontWeight: "800" },
+  sectionAction: { minHeight: 44, textAlignVertical: "center", fontSize: 13, fontWeight: "800" },
   card: { borderRadius: 14, borderWidth: 1, padding: 14 },
   pressed: { opacity: 0.72 },
   cardPressed: { opacity: 0.78, transform: [{ scale: 0.99 }] },
@@ -137,7 +137,7 @@ const styles = StyleSheet.create({
   statusText: { fontSize: 10, fontWeight: "500" },
   avatar: { alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: "rgba(255,255,255,0.15)" },
   avatarText: { color: "#0d0d0f", fontWeight: "800" },
-  primaryButton: { minHeight: 50, borderRadius: 14, overflow: "hidden", justifyContent: "center", backgroundColor: "#EC4899" },
+  primaryButton: { minHeight: 50, borderRadius: 14, overflow: "hidden", justifyContent: "center", backgroundColor: "#C42D68" },
   disabledButton: { backgroundColor: "#303036" },
   buttonContent: { minHeight: 50, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8 },
   primaryButtonText: { color: "#ffffff", fontSize: 15, fontWeight: "700" },

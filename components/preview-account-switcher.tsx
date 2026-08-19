@@ -73,8 +73,8 @@ export function PreviewAccountSwitcher({ children }: { children: React.ReactNode
 }
 
 const styles = StyleSheet.create({
-  dock: { position: "absolute", right: 14, bottom: 18, alignItems: "flex-end", zIndex: 1000 },
-  trigger: { backgroundColor: "#2b1f2a", borderColor: "#f04488", borderWidth: 1, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9 },
+  dock: { position: "absolute", right: 14, bottom: 96, alignItems: "flex-end", zIndex: 1000 },
+  trigger: { minHeight: 44, justifyContent: "center", backgroundColor: "#2b1f2a", borderColor: "#f04488", borderWidth: 1, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9 },
   triggerText: { color: "#ff82b7", fontSize: 11, fontWeight: "900" },
   panel: { width: 312, maxHeight: 380, marginBottom: 9, padding: 13, borderRadius: 18, borderWidth: 1, borderColor: "#4b4050", backgroundColor: "#1d1d21", shadowColor: "#000", shadowOpacity: 0.34, shadowRadius: 18, elevation: 10 },
   title: { color: "#f7f7f8", fontSize: 14, fontWeight: "900" },

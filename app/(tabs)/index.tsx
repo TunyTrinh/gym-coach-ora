@@ -48,7 +48,7 @@ export default function HomeScreen() {
 
       {role === "admin" ? <>
         <View style={styles.statRow}><StatCard value={String(adminRooms.data?.length ?? 0)} label={t("rooms")} /><StatCard value={String(adminCoaches.data?.length ?? 0)} label={t("coaches")} /><StatCard value="—" label="Bookings today" /></View>
-        <View style={styles.sectionHeading}><Text style={[styles.sectionLabel, { color: "#A1A1AA" }]}>{t("rooms").toUpperCase()}</Text><Pressable onPress={() => router.push("/rooms")} accessibilityRole="button"><Text style={styles.manageLink}>{t("manageRooms")}</Text></Pressable></View>
+        <View style={styles.sectionHeading}><Text style={[styles.sectionLabel, { color: "#A1A1AA" }]}>{t("rooms").toUpperCase()}</Text><Pressable onPress={() => router.push("/rooms")} accessibilityRole="button" style={{ minHeight: 44, justifyContent: "center" }}><Text style={styles.manageLink}>{t("manageRooms")}</Text></Pressable></View>
         <View style={styles.sessionList}>{(adminRooms.data ?? []).slice(0, 4).map((room) => <SurfaceCard key={room.id} style={styles.nextSessionCard} onPress={() => router.push("/rooms")}><View style={styles.listCopy}><Text style={styles.listTitle}>{room.name}</Text><Text style={styles.listMeta}>{room.maximumCapacity} {t("clientsAtATime")}</Text></View><StatusBadge label={room.active ? t("available") : t("roomInactive")} tone={room.active ? "success" : "neutral"} /></SurfaceCard>)}</View>
       </> : null}
     </ScrollView>

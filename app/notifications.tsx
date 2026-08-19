@@ -40,7 +40,7 @@ export default function NotificationsScreen() {
   };
   return <ScreenContainer className="px-5" edges={["top", "left", "right", "bottom"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-      <View style={styles.header}><Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="button" accessibilityLabel={t("goBack")}><IconSymbol name="chevron.left" size={20} color={colors.foreground} /></Pressable><View style={styles.headerCopy}><Text style={[styles.eyebrow, { color: colors.primary }]}>{t("inbox")}</Text><Text style={[styles.title, { color: colors.foreground }]}>{t("notifications")}</Text></View>{activeUnreadCount > 0 ? <Pressable onPress={() => void markAllRead()} accessibilityRole="button"><Text style={[styles.markAll, { color: colors.primary }]}>{t("markAllRead")}</Text></Pressable> : null}</View>
+      <View style={styles.header}><Pressable onPress={() => router.back()} style={[styles.backButton, { backgroundColor: colors.surface, borderColor: colors.border }]} accessibilityRole="button" accessibilityLabel={t("goBack")}><IconSymbol name="chevron.left" size={20} color={colors.foreground} /></Pressable><View style={styles.headerCopy}><Text style={[styles.eyebrow, { color: colors.primary }]}>{t("inbox")}</Text><Text style={[styles.title, { color: colors.foreground }]}>{t("notifications")}</Text></View>{activeUnreadCount > 0 ? <Pressable onPress={() => void markAllRead()} accessibilityRole="button" style={styles.markAllButton}><Text style={[styles.markAll, { color: colors.primary }]}>{t("markAllRead")}</Text></Pressable> : null}</View>
       <Text style={[styles.subtitle, { color: colors.muted }]}>{activeUnreadCount ? `${activeUnreadCount} ${t("unreadUpdates")}` : t("allCaughtUp")}</Text>
       <View style={styles.list}>{items.map((item) => { const content = localizeNotification(item.title, item.message, t); return <SurfaceCard key={item.id} style={[styles.noteCard, !item.read && { borderColor: `${colors.primary}70` }]} onPress={() => { void markRead(item.id); if (item.relatedBookingId) router.push("/schedule"); }} accessibilityLabel={`${t("openNotification")} ${content.title}`}><View style={styles.noteTop}><View style={[styles.noteIcon, { backgroundColor: item.read ? `${colors.muted}16` : `${colors.primary}18` }]}><IconSymbol name={item.type === "reminder" ? "clock" : item.type === "announcement" ? "sparkles" : "bell.fill"} size={18} color={item.read ? colors.muted : colors.primary} /></View><View style={styles.noteCopy}><View style={styles.noteTitleRow}><Text style={[styles.noteTitle, { color: colors.foreground }]}>{content.title}</Text>{!item.read ? <View style={[styles.unreadDot, { backgroundColor: colors.primary }]} /> : null}</View><Text style={[styles.noteMessage, { color: colors.muted }]}>{content.message}</Text><Text style={[styles.noteTime, { color: colors.muted }]}>{new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en-US", { hour: "numeric", minute: "2-digit" }).format(new Date(item.createdAt))}</Text></View></View>{item.priority === "Important" ? <StatusBadge label={t("important")} tone="accent" /> : null}</SurfaceCard>; })}</View>
     </ScrollView>
@@ -50,11 +50,11 @@ export default function NotificationsScreen() {
 const styles = StyleSheet.create({
   content: { paddingTop: 10, paddingBottom: 40, gap: 10 },
   header: { flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 4 },
-  backButton: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
+  backButton: { width: 44, height: 44, borderRadius: 14, borderWidth: 1, alignItems: "center", justifyContent: "center" },
   headerCopy: { flex: 1 },
   eyebrow: { fontSize: 10, fontWeight: "800", letterSpacing: 1.4, marginBottom: 3 },
   title: { fontSize: 28, fontWeight: "800", letterSpacing: -0.6 },
-  markAll: { fontSize: 12, fontWeight: "800" },
+  markAllButton: { minHeight: 44, justifyContent: "center" }, markAll: { fontSize: 12, fontWeight: "800" },
   subtitle: { fontSize: 14, marginBottom: 8 },
   list: { gap: 10 },
   noteCard: { padding: 15, gap: 12 },

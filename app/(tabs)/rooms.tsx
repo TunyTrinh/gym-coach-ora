@@ -3,6 +3,7 @@ import { router } from "expo-router";
 import { useEffect, useMemo, useState } from "react";
 
 import { PrimaryButton, ScreenHeader, SpectrumCard, SurfaceCard } from "@/components/gym-ui";
+import { CenteredDialog } from "@/components/centered-dialog";
 import { ScreenContainer } from "@/components/screen-container";
 import { TypedConfirmSheet } from "@/components/typed-confirm-sheet";
 import { useAuth } from "@/hooks/use-auth";
@@ -641,8 +642,7 @@ export default function RoomsScreen() {
         }
         pending={deleteRoom.isPending || deleteImpact.isLoading}
       />
-      <Modal visible={Boolean(pendingImpact)} transparent animationType="fade" onRequestClose={() => setPendingImpact(null)}>
-        <View style={styles.backdrop}>
+      <CenteredDialog visible={Boolean(pendingImpact)} onRequestClose={() => setPendingImpact(null)} accessibilityLabel={pendingImpact?.title ?? t("confirm")}>
           <SurfaceCard style={styles.feedback}>
             <Text style={[styles.feedbackTitle, { color: colors.foreground }]}>{pendingImpact?.title}</Text>
             <Text style={[styles.feedbackBody, { color: colors.muted }]}>{t("affectedBookingsPreserved", { count: pendingImpact?.bookings.length ?? 0 })}</Text>
@@ -666,21 +666,18 @@ export default function RoomsScreen() {
                 action?.();
               }}
             />
-            <Pressable onPress={() => setPendingImpact(null)} accessibilityRole="button">
+            <Pressable onPress={() => setPendingImpact(null)} accessibilityRole="button" style={styles.dialogSecondaryAction}>
               <Text style={[styles.feedbackBody, { color: colors.muted, textAlign: "center" }]}>{t("cancel")}</Text>
             </Pressable>
           </SurfaceCard>
-        </View>
-      </Modal>
-      <Modal visible={Boolean(feedback)} transparent animationType="fade" onRequestClose={() => setFeedback(null)}>
-        <View style={styles.backdrop}>
+      </CenteredDialog>
+      <CenteredDialog visible={Boolean(feedback)} onRequestClose={() => setFeedback(null)} accessibilityLabel={feedback?.title ?? t("success")}>
           <SurfaceCard style={styles.feedback}>
             <Text style={[styles.feedbackTitle, { color: feedback?.tone === "error" ? "#ff766e" : "#32d77b" }]}>{feedback?.title}</Text>
             <Text style={[styles.feedbackBody, { color: colors.muted }]}>{feedback?.body}</Text>
             <PrimaryButton title={t("close")} onPress={() => setFeedback(null)} />
           </SurfaceCard>
-        </View>
-      </Modal>
+      </CenteredDialog>
     </ScreenContainer>
   );
 }
@@ -690,14 +687,14 @@ function Field({ label, value, onChangeText, multiline = false, keyboardType = "
   return (
     <View style={styles.field}>
       <Text style={[styles.fieldLabel, { color: colors.muted }]}>{label}</Text>
-      <TextInput value={value} onChangeText={onChangeText} multiline={multiline} keyboardType={keyboardType} autoCorrect={false} style={[styles.input, multiline && styles.multiline, { color: colors.foreground, borderColor: "#000000" }]} />
+      <TextInput value={value} onChangeText={onChangeText} multiline={multiline} keyboardType={keyboardType} autoCorrect={false} accessibilityLabel={label} style={[styles.input, multiline && styles.multiline, { color: colors.foreground, borderColor: "#000000" }]} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   topBar: { height: 38, justifyContent: "center" },
-  backButton: { alignSelf: "flex-start", paddingVertical: 6, paddingRight: 14 },
+  backButton: { alignSelf: "flex-start", minHeight: 44, justifyContent: "center", paddingRight: 14 },
   backText: { color: "#ff82b7", fontSize: 14, fontWeight: "800" },
   content: { paddingTop: 2, paddingBottom: 32, gap: 10 },
   header: { gap: 10 },
@@ -733,6 +730,8 @@ const styles = StyleSheet.create({
   capacity: { color: "#ff82b7", fontSize: 11, fontWeight: "800", marginTop: 2 },
   roomActions: { alignItems: "flex-end", gap: 6 },
   editButton: {
+    minHeight: 44,
+    justifyContent: "center",
     paddingHorizontal: 10,
     paddingVertical: 7,
     backgroundColor: "#2b1f2a",
@@ -740,6 +739,8 @@ const styles = StyleSheet.create({
   },
   editText: { color: "#ff82b7", fontSize: 10, fontWeight: "900" },
   deleteButton: {
+    minHeight: 44,
+    justifyContent: "center",
     paddingHorizontal: 10,
     paddingVertical: 7,
     backgroundColor: "#5b2028",
@@ -755,8 +756,8 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
   },
   monthButton: {
-    width: 34,
-    height: 30,
+    width: 44,
+    height: 44,
     borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
@@ -792,14 +793,14 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: "#ff766e",
   },
-  outsideMonth: { opacity: 0.34 },
+  outsideMonth: { opacity: 0.72 },
   dateNav: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     gap: 8,
   },
-  dateButton: { paddingVertical: 8, paddingHorizontal: 7 },
+  dateButton: { minHeight: 44, justifyContent: "center", paddingHorizontal: 7 },
   dateButtonText: { color: "#ff82b7", fontSize: 10, fontWeight: "800" },
   selectedDate: {
     flex: 1,
@@ -830,6 +831,7 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     padding: 16,
   },
+  dialogSecondaryAction: { minHeight: 44, justifyContent: "center" },
   sheet: { maxHeight: "92%", borderRadius: 25, borderWidth: 1, padding: 18 },
   sheetHeader: { flexDirection: "row", gap: 12, marginBottom: 16 },
   sheetTitle: { fontSize: 20, fontWeight: "900" },
@@ -889,7 +891,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   fullDeleteText: { color: "#ffccc7", fontSize: 14, fontWeight: "900" },
-  feedback: { gap: 12, alignSelf: "stretch", marginBottom: "45%" },
+  feedback: { gap: 12, alignSelf: "stretch", maxHeight: "100%" },
   feedbackTitle: { fontSize: 19, fontWeight: "900" },
   feedbackBody: { fontSize: 13, lineHeight: 20 },
   restricted: { flex: 1, justifyContent: "center", gap: 16 },

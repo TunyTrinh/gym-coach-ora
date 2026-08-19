@@ -36,7 +36,7 @@ export function CenteredDialog({ visible, onRequestClose, children, contentStyle
       <SafeAreaView pointerEvents="box-none" edges={["top", "right", "bottom", "left"]} style={styles.safeArea}>
         <KeyboardAvoidingView style={styles.keyboardArea} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View pointerEvents="box-none" style={styles.centerFrame}>
-            <View accessibilityRole="alert" accessibilityLabel={accessibilityLabel} style={[styles.card, contentStyle]}>{children}</View>
+            <View accessibilityRole="alert" accessibilityViewIsModal accessibilityLabel={accessibilityLabel} style={[styles.card, contentStyle]}>{children}</View>
           </View>
         </KeyboardAvoidingView>
       </SafeAreaView>

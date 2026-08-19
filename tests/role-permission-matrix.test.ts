@@ -14,6 +14,8 @@ describe("role permission matrix", () => {
   it("blocks Clients from Coach and Admin management", async () => {
     const caller = appRouter.createCaller(context("client"));
     await expect(caller.coach.clients()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.coach.notes({ clientUserId: 2 })).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.coach.saveNote({ clientUserId: 2, note: "private" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.availability.create({ startDate: "2026-08-20", startTime: "09:00", endTime: "10:00", maximumCapacity: 1, roomId: 1 })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.listUsers()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });

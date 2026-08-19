@@ -232,12 +232,12 @@ const styles = StyleSheet.create({
   },
   segmentButton: {
     flex: 1,
-    minHeight: 36,
+    minHeight: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 10,
   },
-  segmentActive: { backgroundColor: "#f04488" },
+  segmentActive: { backgroundColor: "#c42d68" },
   segmentText: { fontSize: 11, fontWeight: "800" },
   filters: { gap: 8, paddingRight: 18 },
   filter: {

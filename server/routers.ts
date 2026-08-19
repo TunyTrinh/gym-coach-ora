@@ -6,7 +6,7 @@ import { adminProcedure, clientProcedure, coachOrAdminProcedure, protectedProced
 import { createGymRoom, deleteCoachAccount, deleteGymRoom, getAdminRoomSchedule, getAuthorizedCoachIdForUser, getDb, getRoomClosures, grantCoachGoogleAccess, listActiveGyms, listCoachAccounts, listRooms, previewRoomChange, removeRoomClosure, setCoachGoogleAccess, setRoomClosure, updateGymRoom } from "./db";
 import { isValidGoogleEmail, normalizeGoogleEmail } from "./google-authorization";
 import { availabilityShifts, auditLogs, bookings, coachAuthorizations, coachNotes, coaches, gymRooms, gyms, healthMeasurements, notifications, roomClosures, timeSlots, users } from "../drizzle/schema";
-import { and, asc, eq, gt, gte, inArray, lt, lte, ne, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, lte, ne, or, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { buildAvailabilityRoomChoices } from "../shared/availability-room-collection";
 import { addCalendarDays, gymDateKey, gymDayBounds, gymLocalDateTime } from "../shared/business-time";
@@ -328,6 +328,18 @@ export const appRouter = router({
         
       return query;
     }),
+    notes: coachOrAdminProcedure
+      .input(z.object({ clientUserId: z.number().int().positive(), coachId: z.number().int().positive().optional() }))
+      .query(async ({ ctx, input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        const coachId = await managedCoachClientId(db, ctx.user, input.clientUserId, input.coachId);
+        return db.select({ id: coachNotes.id, note: coachNotes.note, createdAt: coachNotes.createdAt, updatedAt: coachNotes.updatedAt })
+          .from(coachNotes)
+          .where(and(eq(coachNotes.coachId, coachId), eq(coachNotes.clientUserId, input.clientUserId)))
+          .orderBy(desc(coachNotes.createdAt), desc(coachNotes.id))
+          .limit(50);
+      }),
     saveNote: coachOrAdminProcedure
       .input(z.object({ clientUserId: z.number().int().positive(), coachId: z.number().int().positive().optional(), note: z.string().trim().min(1).max(4_000) }))
       .mutation(async ({ ctx, input }) => {

@@ -1,0 +1,4184 @@
+{
+  "generatedAt": "2026-08-19T16:58:20.865Z",
+  "stage": "after",
+  "baseUrl": "http://127.0.0.1:33200",
+  "browser": "151.0.7922.34",
+  "widths": [
+    320,
+    360,
+    390,
+    430,
+    768
+  ],
+  "results": [
+    {
+      "role": "signedOut",
+      "screen": "sign-in",
+      "route": "/",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "pageErrors": [],
+      "failedRequests": [
+        "401 GET http://127.0.0.1:33200/api/auth/me"
+      ]
+    },
+    {
+      "role": "signedOut",
+      "screen": "sign-in",
+      "route": "/",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "pageErrors": [],
+      "failedRequests": [
+        "401 GET http://127.0.0.1:33200/api/auth/me"
+      ]
+    },
+    {
+      "role": "signedOut",
+      "screen": "sign-in",
+      "route": "/",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "pageErrors": [],
+      "failedRequests": [
+        "401 GET http://127.0.0.1:33200/api/auth/me"
+      ]
+    },
+    {
+      "role": "signedOut",
+      "screen": "sign-in",
+      "route": "/",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "pageErrors": [],
+      "failedRequests": [
+        "401 GET http://127.0.0.1:33200/api/auth/me"
+      ]
+    },
+    {
+      "role": "signedOut",
+      "screen": "sign-in",
+      "route": "/",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [
+        "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "pageErrors": [],
+      "failedRequests": [
+        "401 GET http://127.0.0.1:33200/api/auth/me"
+      ]
+    },
+    {
+      "role": "client",
+      "screen": "home",
+      "route": "/",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "book",
+      "route": "/book",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [
+        {
+          "label": "TODAY, August 19. available, inactive",
+          "width": 36,
+          "height": 82
+        },
+        {
+          "label": "THU, August 20. available, inactive, availability_published, client_booking",
+          "width": 36,
+          "height": 82
+        },
+        {
+          "label": "FRI, August 21. available, partially_closed, inactive, availability_published",
+          "width": 36,
+          "height": 82
+        },
+        {
+          "label": "SAT, August 22. available, inactive",
+          "width": 36,
+          "height": 82
+        },
+        {
+          "label": "SUN, August 23. available, inactive",
+          "width": 36,
+          "height": 82
+        },
+        {
+          "label": "MON, August 24. available, inactive",
+          "width": 36,
+          "height": 82
+        },
+        {
+          "label": "TUE, August 25. available, inactive",
+          "width": 36,
+          "height": 82
+        }
+      ],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio06:00–22:00 · 8AvailableMobility Room07:00–21:00 · 5AvailableCardio Loft05:30–22:30 ·",
+          "left": 37,
+          "right": 715,
+          "width": 678
+        },
+        {
+          "label": "Mobility Room07:00–21:00 · 5Available",
+          "left": 205,
+          "right": 365,
+          "width": 160
+        },
+        {
+          "label": "Mobility Room",
+          "left": 217,
+          "right": 353,
+          "width": 136
+        },
+        {
+          "label": "07:00–21:00 · 5",
+          "left": 217,
+          "right": 353,
+          "width": 136
+        },
+        {
+          "label": "Available",
+          "left": 217,
+          "right": 353,
+          "width": 136
+        },
+        {
+          "label": "Cardio Loft05:30–22:30 · 10Available",
+          "left": 373,
+          "right": 533,
+          "width": 160
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "05:30–22:30 · 10",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "Available",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "Archive Studio08:00–18:00 · 4Inactive",
+          "left": 541,
+          "right": 701,
+          "width": 160
+        },
+        {
+          "label": "Archive Studio",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        },
+        {
+          "label": "08:00–18:00 · 4",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        },
+        {
+          "label": "Inactive",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "schedule",
+      "route": "/schedule",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [
+        {
+          "label": "Sun, Jul 26, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Mon, Jul 27, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Tue, Jul 28, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Wed, Jul 29, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Thu, Jul 30, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Fri, Jul 31, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sat, Aug 1, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sun, Aug 2, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Mon, Aug 3, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Tue, Aug 4, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Wed, Aug 5, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Thu, Aug 6, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Fri, Aug 7, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sat, Aug 8, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sun, Aug 9, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Mon, Aug 10, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Tue, Aug 11, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Wed, Aug 12, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Thu, Aug 13, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Fri, Aug 14, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sat, Aug 15, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sun, Aug 16, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Mon, Aug 17, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Tue, Aug 18, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Wed, Aug 19, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Thu, Aug 20, 2026 · 1 session",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Fri, Aug 21, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sat, Aug 22, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sun, Aug 23, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Mon, Aug 24, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Tue, Aug 25, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Wed, Aug 26, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Thu, Aug 27, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Fri, Aug 28, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sat, Aug 29, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sun, Aug 30, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Mon, Aug 31, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Tue, Sep 1, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Wed, Sep 2, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Thu, Sep 3, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Fri, Sep 4, 2026",
+          "width": 32,
+          "height": 37
+        },
+        {
+          "label": "Sat, Sep 5, 2026",
+          "width": 32,
+          "height": 37
+        }
+      ],
+      "overflowingElements": [
+        {
+          "label": "‹Today›",
+          "left": 165,
+          "right": 323,
+          "width": 158
+        },
+        {
+          "label": "Next",
+          "left": 279,
+          "right": 323,
+          "width": 44
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "history",
+      "route": "/history",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "health-progress",
+      "route": "/progress",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "WeightBody fatChestWaistHipsArmsThighs",
+          "left": 20,
+          "right": 550,
+          "width": 530
+        },
+        {
+          "label": "Waist",
+          "left": 259,
+          "right": 321,
+          "width": 62
+        },
+        {
+          "label": "Hips",
+          "left": 329,
+          "right": 386,
+          "width": 56
+        },
+        {
+          "label": "Hips",
+          "left": 343,
+          "right": 372,
+          "width": 28
+        },
+        {
+          "label": "Arms",
+          "left": 394,
+          "right": 454,
+          "width": 61
+        },
+        {
+          "label": "Arms",
+          "left": 408,
+          "right": 440,
+          "width": 33
+        },
+        {
+          "label": "Thighs",
+          "left": 462,
+          "right": 532,
+          "width": 70
+        },
+        {
+          "label": "Thighs",
+          "left": 476,
+          "right": 518,
+          "width": 42
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "profile",
+      "route": "/profile",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "notifications",
+      "route": "/notifications",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "home",
+      "route": "/",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "book",
+      "route": "/book",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [
+        {
+          "label": "TODAY, August 19. available, inactive",
+          "width": 41,
+          "height": 82
+        },
+        {
+          "label": "THU, August 20. available, inactive, availability_published, client_booking",
+          "width": 41,
+          "height": 82
+        },
+        {
+          "label": "FRI, August 21. available, partially_closed, inactive, availability_published",
+          "width": 41,
+          "height": 82
+        },
+        {
+          "label": "SAT, August 22. available, inactive",
+          "width": 41,
+          "height": 82
+        },
+        {
+          "label": "SUN, August 23. available, inactive",
+          "width": 41,
+          "height": 82
+        },
+        {
+          "label": "MON, August 24. available, inactive",
+          "width": 41,
+          "height": 82
+        },
+        {
+          "label": "TUE, August 25. available, inactive",
+          "width": 41,
+          "height": 82
+        }
+      ],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio06:00–22:00 · 8AvailableMobility Room07:00–21:00 · 5AvailableCardio Loft05:30–22:30 ·",
+          "left": 37,
+          "right": 715,
+          "width": 678
+        },
+        {
+          "label": "Mobility Room07:00–21:00 · 5Available",
+          "left": 205,
+          "right": 365,
+          "width": 160
+        },
+        {
+          "label": "Cardio Loft05:30–22:30 · 10Available",
+          "left": 373,
+          "right": 533,
+          "width": 160
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "05:30–22:30 · 10",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "Available",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "Archive Studio08:00–18:00 · 4Inactive",
+          "left": 541,
+          "right": 701,
+          "width": 160
+        },
+        {
+          "label": "Archive Studio",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        },
+        {
+          "label": "08:00–18:00 · 4",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        },
+        {
+          "label": "Inactive",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "schedule",
+      "route": "/schedule",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [
+        {
+          "label": "Sun, Jul 26, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Mon, Jul 27, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Tue, Jul 28, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Wed, Jul 29, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Thu, Jul 30, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Fri, Jul 31, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sat, Aug 1, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sun, Aug 2, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Mon, Aug 3, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Tue, Aug 4, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Wed, Aug 5, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Thu, Aug 6, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Fri, Aug 7, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sat, Aug 8, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sun, Aug 9, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Mon, Aug 10, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Tue, Aug 11, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Wed, Aug 12, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Thu, Aug 13, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Fri, Aug 14, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sat, Aug 15, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sun, Aug 16, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Mon, Aug 17, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Tue, Aug 18, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Wed, Aug 19, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Thu, Aug 20, 2026 · 1 session",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Fri, Aug 21, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sat, Aug 22, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sun, Aug 23, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Mon, Aug 24, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Tue, Aug 25, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Wed, Aug 26, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Thu, Aug 27, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Fri, Aug 28, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sat, Aug 29, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sun, Aug 30, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Mon, Aug 31, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Tue, Sep 1, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Wed, Sep 2, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Thu, Sep 3, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Fri, Sep 4, 2026",
+          "width": 37,
+          "height": 43
+        },
+        {
+          "label": "Sat, Sep 5, 2026",
+          "width": 37,
+          "height": 43
+        }
+      ],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "history",
+      "route": "/history",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "health-progress",
+      "route": "/progress",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "WeightBody fatChestWaistHipsArmsThighs",
+          "left": 20,
+          "right": 550,
+          "width": 530
+        },
+        {
+          "label": "Hips",
+          "left": 329,
+          "right": 386,
+          "width": 56
+        },
+        {
+          "label": "Hips",
+          "left": 343,
+          "right": 372,
+          "width": 28
+        },
+        {
+          "label": "Arms",
+          "left": 394,
+          "right": 454,
+          "width": 61
+        },
+        {
+          "label": "Arms",
+          "left": 408,
+          "right": 440,
+          "width": 33
+        },
+        {
+          "label": "Thighs",
+          "left": 462,
+          "right": 532,
+          "width": 70
+        },
+        {
+          "label": "Thighs",
+          "left": 476,
+          "right": 518,
+          "width": 42
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "profile",
+      "route": "/profile",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "notifications",
+      "route": "/notifications",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "home",
+      "route": "/",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "book",
+      "route": "/book",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio06:00–22:00 · 8AvailableMobility Room07:00–21:00 · 5AvailableCardio Loft05:30–22:30 ·",
+          "left": 37,
+          "right": 715,
+          "width": 678
+        },
+        {
+          "label": "Cardio Loft05:30–22:30 · 10Available",
+          "left": 373,
+          "right": 533,
+          "width": 160
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "05:30–22:30 · 10",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "Available",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "Archive Studio08:00–18:00 · 4Inactive",
+          "left": 541,
+          "right": 701,
+          "width": 160
+        },
+        {
+          "label": "Archive Studio",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        },
+        {
+          "label": "08:00–18:00 · 4",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        },
+        {
+          "label": "Inactive",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "schedule",
+      "route": "/schedule",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [
+        {
+          "label": "Sun, Jul 26, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Mon, Jul 27, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Tue, Jul 28, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Wed, Jul 29, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Thu, Jul 30, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Fri, Jul 31, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sat, Aug 1, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sun, Aug 2, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Mon, Aug 3, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Tue, Aug 4, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Wed, Aug 5, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Thu, Aug 6, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Fri, Aug 7, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sat, Aug 8, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sun, Aug 9, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Mon, Aug 10, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Tue, Aug 11, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Wed, Aug 12, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Thu, Aug 13, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Fri, Aug 14, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sat, Aug 15, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sun, Aug 16, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Mon, Aug 17, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Tue, Aug 18, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Wed, Aug 19, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Thu, Aug 20, 2026 · 1 session",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Fri, Aug 21, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sat, Aug 22, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sun, Aug 23, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Mon, Aug 24, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Tue, Aug 25, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Wed, Aug 26, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Thu, Aug 27, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Fri, Aug 28, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sat, Aug 29, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sun, Aug 30, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Mon, Aug 31, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Tue, Sep 1, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Wed, Sep 2, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Thu, Sep 3, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Fri, Sep 4, 2026",
+          "width": 42,
+          "height": 48
+        },
+        {
+          "label": "Sat, Sep 5, 2026",
+          "width": 42,
+          "height": 48
+        }
+      ],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "history",
+      "route": "/history",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "health-progress",
+      "route": "/progress",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "WeightBody fatChestWaistHipsArmsThighs",
+          "left": 20,
+          "right": 550,
+          "width": 530
+        },
+        {
+          "label": "Arms",
+          "left": 394,
+          "right": 454,
+          "width": 61
+        },
+        {
+          "label": "Arms",
+          "left": 408,
+          "right": 440,
+          "width": 33
+        },
+        {
+          "label": "Thighs",
+          "left": 462,
+          "right": 532,
+          "width": 70
+        },
+        {
+          "label": "Thighs",
+          "left": 476,
+          "right": 518,
+          "width": 42
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "profile",
+      "route": "/profile",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "notifications",
+      "route": "/notifications",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "home",
+      "route": "/",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "book",
+      "route": "/book",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio06:00–22:00 · 8AvailableMobility Room07:00–21:00 · 5AvailableCardio Loft05:30–22:30 ·",
+          "left": 37,
+          "right": 715,
+          "width": 678
+        },
+        {
+          "label": "Cardio Loft05:30–22:30 · 10Available",
+          "left": 373,
+          "right": 533,
+          "width": 160
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "05:30–22:30 · 10",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "Available",
+          "left": 385,
+          "right": 521,
+          "width": 136
+        },
+        {
+          "label": "Archive Studio08:00–18:00 · 4Inactive",
+          "left": 541,
+          "right": 701,
+          "width": 160
+        },
+        {
+          "label": "Archive Studio",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        },
+        {
+          "label": "08:00–18:00 · 4",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        },
+        {
+          "label": "Inactive",
+          "left": 553,
+          "right": 689,
+          "width": 136
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "schedule",
+      "route": "/schedule",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "history",
+      "route": "/history",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "health-progress",
+      "route": "/progress",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "WeightBody fatChestWaistHipsArmsThighs",
+          "left": 20,
+          "right": 550,
+          "width": 530
+        },
+        {
+          "label": "Arms",
+          "left": 394,
+          "right": 454,
+          "width": 61
+        },
+        {
+          "label": "Arms",
+          "left": 408,
+          "right": 440,
+          "width": 33
+        },
+        {
+          "label": "Thighs",
+          "left": 462,
+          "right": 532,
+          "width": 70
+        },
+        {
+          "label": "Thighs",
+          "left": 476,
+          "right": 518,
+          "width": 42
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "profile",
+      "route": "/profile",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "notifications",
+      "route": "/notifications",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "home",
+      "route": "/",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "book",
+      "route": "/book",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "schedule",
+      "route": "/schedule",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "history",
+      "route": "/history",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "health-progress",
+      "route": "/progress",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "profile",
+      "route": "/profile",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "client",
+      "screen": "notifications",
+      "route": "/notifications",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "today",
+      "route": "/",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "schedule",
+      "route": "/schedule",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [
+        {
+          "label": "Sunday, July 26. All rooms. Available",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Monday, July 27. All rooms. Available",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, July 28. All rooms. Available",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, July 29. All rooms. Available",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Thursday, July 30. All rooms. Available",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Friday, July 31. All rooms. Available",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Saturday, August 1. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Sunday, August 2. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Monday, August 3. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, August 4. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, August 5. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Thursday, August 6. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Friday, August 7. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Saturday, August 8. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Sunday, August 9. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Monday, August 10. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, August 11. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, August 12. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Thursday, August 13. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Friday, August 14. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Saturday, August 15. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Sunday, August 16. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Monday, August 17. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, August 18. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, August 19. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Thursday, August 20. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Friday, August 21. All rooms. Available, Partially closed, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Saturday, August 22. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Sunday, August 23. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Monday, August 24. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, August 25. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, August 26. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Thursday, August 27. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Friday, August 28. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Saturday, August 29. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Sunday, August 30. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Monday, August 31. All rooms. Available, Inactive",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, September 1. All rooms. Available",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, September 2. All rooms. Available",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Thursday, September 3. All rooms. Available",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Friday, September 4. All rooms. Available",
+          "width": 36,
+          "height": 52
+        },
+        {
+          "label": "Saturday, September 5. All rooms. Available",
+          "width": 36,
+          "height": 52
+        }
+      ],
+      "overflowingElements": [
+        {
+          "label": "‹Today›",
+          "left": 173,
+          "right": 330,
+          "width": 157
+        },
+        {
+          "label": "Next month",
+          "left": 286,
+          "right": 330,
+          "width": 44
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "clients",
+      "route": "/progress",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "availability",
+      "route": "/availability",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "profile",
+      "route": "/profile",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "today",
+      "route": "/",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "schedule",
+      "route": "/schedule",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [
+        {
+          "label": "Sunday, July 26. All rooms. Available",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Monday, July 27. All rooms. Available",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, July 28. All rooms. Available",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, July 29. All rooms. Available",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Thursday, July 30. All rooms. Available",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Friday, July 31. All rooms. Available",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Saturday, August 1. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Sunday, August 2. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Monday, August 3. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, August 4. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, August 5. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Thursday, August 6. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Friday, August 7. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Saturday, August 8. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Sunday, August 9. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Monday, August 10. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, August 11. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, August 12. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Thursday, August 13. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Friday, August 14. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Saturday, August 15. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Sunday, August 16. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Monday, August 17. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, August 18. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, August 19. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Thursday, August 20. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Friday, August 21. All rooms. Available, Partially closed, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Saturday, August 22. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Sunday, August 23. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Monday, August 24. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, August 25. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, August 26. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Thursday, August 27. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Friday, August 28. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Saturday, August 29. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Sunday, August 30. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Monday, August 31. All rooms. Available, Inactive",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Tuesday, September 1. All rooms. Available",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Wednesday, September 2. All rooms. Available",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Thursday, September 3. All rooms. Available",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Friday, September 4. All rooms. Available",
+          "width": 41,
+          "height": 52
+        },
+        {
+          "label": "Saturday, September 5. All rooms. Available",
+          "width": 41,
+          "height": 52
+        }
+      ],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "clients",
+      "route": "/progress",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "availability",
+      "route": "/availability",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "profile",
+      "route": "/profile",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "today",
+      "route": "/",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "schedule",
+      "route": "/schedule",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "clients",
+      "route": "/progress",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "availability",
+      "route": "/availability",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "profile",
+      "route": "/profile",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "today",
+      "route": "/",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "schedule",
+      "route": "/schedule",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "clients",
+      "route": "/progress",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "availability",
+      "route": "/availability",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "profile",
+      "route": "/profile",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "today",
+      "route": "/",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "schedule",
+      "route": "/schedule",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "clients",
+      "route": "/progress",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "availability",
+      "route": "/availability",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "coach",
+      "screen": "profile",
+      "route": "/profile",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "overview",
+      "route": "/",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "rooms",
+      "route": "/rooms",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [
+        {
+          "label": "Sunday, July 26",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Monday, July 27",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Tuesday, July 28",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Wednesday, July 29",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Thursday, July 30",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Friday, July 31",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Saturday, August 1",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Sunday, August 2",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Monday, August 3",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Tuesday, August 4",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Wednesday, August 5",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Thursday, August 6",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Friday, August 7",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Saturday, August 8",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Sunday, August 9",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Monday, August 10",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Tuesday, August 11",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Wednesday, August 12",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Thursday, August 13",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Friday, August 14",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Saturday, August 15",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Sunday, August 16",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Monday, August 17",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Tuesday, August 18",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Wednesday, August 19",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Thursday, August 20",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Friday, August 21",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Saturday, August 22",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Sunday, August 23",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Monday, August 24",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Tuesday, August 25",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Wednesday, August 26",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Thursday, August 27",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Friday, August 28",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Saturday, August 29",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Sunday, August 30",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Monday, August 31",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Tuesday, September 1",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Wednesday, September 2",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Thursday, September 3",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Friday, September 4",
+          "width": 34,
+          "height": 34
+        },
+        {
+          "label": "Saturday, September 5",
+          "width": 34,
+          "height": 34
+        }
+      ],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio8 · Room activeMobility Room5 · Room activeCardio Loft10 · Room activeArchive Studio4",
+          "left": 20,
+          "right": 652,
+          "width": 632
+        },
+        {
+          "label": "Mobility Room5 · Room active",
+          "left": 176,
+          "right": 324,
+          "width": 148
+        },
+        {
+          "label": "Cardio Loft10 · Room active",
+          "left": 332,
+          "right": 480,
+          "width": 148
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 344,
+          "right": 468,
+          "width": 124
+        },
+        {
+          "label": "10 · Room active",
+          "left": 344,
+          "right": 468,
+          "width": 124
+        },
+        {
+          "label": "Archive Studio4 · Room inactive",
+          "left": 488,
+          "right": 636,
+          "width": 148
+        },
+        {
+          "label": "Archive Studio",
+          "left": 500,
+          "right": 624,
+          "width": 124
+        },
+        {
+          "label": "4 · Room inactive",
+          "left": 500,
+          "right": 624,
+          "width": 124
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "coaches",
+      "route": "/admin",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "reports",
+      "route": "/reports",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength StudioMobility RoomCardio LoftArchive Studio",
+          "left": 20,
+          "right": 479,
+          "width": 459
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 260,
+          "right": 349,
+          "width": 89
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 273,
+          "right": 336,
+          "width": 63
+        },
+        {
+          "label": "Archive Studio",
+          "left": 357,
+          "right": 467,
+          "width": 110
+        },
+        {
+          "label": "Archive Studio",
+          "left": 370,
+          "right": 454,
+          "width": 84
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "availability-oversight",
+      "route": "/availability",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "booking-calendar",
+      "route": "/book",
+      "width": 320,
+      "title": "Coachora",
+      "viewportWidth": 320,
+      "viewportHeight": 844,
+      "documentWidth": 320,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio8 clientsMobility Room5 clientsCardio Loft10 clientsArchive Studio4 clients",
+          "left": 20,
+          "right": 587,
+          "width": 567
+        },
+        {
+          "label": "Cardio Loft10 clients",
+          "left": 301,
+          "right": 433,
+          "width": 132
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 314,
+          "right": 420,
+          "width": 106
+        },
+        {
+          "label": "10 clients",
+          "left": 314,
+          "right": 420,
+          "width": 106
+        },
+        {
+          "label": "Archive Studio4 clients",
+          "left": 441,
+          "right": 573,
+          "width": 132
+        },
+        {
+          "label": "Archive Studio",
+          "left": 454,
+          "right": 560,
+          "width": 106
+        },
+        {
+          "label": "4 clients",
+          "left": 454,
+          "right": 560,
+          "width": 106
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "overview",
+      "route": "/",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "rooms",
+      "route": "/rooms",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [
+        {
+          "label": "Sunday, July 26",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Monday, July 27",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Tuesday, July 28",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Wednesday, July 29",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Thursday, July 30",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Friday, July 31",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Saturday, August 1",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Sunday, August 2",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Monday, August 3",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Tuesday, August 4",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Wednesday, August 5",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Thursday, August 6",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Friday, August 7",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Saturday, August 8",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Sunday, August 9",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Monday, August 10",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Tuesday, August 11",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Wednesday, August 12",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Thursday, August 13",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Friday, August 14",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Saturday, August 15",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Sunday, August 16",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Monday, August 17",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Tuesday, August 18",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Wednesday, August 19",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Thursday, August 20",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Friday, August 21",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Saturday, August 22",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Sunday, August 23",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Monday, August 24",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Tuesday, August 25",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Wednesday, August 26",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Thursday, August 27",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Friday, August 28",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Saturday, August 29",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Sunday, August 30",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Monday, August 31",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Tuesday, September 1",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Wednesday, September 2",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Thursday, September 3",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Friday, September 4",
+          "width": 40,
+          "height": 40
+        },
+        {
+          "label": "Saturday, September 5",
+          "width": 40,
+          "height": 40
+        }
+      ],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio8 · Room activeMobility Room5 · Room activeCardio Loft10 · Room activeArchive Studio4",
+          "left": 20,
+          "right": 652,
+          "width": 632
+        },
+        {
+          "label": "Cardio Loft10 · Room active",
+          "left": 332,
+          "right": 480,
+          "width": 148
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 344,
+          "right": 468,
+          "width": 124
+        },
+        {
+          "label": "10 · Room active",
+          "left": 344,
+          "right": 468,
+          "width": 124
+        },
+        {
+          "label": "Archive Studio4 · Room inactive",
+          "left": 488,
+          "right": 636,
+          "width": 148
+        },
+        {
+          "label": "Archive Studio",
+          "left": 500,
+          "right": 624,
+          "width": 124
+        },
+        {
+          "label": "4 · Room inactive",
+          "left": 500,
+          "right": 624,
+          "width": 124
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "coaches",
+      "route": "/admin",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "reports",
+      "route": "/reports",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength StudioMobility RoomCardio LoftArchive Studio",
+          "left": 20,
+          "right": 479,
+          "width": 459
+        },
+        {
+          "label": "Archive Studio",
+          "left": 357,
+          "right": 467,
+          "width": 110
+        },
+        {
+          "label": "Archive Studio",
+          "left": 370,
+          "right": 454,
+          "width": 84
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "availability-oversight",
+      "route": "/availability",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "booking-calendar",
+      "route": "/book",
+      "width": 360,
+      "title": "Coachora",
+      "viewportWidth": 360,
+      "viewportHeight": 844,
+      "documentWidth": 360,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio8 clientsMobility Room5 clientsCardio Loft10 clientsArchive Studio4 clients",
+          "left": 20,
+          "right": 587,
+          "width": 567
+        },
+        {
+          "label": "Cardio Loft10 clients",
+          "left": 301,
+          "right": 433,
+          "width": 132
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 314,
+          "right": 420,
+          "width": 106
+        },
+        {
+          "label": "10 clients",
+          "left": 314,
+          "right": 420,
+          "width": 106
+        },
+        {
+          "label": "Archive Studio4 clients",
+          "left": 441,
+          "right": 573,
+          "width": 132
+        },
+        {
+          "label": "Archive Studio",
+          "left": 454,
+          "right": 560,
+          "width": 106
+        },
+        {
+          "label": "4 clients",
+          "left": 454,
+          "right": 560,
+          "width": 106
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "overview",
+      "route": "/",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "rooms",
+      "route": "/rooms",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio8 · Room activeMobility Room5 · Room activeCardio Loft10 · Room activeArchive Studio4",
+          "left": 20,
+          "right": 652,
+          "width": 632
+        },
+        {
+          "label": "Cardio Loft10 · Room active",
+          "left": 332,
+          "right": 480,
+          "width": 148
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 344,
+          "right": 468,
+          "width": 124
+        },
+        {
+          "label": "10 · Room active",
+          "left": 344,
+          "right": 468,
+          "width": 124
+        },
+        {
+          "label": "Archive Studio4 · Room inactive",
+          "left": 488,
+          "right": 636,
+          "width": 148
+        },
+        {
+          "label": "Archive Studio",
+          "left": 500,
+          "right": 624,
+          "width": 124
+        },
+        {
+          "label": "4 · Room inactive",
+          "left": 500,
+          "right": 624,
+          "width": 124
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "coaches",
+      "route": "/admin",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "reports",
+      "route": "/reports",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength StudioMobility RoomCardio LoftArchive Studio",
+          "left": 20,
+          "right": 479,
+          "width": 459
+        },
+        {
+          "label": "Archive Studio",
+          "left": 357,
+          "right": 467,
+          "width": 110
+        },
+        {
+          "label": "Archive Studio",
+          "left": 370,
+          "right": 454,
+          "width": 84
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "availability-oversight",
+      "route": "/availability",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "booking-calendar",
+      "route": "/book",
+      "width": 390,
+      "title": "Coachora",
+      "viewportWidth": 390,
+      "viewportHeight": 844,
+      "documentWidth": 390,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio8 clientsMobility Room5 clientsCardio Loft10 clientsArchive Studio4 clients",
+          "left": 20,
+          "right": 587,
+          "width": 567
+        },
+        {
+          "label": "Cardio Loft10 clients",
+          "left": 301,
+          "right": 433,
+          "width": 132
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 314,
+          "right": 420,
+          "width": 106
+        },
+        {
+          "label": "10 clients",
+          "left": 314,
+          "right": 420,
+          "width": 106
+        },
+        {
+          "label": "Archive Studio4 clients",
+          "left": 441,
+          "right": 573,
+          "width": 132
+        },
+        {
+          "label": "Archive Studio",
+          "left": 454,
+          "right": 560,
+          "width": 106
+        },
+        {
+          "label": "4 clients",
+          "left": 454,
+          "right": 560,
+          "width": 106
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "overview",
+      "route": "/",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "rooms",
+      "route": "/rooms",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio8 · Room activeMobility Room5 · Room activeCardio Loft10 · Room activeArchive Studio4",
+          "left": 20,
+          "right": 652,
+          "width": 632
+        },
+        {
+          "label": "Cardio Loft10 · Room active",
+          "left": 332,
+          "right": 480,
+          "width": 148
+        },
+        {
+          "label": "Cardio Loft",
+          "left": 344,
+          "right": 468,
+          "width": 124
+        },
+        {
+          "label": "10 · Room active",
+          "left": 344,
+          "right": 468,
+          "width": 124
+        },
+        {
+          "label": "Archive Studio4 · Room inactive",
+          "left": 488,
+          "right": 636,
+          "width": 148
+        },
+        {
+          "label": "Archive Studio",
+          "left": 500,
+          "right": 624,
+          "width": 124
+        },
+        {
+          "label": "4 · Room inactive",
+          "left": 500,
+          "right": 624,
+          "width": 124
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "coaches",
+      "route": "/admin",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "reports",
+      "route": "/reports",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength StudioMobility RoomCardio LoftArchive Studio",
+          "left": 20,
+          "right": 479,
+          "width": 459
+        },
+        {
+          "label": "Archive Studio",
+          "left": 357,
+          "right": 467,
+          "width": 110
+        },
+        {
+          "label": "Archive Studio",
+          "left": 370,
+          "right": 454,
+          "width": 84
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "availability-oversight",
+      "route": "/availability",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "booking-calendar",
+      "route": "/book",
+      "width": 430,
+      "title": "Coachora",
+      "viewportWidth": 430,
+      "viewportHeight": 844,
+      "documentWidth": 430,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [
+        {
+          "label": "Strength Studio8 clientsMobility Room5 clientsCardio Loft10 clientsArchive Studio4 clients",
+          "left": 20,
+          "right": 587,
+          "width": 567
+        },
+        {
+          "label": "Cardio Loft10 clients",
+          "left": 301,
+          "right": 433,
+          "width": 132
+        },
+        {
+          "label": "Archive Studio4 clients",
+          "left": 441,
+          "right": 573,
+          "width": 132
+        },
+        {
+          "label": "Archive Studio",
+          "left": 454,
+          "right": 560,
+          "width": 106
+        },
+        {
+          "label": "4 clients",
+          "left": 454,
+          "right": 560,
+          "width": 106
+        }
+      ],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "overview",
+      "route": "/",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "rooms",
+      "route": "/rooms",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "coaches",
+      "route": "/admin",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "reports",
+      "route": "/reports",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "availability-oversight",
+      "route": "/availability",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    },
+    {
+      "role": "admin",
+      "screen": "booking-calendar",
+      "route": "/book",
+      "width": 768,
+      "title": "Coachora",
+      "viewportWidth": 768,
+      "viewportHeight": 844,
+      "documentWidth": 768,
+      "horizontalOverflow": false,
+      "touchTargets": [],
+      "overflowingElements": [],
+      "unlabeledControls": [],
+      "axeViolations": [],
+      "consoleErrors": [],
+      "pageErrors": [],
+      "failedRequests": []
+    }
+  ],
+  "landscape": {
+    "title": "Coachora",
+    "viewportWidth": 844,
+    "viewportHeight": 390,
+    "documentWidth": 844,
+    "horizontalOverflow": false,
+    "touchTargets": [],
+    "overflowingElements": [],
+    "unlabeledControls": []
+  },
+  "stateChecks": {
+    "slowNetwork": {
+      "loadingVisible": true,
+      "recovered": true
+    },
+    "interruptedRequest": {
+      "errorVisible": true,
+      "retryRecovered": true
+    },
+    "offline": {
+      "offlineCopyVisible": true,
+      "renderedFromLoadedApp": true
+    }
+  },
+  "summary": {
+    "pages": 95,
+    "overflowPages": 0,
+    "pagesWithSmallTargets": 9,
+    "smallTargetInstances": 308,
+    "pagesWithAxeViolations": 0,
+    "axeViolationInstances": 0,
+    "consoleErrorPages": 5,
+    "failedNetworkPages": 5
+  }
+}

@@ -37,6 +37,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     initManusRuntime();
+    if (Platform.OS === "web" && typeof document !== "undefined") document.title = "Coachora";
   }, []);
 
   const handleSafeAreaUpdate = useCallback((metrics: Metrics) => {
