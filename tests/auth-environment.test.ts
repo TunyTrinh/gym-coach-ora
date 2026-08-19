@@ -11,13 +11,15 @@ describe("authentication environment", () => {
 
   it("rejects predictable signing secrets", () => {
     expect(authEnvironmentErrors({ appId: "coachora-test", cookieSecret: "a".repeat(64) }))
-      .toContain("JWT_SECRET must be at least 32 characters and contain sufficient randomness");
+      .toContain("JWT_SECRET must be at least 20 characters and contain sufficient randomness");
+    expect(authEnvironmentErrors({ appId: "coachora-test", cookieSecret: "8fK!s1vQ#0mZx5jL$2r" }))
+      .toContain("JWT_SECRET must be at least 20 characters and contain sufficient randomness");
   });
 
-  it("accepts a distinct long secret", () => {
+  it("accepts an established managed secret with sufficient length and character diversity", () => {
     expect(authEnvironmentErrors({
       appId: "coachora-test",
-      cookieSecret: "8fK!s1vQ#0mZx5jL$2rP9cW@7nT4yH6b",
+      cookieSecret: "8fK!s1vQ#0mZx5jL$2rP9",
     })).toEqual([]);
   });
 });

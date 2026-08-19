@@ -160,3 +160,8 @@ Validation evidence: type check passed; targeted room-calendar and room-status p
 - [x] Inspect Client calendar-dot marker meanings and existing localized status presentation
 - [x] Add a compact, non-color-only Client calendar legend for the weekly booking selector
 - [x] Add regression coverage for Client calendar legend visibility, marker mapping, English, and Vietnamese copy
+- [x] Fetch audit-program and create deploy-audit-program from its exact commit
+- [x] Apply the existing secure application configuration required by deploy-audit-program without exposing or committing secret values
+- [x] Adjust audit-program authentication validation to support the existing managed secret without changing its value or reducing placeholder-secret protections
+- [x] Verify the new branch base and validate its install, type-check, and PWA build state
+- [ ] Save and publish the deploy-audit-program test artifact with its test access details
