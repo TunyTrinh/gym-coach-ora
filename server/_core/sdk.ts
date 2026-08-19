@@ -6,7 +6,7 @@ import type { Request } from "express";
 import { SignJWT, jwtVerify } from "jose";
 import type { User } from "../../drizzle/schema";
 import * as db from "../db";
-import { ENV } from "./env";
+import { assertAuthEnvironment, ENV } from "./env";
 import type {
   ExchangeTokenRequest,
   ExchangeTokenResponse,
@@ -29,14 +29,7 @@ const GET_USER_INFO_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfo`;
 const GET_USER_INFO_WITH_JWT_PATH = `/webdev.v1.WebDevAuthPublicService/GetUserInfoWithJwt`;
 
 class OAuthService {
-  constructor(private client: ReturnType<typeof axios.create>) {
-    console.log("[OAuth] Initialized with baseURL:", ENV.oAuthServerUrl);
-    if (!ENV.oAuthServerUrl) {
-      console.error(
-        "[OAuth] ERROR: OAUTH_SERVER_URL is not configured! Set OAUTH_SERVER_URL environment variable.",
-      );
-    }
-  }
+  constructor(private client: ReturnType<typeof axios.create>) {}
 
   private decodeState(state: string): string {
     const redirectUri = atob(state);
@@ -136,8 +129,13 @@ class SDKServer {
   }
 
   private getSessionSecret() {
+    assertAuthEnvironment();
     const secret = ENV.cookieSecret;
     return new TextEncoder().encode(secret);
+  }
+
+  private get sessionIssuer() {
+    return `coachora:${ENV.appId}`;
   }
 
   /**
@@ -174,6 +172,9 @@ class SDKServer {
       name: payload.name,
     })
       .setProtectedHeader({ alg: "HS256", typ: "JWT" })
+      .setIssuedAt(Math.floor(issuedAt / 1000))
+      .setIssuer(this.sessionIssuer)
+      .setAudience(ENV.appId)
       .setExpirationTime(expirationSeconds)
       .sign(secretKey);
   }
@@ -182,7 +183,6 @@ class SDKServer {
     cookieValue: string | undefined | null,
   ): Promise<{ openId: string; appId: string; name: string } | null> {
     if (!cookieValue) {
-      console.warn("[Auth] Missing session cookie");
       return null;
     }
 
@@ -190,11 +190,16 @@ class SDKServer {
       const secretKey = this.getSessionSecret();
       const { payload } = await jwtVerify(cookieValue, secretKey, {
         algorithms: ["HS256"],
+        issuer: this.sessionIssuer,
+        audience: ENV.appId,
       });
       const { openId, appId, name } = payload as Record<string, unknown>;
 
-      if (!isNonEmptyString(openId) || !isNonEmptyString(appId) || !isNonEmptyString(name)) {
-        console.warn("[Auth] Session payload missing required fields");
+      if (
+        !isNonEmptyString(openId) ||
+        appId !== ENV.appId ||
+        !isNonEmptyString(name)
+      ) {
         return null;
       }
 
@@ -203,8 +208,7 @@ class SDKServer {
         appId,
         name,
       };
-    } catch (error) {
-      console.warn("[Auth] Session verification failed", String(error));
+    } catch {
       return null;
     }
   }
@@ -272,8 +276,7 @@ class SDKServer {
           lastSignedIn: signedInAt,
         });
         user = await db.getUserByOpenId(userInfo.openId);
-      } catch (error) {
-        console.error("[Auth] Failed to sync user from OAuth:", error);
+      } catch {
         throw ForbiddenError("Failed to sync user info");
       }
     }
@@ -283,6 +286,9 @@ class SDKServer {
     }
 
     const isAdminLocalUser = user.loginMethod === "local" && user.role === "admin";
+    if (user.role === "admin" && !isAdminLocalUser) {
+      throw ForbiddenError("Admin access requires the protected Admin login");
+    }
     if (user.loginMethod !== "google" && !isAdminLocalUser) {
       throw ForbiddenError("Google sign-in is required for Client and Coach access");
     }

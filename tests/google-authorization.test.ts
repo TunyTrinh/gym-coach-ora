@@ -1,8 +1,13 @@
 import { describe, expect, it } from "vitest";
 
-import { hasVerifiedGoogleIdentity, isAdminLocalAccount, isValidGoogleEmail, normalizeGoogleEmail } from "../server/google-authorization";
+import { googleAccountRole, hasVerifiedGoogleIdentity, isAdminLocalAccount, isValidGoogleEmail, normalizeGoogleEmail } from "../server/google-authorization";
 
 describe("verified Google Coach authorization", () => {
+  it("never assigns Admin role through Google identity sync", () => {
+    expect(googleAccountRole(false)).toBe("client");
+    expect(googleAccountRole(true)).toBe("coach");
+  });
+
   it("normalizes case and surrounding whitespace before comparing authorized emails", () => {
     expect(normalizeGoogleEmail("  Coach.Name@Example.COM ")).toBe("coach.name@example.com");
     expect(isValidGoogleEmail("  Coach.Name@Example.COM ")).toBe(true);

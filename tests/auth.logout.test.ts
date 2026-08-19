@@ -63,7 +63,7 @@ describe("auth.logout", () => {
     });
   });
 
-  it("rejects the private gym snapshot without an authenticated user", async () => {
+  it("rejects a private member schedule without an authenticated user", async () => {
     const ctx: TrpcContext = {
       user: null,
       req: { protocol: "https", hostname: "coachora.example.com", headers: { host: "coachora.example.com" } } as TrpcContext["req"],
@@ -71,7 +71,7 @@ describe("auth.logout", () => {
     };
     const caller = appRouter.createCaller(ctx);
 
-    await expect(caller.gym.snapshot()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    await expect(caller.member.schedule()).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   });
 
   it("rejects Admin Coach-account access from a Client session", async () => {
@@ -79,6 +79,8 @@ describe("auth.logout", () => {
     const caller = appRouter.createCaller(ctx);
 
     await expect(caller.admin.listCoachAccounts()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.listUsers()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    await expect(caller.admin.auditLogs()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.changeCoachAccess({ coachId: 1, status: "disabled" })).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.listRooms()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(caller.admin.createRoom({ gymId: 1, name: "Studio A", address: "Level 2", description: "Mobility", maximumCapacity: 12 })).rejects.toMatchObject({ code: "FORBIDDEN" });

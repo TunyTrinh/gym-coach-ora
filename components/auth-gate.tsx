@@ -2,7 +2,7 @@ import { ActivityIndicator, Image, Linking, Platform, Pressable, StyleSheet, Tex
 import { useSegments } from "expo-router";
 import { useState } from "react";
 
-import { getApiBaseUrl } from "@/constants/oauth";
+import { getApiBaseUrl, getRedirectUri } from "@/constants/oauth";
 import { useAuth } from "@/hooks/use-auth";
 import * as Api from "@/lib/_core/api";
 import * as Auth from "@/lib/_core/auth";
@@ -10,7 +10,9 @@ import { useLanguage } from "@/lib/language-provider";
 import { PreviewAccountSwitcher } from "@/components/preview-account-switcher";
 
 function googleSignInUrl() {
-  return `${getApiBaseUrl()}/api/auth/google`;
+  const url = new URL(`${getApiBaseUrl()}/api/auth/google`);
+  if (Platform.OS !== "web") url.searchParams.set("returnTo", getRedirectUri());
+  return url.toString();
 }
 
 export function AuthGate({ children }: { children: React.ReactNode }) {

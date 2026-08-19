@@ -6,11 +6,11 @@ import path from "path";
 import { randomUUID } from "crypto";
 import { createExpressMiddleware } from "@trpc/server/adapters/express";
 import { registerOAuthRoutes } from "./oauth";
-import { registerStorageProxy } from "./storageProxy";
 import { appRouter } from "../routers";
 import { createContext } from "./context";
 import { closeDb } from "../db";
 import { ensureBootstrapAdminAccount } from "../admin-bootstrap";
+import { assertAuthEnvironment } from "./env";
 
 function isPortAvailable(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -32,6 +32,7 @@ async function findAvailablePort(startPort: number = 3000): Promise<number> {
 }
 
 async function startServer() {
+  assertAuthEnvironment();
   await ensureBootstrapAdminAccount();
   const app = express();
   const server = createServer(app);
@@ -90,7 +91,6 @@ async function startServer() {
   app.use(express.json({ limit: bodyLimit, strict: true }));
   app.use(express.urlencoded({ limit: bodyLimit, extended: false }));
 
-  registerStorageProxy(app);
   registerOAuthRoutes(app);
 
   app.get("/api/health", (_req, res) => {
@@ -160,4 +160,7 @@ async function startServer() {
   process.once("SIGINT", () => shutdown("SIGINT"));
 }
 
-startServer().catch(console.error);
+startServer().catch((error) => {
+  console.error("[api] startup failed", error);
+  process.exitCode = 1;
+});

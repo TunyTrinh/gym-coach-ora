@@ -32,7 +32,13 @@ function shift(overrides: Partial<AvailabilityShift> = {}): AvailabilityShift {
 describe("continuous coach availability", () => {
   it("publishes one continuous availability window rather than generated shifts", () => {
     const window = createAvailabilityWindow(baseInput);
-    expect(window).toEqual({ start: "2026-08-17T09:00:00.000Z", end: "2026-08-17T21:00:00.000Z" });
+    expect(window).not.toBeNull();
+    const start = new Date(window!.start);
+    const end = new Date(window!.end);
+    expect([start.getFullYear(), start.getMonth() + 1, start.getDate(), start.getHours(), start.getMinutes()])
+      .toEqual([2026, 8, 17, 9, 0]);
+    expect([end.getFullYear(), end.getMonth() + 1, end.getDate(), end.getHours(), end.getMinutes()])
+      .toEqual([2026, 8, 17, 21, 0]);
   });
 
   it("refuses a window whose end does not follow its start", () => {

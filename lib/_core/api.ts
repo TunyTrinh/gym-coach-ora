@@ -62,29 +62,15 @@ export async function apiCall<T>(endpoint: string, options: RequestInit = {}): P
   return (text ? JSON.parse(text) : {}) as T;
 }
 
-// OAuth callback handler - exchange code for session token
-// Calls /api/oauth/mobile endpoint which returns JSON with app_session_id and user
-export async function exchangeOAuthCode(
+export async function exchangeNativeOAuthCode(
   code: string,
-  state: string,
 ): Promise<{ sessionToken: string; user: any }> {
-  console.log("[API] exchangeOAuthCode called");
-  // Use GET with query params
-  const params = new URLSearchParams({ code, state });
-  const endpoint = `/api/oauth/mobile?${params.toString()}`;
-  console.log("[API] Calling OAuth mobile endpoint:", endpoint);
-  const result = await apiCall<{ app_session_id: string; user: any }>(endpoint);
-
-  // Convert app_session_id to sessionToken for compatibility
-  const sessionToken = result.app_session_id;
-  console.log("[API] OAuth exchange result:", {
-    hasSessionToken: !!sessionToken,
-    hasUser: !!result.user,
-    sessionToken: sessionToken ? `${sessionToken.substring(0, 50)}...` : null,
-  });
-
+  const result = await apiCall<{ app_session_id: string; user: any }>(
+    "/api/auth/native/exchange",
+    { method: "POST", body: JSON.stringify({ code }) },
+  );
   return {
-    sessionToken,
+    sessionToken: result.app_session_id,
     user: result.user,
   };
 }
@@ -126,7 +112,6 @@ export async function getMe(): Promise<{
 // Called after receiving token via postMessage to get a proper Set-Cookie from the backend
 export async function establishSession(token: string): Promise<boolean> {
   try {
-    console.log("[API] establishSession: setting cookie on backend...");
     const baseUrl = getApiBaseUrl();
     const url = `${baseUrl}/api/auth/session`;
 
@@ -140,14 +125,10 @@ export async function establishSession(token: string): Promise<boolean> {
     });
 
     if (!response.ok) {
-      console.error("[API] establishSession failed:", response.status);
       return false;
     }
-
-    console.log("[API] establishSession: cookie set successfully");
     return true;
-  } catch (error) {
-    console.error("[API] establishSession error:", error);
+  } catch {
     return false;
   }
 }

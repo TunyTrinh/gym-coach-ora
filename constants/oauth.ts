@@ -1,12 +1,7 @@
 import * as Linking from "expo-linking";
 import * as ReactNative from "react-native";
 import { resolveWebApiBaseUrl, resolveWebOAuthCallbackOrigin } from "@/lib/api-origin";
-
-// Extract scheme from bundle ID (last segment timestamp, prefixed with "manus")
-// e.g., "space.manus.my.app.t20240115103045" -> "manus20240115103045"
-const bundleId = "com.app.gymcoachbookingpwa";
-const timestamp = bundleId.split(".").pop()?.replace(/^t/, "") ?? "";
-const schemeFromBundleId = `manus${timestamp}`;
+import { NATIVE_APP_SCHEME, NATIVE_OAUTH_CALLBACK_PATH } from "@/shared/native-app";
 
 const env = {
   portal: process.env.EXPO_PUBLIC_OAUTH_PORTAL_URL ?? "",
@@ -15,7 +10,7 @@ const env = {
   ownerId: process.env.EXPO_PUBLIC_OWNER_OPEN_ID ?? "",
   ownerName: process.env.EXPO_PUBLIC_OWNER_NAME ?? "",
   apiBaseUrl: process.env.EXPO_PUBLIC_API_BASE_URL ?? "",
-  deepLinkScheme: schemeFromBundleId,
+  deepLinkScheme: NATIVE_APP_SCHEME,
 };
 
 export const OAUTH_PORTAL_URL = env.portal;
@@ -69,7 +64,7 @@ export const getRedirectUri = () => {
     const publicOrigin = typeof window !== "undefined" ? window.location.origin : "";
     return `${resolveWebOAuthCallbackOrigin(apiBase, publicOrigin)}/api/oauth/callback`;
   } else {
-    return Linking.createURL("/oauth/callback", {
+    return Linking.createURL(NATIVE_OAUTH_CALLBACK_PATH, {
       scheme: env.deepLinkScheme,
     });
   }

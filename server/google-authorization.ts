@@ -21,3 +21,7 @@ export function hasVerifiedGoogleIdentity(profile: GoogleIdentity): profile is R
 export function isAdminLocalAccount(user: { loginMethod: string | null; role: string }) {
   return user.loginMethod === "local" && user.role === "admin";
 }
+
+export function googleAccountRole(hasAuthorizedCoach: boolean): "client" | "coach" {
+  return hasAuthorizedCoach ? "coach" : "client";
+}

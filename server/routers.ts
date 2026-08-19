@@ -2,11 +2,10 @@ import { z } from "zod";
 import { COOKIE_NAME } from "../shared/const.js";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
-import { adminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
-import { bookGymSlot, cancelGymBooking, getGymSnapshot, markGymAttendance } from "./gym-store";
+import { adminProcedure, clientProcedure, coachOrAdminProcedure, protectedProcedure, publicProcedure, router } from "./_core/trpc";
 import { createGymRoom, deleteCoachAccount, deleteGymRoom, getAdminRoomSchedule, getAuthorizedCoachIdForUser, getDb, getRoomClosures, grantCoachGoogleAccess, listActiveGyms, listCoachAccounts, listRooms, removeRoomClosure, setCoachGoogleAccess, setRoomClosure, updateGymRoom } from "./db";
 import { isValidGoogleEmail, normalizeGoogleEmail } from "./google-authorization";
-import { availabilityShifts, auditLogs, bookings, coachClients, coachNotes, coaches, gymRooms, healthMeasurements, notifications, roomClosures, timeSlots, users } from "../drizzle/schema";
+import { availabilityShifts, auditLogs, bookings, coachNotes, coaches, gymRooms, healthMeasurements, notifications, roomClosures, timeSlots, users } from "../drizzle/schema";
 import { and, asc, eq, gt, gte, inArray, lt, lte, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 import { buildAvailabilityRoomChoices } from "../shared/availability-room-collection";
@@ -114,11 +113,14 @@ async function canManageShift(db: any, actor: { id: number; role: string }, shif
 
 async function managedCoachClientId(db: any, actor: { id: number; role: string }, clientUserId: number, requestedCoachId?: number) {
   const coachId = await managedCoachId(db, actor, requestedCoachId);
-  const assignment = await db.select({ id: coachClients.id }).from(coachClients).where(and(
-    eq(coachClients.coachId, coachId),
-    eq(coachClients.clientUserId, clientUserId),
-  )).limit(1);
-  if (!assignment[0]) throw new Error("This Client is not assigned to the selected Coach.");
+  const activeBooking = await db.select({ id: bookings.id }).from(bookings)
+    .innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
+    .where(and(
+      eq(availabilityShifts.coachId, coachId),
+      eq(bookings.memberUserId, clientUserId),
+      inArray(bookings.status, ["pending", "confirmed"]),
+    )).limit(1);
+  if (!activeBooking[0]) throw new Error("An active booking relationship is required for this Client.");
   return coachId;
 }
 
@@ -145,8 +147,7 @@ export const appRouter = router({
     }),
   }),
   member: router({
-    schedule: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== "client") throw new Error("Member access is required to view this schedule.");
+    schedule: clientProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
       return db.select({
@@ -169,8 +170,7 @@ export const appRouter = router({
         .where(eq(bookings.memberUserId, ctx.user.id))
         .orderBy(asc(timeSlots.startAt));
     }),
-    measurements: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== "client") throw new Error("Only clients can view private health progress.");
+    measurements: clientProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
       const records = await db.select().from(healthMeasurements).where(eq(healthMeasurements.userId, ctx.user.id)).orderBy(asc(healthMeasurements.measurementDate));
@@ -186,8 +186,7 @@ export const appRouter = router({
         thighsCm: measurementValue(record.thighs),
       }));
     }),
-    saveMeasurement: protectedProcedure.input(measurementInput).mutation(async ({ ctx, input }) => {
-      if (ctx.user.role !== "client") throw new Error("Only clients can save private health progress.");
+    saveMeasurement: clientProcedure.input(measurementInput).mutation(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
       await db.insert(healthMeasurements).values({
@@ -234,22 +233,27 @@ export const appRouter = router({
       return { success: true as const };
     }),
   }),
-  gym: router({
-    snapshot: protectedProcedure.query(() => getGymSnapshot()),
-    book: protectedProcedure
-      .input(z.object({ slotId: z.string().min(1).max(64) }))
-      .mutation(({ ctx, input }) => bookGymSlot(input.slotId, ctx.user.id)),
-    cancel: protectedProcedure
-      .input(z.object({ bookingId: z.string().min(1).max(64), reason: z.string().trim().min(1).max(240).optional() }))
-      .mutation(({ ctx, input }) => cancelGymBooking(input.bookingId, ctx.user.id, input.reason)),
-    attendance: protectedProcedure
-      .input(z.object({ bookingId: z.string().min(1).max(64), status: z.enum(["Completed", "No-show"]) }))
-      .mutation(({ ctx, input }) => {
-        if (ctx.user.role !== "admin") return { success: false as const, error: "Staff access is required to update attendance." };
-        return markGymAttendance(input.bookingId, input.status);
-      }),
-  }),
   admin: router({
+    listUsers: adminProcedure.query(async () => {
+      const db = await getDb();
+      if (!db) throw new Error("Database unavailable");
+      return db.select({
+        id: users.id,
+        name: users.name,
+        email: users.email,
+        loginMethod: users.loginMethod,
+        role: users.role,
+        lastSignedIn: users.lastSignedIn,
+        createdAt: users.createdAt,
+      }).from(users).orderBy(asc(users.name));
+    }),
+    auditLogs: adminProcedure
+      .input(z.object({ limit: z.number().int().min(1).max(500).default(100) }).optional())
+      .query(async ({ input }) => {
+        const db = await getDb();
+        if (!db) throw new Error("Database unavailable");
+        return db.select().from(auditLogs).orderBy(sql`${auditLogs.createdAt} desc`).limit(input?.limit ?? 100);
+      }),
     listCoachAccounts: adminProcedure.query(() => listCoachAccounts()),
     listActiveGyms: adminProcedure.query(() => listActiveGyms()),
     listRooms: adminProcedure.query(() => listRooms()),
@@ -293,28 +297,9 @@ export const appRouter = router({
     deleteCoach: adminProcedure
       .input(z.object({ coachId: z.number().int().positive(), confirmationName: z.string().trim().min(1).max(255) }))
       .mutation(({ ctx, input }) => deleteCoachAccount({ ...input, actorUserId: ctx.user.id })),
-    assignClient: protectedProcedure
-      .input(z.object({ coachId: z.number(), clientUserId: z.number() }))
-      .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") {
-          throw new Error("Unauthorized: Admin access required.");
-        }
-        const db = await getDb();
-        if (!db) throw new Error("Database unavailable");
-        await db.insert(coachClients).values({
-          coachId: input.coachId,
-          clientUserId: input.clientUserId,
-          isPrimary: true,
-          assignedBy: ctx.user.id,
-        });
-        return { success: true };
-      }),
   }),
   coach: router({
-    clients: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== "coach" && ctx.user.role !== "admin") {
-        throw new Error("Unauthorized: Coach access required.");
-      }
+    clients: coachOrAdminProcedure.query(async ({ ctx }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
       
@@ -326,23 +311,24 @@ export const appRouter = router({
       }
       
       const query = await db
-        .select({
+        .selectDistinct({
           id: users.id,
           name: users.name,
           email: users.email,
         })
         .from(users)
-        .innerJoin(coachClients, eq(users.id, coachClients.clientUserId))
-        .where(ctx.user.role === "coach" && coach ? eq(coachClients.coachId, coach.id) : undefined);
+        .innerJoin(bookings, eq(users.id, bookings.memberUserId))
+        .innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
+        .where(and(
+          inArray(bookings.status, ["pending", "confirmed"]),
+          ctx.user.role === "coach" && coach ? eq(availabilityShifts.coachId, coach.id) : undefined,
+        ));
         
       return query;
     }),
-    saveNote: protectedProcedure
+    saveNote: coachOrAdminProcedure
       .input(z.object({ clientUserId: z.number().int().positive(), coachId: z.number().int().positive().optional(), note: z.string().trim().min(1).max(4_000) }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "coach" && ctx.user.role !== "admin") {
-          throw new Error("Unauthorized: Coach access required.");
-        }
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const coachId = await managedCoachClientId(db, ctx.user, input.clientUserId, input.coachId);
@@ -462,8 +448,7 @@ export const appRouter = router({
         };
         return timings ? { ...response, diagnostics: { totalMs: Date.now() - startedAt, queries: timings } } : response;
       }),
-    rooms: protectedProcedure.input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).optional()).query(async ({ ctx, input }) => {
-      if (ctx.user.role !== "coach" && ctx.user.role !== "admin") throw new Error("Coach access is required to view rooms.");
+    rooms: coachOrAdminProcedure.input(z.object({ date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).optional()).query(async ({ ctx, input }) => {
       const allRooms = await listRooms();
       const requestedDate = input?.date ?? localDayKey(new Date());
       const db = await getDb();
@@ -486,15 +471,17 @@ export const appRouter = router({
         requestedDate,
       };
     }),
-    mine: protectedProcedure
+    mine: coachOrAdminProcedure
       .input(z.object({ coachId: z.number().int().positive().optional(), from: z.string().datetime().optional(), to: z.string().datetime().optional() }).optional())
       .query(async ({ ctx, input }) => {
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
-        const coachId = await managedCoachId(db, ctx.user, input?.coachId);
+        const coachId = ctx.user.role === "admin" && !input?.coachId
+          ? undefined
+          : await managedCoachId(db, ctx.user, input?.coachId);
         const from = input?.from ? new Date(input.from) : new Date();
         const to = input?.to ? new Date(input.to) : new Date(Date.now() + 31 * 24 * 60 * 60 * 1000);
-        const windows = await db.select().from(availabilityShifts).where(and(eq(availabilityShifts.coachId, coachId), lt(availabilityShifts.startAt, to), gt(availabilityShifts.endAt, from)));
+        const windows = await db.select().from(availabilityShifts).where(and(coachId ? eq(availabilityShifts.coachId, coachId) : undefined, lt(availabilityShifts.startAt, to), gt(availabilityShifts.endAt, from)));
         if (!windows.length) return [];
         const counts = await db.select({ shiftId: bookings.availabilityShiftId, count: sql<number>`count(*)` })
           .from(bookings)
@@ -503,10 +490,9 @@ export const appRouter = router({
         const countByShiftId = new Map(counts.map((count) => [count.shiftId, Number(count.count)]));
         return windows.map((window) => ({ ...window, bookedCount: countByShiftId.get(window.id) ?? 0 }));
       }),
-    bookable: protectedProcedure
+    bookable: clientProcedure
       .input(z.object({ coachId: z.number().int().positive(), dateStart: z.string().datetime(), dateEnd: z.string().datetime() }))
       .query(async ({ ctx, input }) => {
-        if (ctx.user.role !== "client") throw new Error("Member access is required to view bookable shifts.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const windows = await db.select({
@@ -538,10 +524,9 @@ export const appRouter = router({
         const closedRoomIds = new Set(closures.map((closure) => closure.roomId));
         return windows.filter((window) => !window.roomId || !closedRoomIds.has(window.roomId));
       }),
-    bookableAll: protectedProcedure
+    bookableAll: clientProcedure
       .input(z.object({ dateStart: z.string().datetime(), dateEnd: z.string().datetime() }))
       .query(async ({ ctx, input }) => {
-        if (ctx.user.role !== "client") throw new Error("Member access is required to view bookable shifts.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const windows = await db.select({
@@ -577,10 +562,9 @@ export const appRouter = router({
         const closedRoomIds = new Set(closures.map((closure) => closure.roomId));
         return windows.filter((window) => !window.roomId || !closedRoomIds.has(window.roomId));
       }),
-    previewCapacity: protectedProcedure
+    previewCapacity: clientProcedure
       .input(z.object({ windowId: z.string().min(1).max(64), startAt: z.string().datetime(), durationMinutes: durationInput }))
       .query(async ({ ctx, input }) => {
-        if (ctx.user.role !== "client") throw new Error("Member access is required to preview booking capacity.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const window = await db.select().from(availabilityShifts).where(eq(availabilityShifts.externalId, input.windowId)).limit(1);
@@ -596,10 +580,9 @@ export const appRouter = router({
         ));
         return { endAt, bookedCount: overlaps.length, remainingCapacity: Math.max(0, window[0].maximumCapacity - overlaps.length), maximumCapacity: window[0].maximumCapacity };
       }),
-    previewRoomCapacity: protectedProcedure
+    previewRoomCapacity: clientProcedure
       .input(z.object({ roomId: z.number().int().positive(), startAt: z.string().datetime(), durationMinutes: durationInput }))
       .query(async ({ ctx, input }) => {
-        if (ctx.user.role !== "client") throw new Error("Member access is required to preview room capacity.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const startAt = new Date(input.startAt);
@@ -610,7 +593,7 @@ export const appRouter = router({
         const overlaps = await db.select({ id: bookings.id }).from(bookings).innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id)).where(and(eq(timeSlots.roomId, input.roomId), inArray(bookings.status, ["pending", "confirmed"]), lt(timeSlots.startAt, endAt), gt(timeSlots.endAt, startAt)));
         return { endAt, bookedCount: overlaps.length, remainingCapacity: Math.max(0, (room[0]?.maximumCapacity ?? 0) - overlaps.length), maximumCapacity: room[0]?.maximumCapacity ?? 0 };
       }),
-    create: protectedProcedure
+    create: coachOrAdminProcedure
       .input(availabilityInput)
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -641,7 +624,7 @@ export const appRouter = router({
         });
         return { success: true as const, windowId, createdCount: 1 };
       }),
-    setStatus: protectedProcedure
+    setStatus: coachOrAdminProcedure
       .input(z.object({ shiftId: z.string().min(1).max(64), status: z.enum(["Blocked", "Available"]) }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -655,10 +638,9 @@ export const appRouter = router({
         });
         return { success: true as const };
       }),
-    book: protectedProcedure
+    book: clientProcedure
       .input(z.object({ windowId: z.string().min(1).max(64), startAt: z.string().datetime(), durationMinutes: durationInput }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "client") throw new Error("Only members can book a coach shift.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         return db.transaction(async (tx: any) => {
@@ -700,10 +682,9 @@ export const appRouter = router({
           return { success: true as const, bookingId: bookingExternalId, startAt, endAt, remainingCapacity: shift[0].maximumCapacity - overlappingBookings.length - 1 };
         });
       }),
-    bookRoom: protectedProcedure
+    bookRoom: clientProcedure
       .input(z.object({ roomId: z.number().int().positive(), startAt: z.string().datetime(), durationMinutes: durationInput }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "client") throw new Error("Only members can book gym access.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         return db.transaction(async (tx: any) => {
@@ -772,10 +753,9 @@ export const appRouter = router({
         if (!record[0].checkInTime) await db.update(bookings).set({ checkInTime: new Date(), checkedInBy: ctx.user.id }).where(eq(bookings.id, record[0].bookingId));
         return { success: true as const };
       }),
-    markAttendance: protectedProcedure
+    markAttendance: coachOrAdminProcedure
       .input(z.object({ bookingId: z.string().min(1).max(64), status: z.enum(["completed", "no_show"]) }))
       .mutation(async ({ ctx, input }) => {
-        if (ctx.user.role !== "coach" && ctx.user.role !== "admin") throw new Error("Coach access is required to record attendance.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const record = await db.select({ bookingId: bookings.id, status: bookings.status, shiftCoachId: availabilityShifts.coachId })
@@ -787,11 +767,14 @@ export const appRouter = router({
         await db.insert(auditLogs).values({ actorUserId: ctx.user.id, action: input.status === "completed" ? "COMPLETE_BOOKING" : "MARK_BOOKING_NO_SHOW", details: `Recorded ${input.status} for ${input.bookingId}.` });
         return { success: true as const };
       }),
-    coachSchedule: protectedProcedure.query(async ({ ctx }) => {
-      if (ctx.user.role !== "coach" && ctx.user.role !== "admin") throw new Error("Coach access is required to view this schedule.");
+    coachSchedule: coachOrAdminProcedure
+      .input(z.object({ coachId: z.number().int().positive().optional() }).optional())
+      .query(async ({ ctx, input }) => {
       const db = await getDb();
       if (!db) throw new Error("Database unavailable");
-      const coachId = await managedCoachId(db, ctx.user, undefined);
+      const coachId = ctx.user.role === "admin" && !input?.coachId
+        ? undefined
+        : await managedCoachId(db, ctx.user, input?.coachId);
       return db.select({
         id: bookings.externalId,
         status: bookings.status,
@@ -811,10 +794,10 @@ export const appRouter = router({
         .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
         .innerJoin(users, eq(bookings.memberUserId, users.id))
         .innerJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
-        .where(eq(availabilityShifts.coachId, coachId))
+        .where(coachId ? eq(availabilityShifts.coachId, coachId) : undefined)
         .orderBy(asc(timeSlots.startAt));
-    }),
-    releaseAfterCancellation: protectedProcedure
+      }),
+    releaseAfterCancellation: coachOrAdminProcedure
       .input(z.object({ shiftId: z.string().min(1).max(64), release: z.enum(["reopen", "block"]) }))
       .mutation(async ({ ctx, input }) => {
         const db = await getDb();
@@ -829,10 +812,9 @@ export const appRouter = router({
         });
         return { success: true as const, status };
       }),
-    adminList: protectedProcedure
+    adminList: adminProcedure
       .input(z.object({ coachId: z.number().int().positive().optional(), status: z.enum(["Available", "Booked", "Blocked", "Completed", "Cancelled", "Expired"]).optional() }).optional())
       .query(async ({ ctx, input }) => {
-        if (ctx.user.role !== "admin") throw new Error("Admin access is required.");
         const db = await getDb();
         if (!db) throw new Error("Database unavailable");
         const status = input?.status ? input.status.toLowerCase() as "available" | "booked" | "blocked" | "completed" | "cancelled" | "expired" : undefined;

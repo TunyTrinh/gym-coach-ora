@@ -9,6 +9,7 @@ import { getSessionCookieOptions } from "./cookies";
 import { ENV } from "./env";
 import { sdk } from "./sdk";
 import { isPreviewDebugHost } from "../../lib/preview-debug";
+import { isAllowedNativeCallback } from "../../shared/native-app";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -39,12 +40,25 @@ function buildUserResponse(
 }
 
 const GOOGLE_STATE_COOKIE = "gymflow_google_oauth_state";
+const GOOGLE_RETURN_TO_COOKIE = "coachora_google_return_to";
 const GOOGLE_STATE_TTL_MS = 10 * 60 * 1000;
+const NATIVE_EXCHANGE_TTL_MS = 2 * 60 * 1000;
 const LOCAL_LOGIN_WINDOW_MS = 60_000;
 const LOCAL_LOGIN_MAX_ATTEMPTS = 5;
 const localLoginAttempts = new Map<string, { count: number; resetAt: number }>();
 const PREVIEW_DEBUG_COOKIE = "coachora_preview_debug_admin";
 const PREVIEW_DEBUG_TTL_MS = 30 * 60 * 1000;
+const nativeExchanges = new Map<string, {
+  sessionToken: string;
+  user: ReturnType<typeof buildUserResponse>;
+  expiresAt: number;
+}>();
+
+function removeExpiredOAuthEntries(now = Date.now()) {
+  for (const [code, exchange] of nativeExchanges) {
+    if (exchange.expiresAt <= now) nativeExchanges.delete(code);
+  }
+}
 
 function googleIsConfigured() {
   return Boolean(ENV.googleClientId && ENV.googleClientSecret && (ENV.googleRedirectUri || ENV.appBaseUrl));
@@ -60,6 +74,11 @@ function selfHostedFrontendUrl() {
 
 function googleStateCookieOptions(req: Request) {
   return { ...getSessionCookieOptions(req), sameSite: "lax" as const, maxAge: GOOGLE_STATE_TTL_MS };
+}
+
+function googleStateClearCookieOptions(req: Request) {
+  const { maxAge: _maxAge, ...options } = googleStateCookieOptions(req);
+  return options;
 }
 
 function localLoginRateLimitAllows(req: Request) {
@@ -182,8 +201,7 @@ export function registerOAuthRoutes(app: Express) {
       clearLocalLoginRateLimit(req);
       res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(req), maxAge: ONE_YEAR_MS });
       res.json({ app_session_id: sessionToken, user: buildUserResponse({ ...user, lastSignedIn: new Date() }) });
-    } catch (error) {
-      console.error("[Local auth] Sign-in failed", error);
+    } catch {
       res.status(503).json({ error: "Sign-in is temporarily unavailable. Please try again." });
     }
   });
@@ -193,8 +211,19 @@ export function registerOAuthRoutes(app: Express) {
       res.status(503).json({ error: "Google sign-in has not been configured on this server." });
       return;
     }
+    const requestedReturnTo = getQueryParam(req, "returnTo") ?? null;
+    if (requestedReturnTo && !isAllowedNativeCallback(requestedReturnTo)) {
+      res.status(400).json({ error: "The native sign-in callback is not allowed." });
+      return;
+    }
+    removeExpiredOAuthEntries();
     const state = randomBytes(32).toString("base64url");
     res.cookie(GOOGLE_STATE_COOKIE, state, googleStateCookieOptions(req));
+    if (requestedReturnTo) {
+      res.cookie(GOOGLE_RETURN_TO_COOKIE, requestedReturnTo, googleStateCookieOptions(req));
+    } else {
+      res.clearCookie(GOOGLE_RETURN_TO_COOKIE, googleStateClearCookieOptions(req));
+    }
     const authorizationUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
     authorizationUrl.search = new URLSearchParams({
       client_id: ENV.googleClientId,
@@ -209,9 +238,29 @@ export function registerOAuthRoutes(app: Express) {
 
   app.get("/api/auth/google/callback", async (req: Request, res: Response) => {
     const code = getQueryParam(req, "code");
+    const oauthError = getQueryParam(req, "error");
     const state = getQueryParam(req, "state");
-    const storedState = parseCookie(req.headers.cookie ?? "")[GOOGLE_STATE_COOKIE];
-    if (!googleIsConfigured() || !code || !state || !storedState || state !== storedState) {
+    const oauthCookies = parseCookie(req.headers.cookie ?? "");
+    const storedState = oauthCookies[GOOGLE_STATE_COOKIE];
+    const returnTo = oauthCookies[GOOGLE_RETURN_TO_COOKIE];
+    removeExpiredOAuthEntries();
+    if (!googleIsConfigured() || (!code && !oauthError) || !state || !storedState || state !== storedState || (returnTo && !isAllowedNativeCallback(returnTo))) {
+      res.status(400).json({ error: "Google sign-in could not be verified. Please start again." });
+      return;
+    }
+    if (oauthError) {
+      res.clearCookie(GOOGLE_STATE_COOKIE, googleStateClearCookieOptions(req));
+      res.clearCookie(GOOGLE_RETURN_TO_COOKIE, googleStateClearCookieOptions(req));
+      if (returnTo) {
+        const nativeCallback = new URL(returnTo);
+        nativeCallback.searchParams.set("error", "google_sign_in_cancelled");
+        res.redirect(302, nativeCallback.toString());
+        return;
+      }
+      res.status(400).json({ error: "Google sign-in was cancelled or denied." });
+      return;
+    }
+    if (!code) {
       res.status(400).json({ error: "Google sign-in could not be verified. Please start again." });
       return;
     }
@@ -241,11 +290,23 @@ export function registerOAuthRoutes(app: Express) {
       }
       const user = await syncVerifiedGoogleUser({ openId: `google:${profile.sub}`, name: profile.name ?? null, email: profile.email });
       const sessionToken = await sdk.createSessionToken(user.openId, { name: user.name || "GymFlow member", expiresInMs: ONE_YEAR_MS });
-      res.clearCookie(GOOGLE_STATE_COOKIE, googleStateCookieOptions(req));
+      res.clearCookie(GOOGLE_STATE_COOKIE, googleStateClearCookieOptions(req));
+      res.clearCookie(GOOGLE_RETURN_TO_COOKIE, googleStateClearCookieOptions(req));
+      if (returnTo) {
+        const exchangeCode = randomBytes(32).toString("base64url");
+        nativeExchanges.set(exchangeCode, {
+          sessionToken,
+          user: buildUserResponse(user),
+          expiresAt: Date.now() + NATIVE_EXCHANGE_TTL_MS,
+        });
+        const nativeCallback = new URL(returnTo);
+        nativeCallback.searchParams.set("code", exchangeCode);
+        res.redirect(302, nativeCallback.toString());
+        return;
+      }
       res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(req), maxAge: ONE_YEAR_MS });
       res.redirect(302, selfHostedFrontendUrl());
-    } catch (error) {
-      console.error("[Google OAuth] Callback failed", error);
+    } catch {
       res.status(500).json({ error: "Google sign-in failed. Please try again." });
     }
   });
@@ -256,6 +317,19 @@ export function registerOAuthRoutes(app: Express) {
 
   app.get("/api/oauth/mobile", async (req: Request, res: Response) => {
     res.status(410).json({ error: "This sign-in route is unavailable. Use Google Sign-In." });
+  });
+
+  app.post("/api/auth/native/exchange", (req: Request, res: Response) => {
+    const code = typeof req.body?.code === "string" ? req.body.code : "";
+    removeExpiredOAuthEntries();
+    const exchange = code ? nativeExchanges.get(code) : undefined;
+    if (!exchange) {
+      res.status(400).json({ error: "This sign-in code is invalid or has expired. Please start again." });
+      return;
+    }
+    nativeExchanges.delete(code);
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ app_session_id: exchange.sessionToken, user: exchange.user });
   });
 
   app.post("/api/auth/logout", (req: Request, res: Response) => {
@@ -295,8 +369,7 @@ export function registerOAuthRoutes(app: Express) {
       res.cookie(COOKIE_NAME, token, { ...cookieOptions, maxAge: ONE_YEAR_MS });
 
       res.json({ success: true, user: buildUserResponse(user) });
-    } catch (error) {
-      console.error("[Auth] /api/auth/session failed:", error);
+    } catch {
       res.status(401).json({ error: "Invalid token" });
     }
   });

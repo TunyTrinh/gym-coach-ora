@@ -4,7 +4,7 @@ import { createPool, type Pool } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
 import { auditLogs, availabilityShifts, bookings, coachAuthorizations, coaches, gymRooms, gyms, InsertUser, notifications, roomClosures, timeSlots, users } from "../drizzle/schema";
 import { ENV } from "./_core/env";
-import { normalizeGoogleEmail } from "./google-authorization";
+import { googleAccountRole, normalizeGoogleEmail } from "./google-authorization";
 import { matchesConfirmationName } from "../shared/confirmation-name";
 
 export function normalizeRoomName(value: string) {
@@ -563,7 +563,7 @@ export async function syncVerifiedGoogleUser(input: { openId: string; name: stri
     const authorization = await tx.select({ coachId: coachAuthorizations.coachId, status: coachAuthorizations.status }).from(coachAuthorizations).where(eq(coachAuthorizations.normalizedEmail, normalizedEmail)).limit(1);
     const authorizedCoach = authorization[0]?.status === "authorized" ? authorization[0] : null;
     const priorRole = existingByOpenId[0]?.role;
-    const role = priorRole === "admin" ? "admin" : authorizedCoach ? "coach" : "client";
+    const role = googleAccountRole(Boolean(authorizedCoach));
     await tx.insert(users).values({ openId: input.openId, name: input.name, email: normalizedEmail, emailNormalized: normalizedEmail, loginMethod: "google", role, lastSignedIn: new Date() }).onDuplicateKeyUpdate({ set: { name: input.name, email: normalizedEmail, emailNormalized: normalizedEmail, loginMethod: "google", role, lastSignedIn: new Date() } });
     const user = await tx.select().from(users).where(eq(users.openId, input.openId)).limit(1);
     if (!user[0]) throw new Error("Google user could not be saved.");
