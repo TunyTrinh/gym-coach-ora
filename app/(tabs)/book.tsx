@@ -19,7 +19,7 @@ import { isLocalTestMode } from "@/lib/local-test-mode";
 import { createLocalDateRail, formatLocalClock, isSameLocalDay } from "@/lib/scheduler";
 import { trpc } from "@/lib/trpc";
 import { getBookingSlot, getCoach, type AvailabilityShift, type GymSnapshot } from "@/shared/gym";
-import { roomStatusPresentation, visibleRoomCalendarMarkers } from "@/shared/room-status-presentation";
+import { roomStatusPresentation, visibleRoomCalendarMarkers, type RoomStatusMarker } from "@/shared/room-status-presentation";
 
 const quickDurations = [30, 45, 60] as const;
 const customDurations = Array.from({ length: 13 }, (_, index) => 60 + index * 15);
@@ -31,6 +31,18 @@ const clientWheelPeriods = ["AM", "PM"];
 type TimeOption = { start: Date; end: Date; remaining: number; availabilityShiftId: string };
 type Translation = ReturnType<typeof useLanguage>["t"];
 type BookingFeedback = { title: string; message: string; tone: "success" | "error" };
+
+const clientCalendarLegendMarkers: RoomStatusMarker[] = ["available", "partially_closed", "closed", "full", "inactive", "availability_published", "client_booking"];
+
+function clientCalendarMarkerLabel(marker: RoomStatusMarker, t: Translation) {
+  if (marker === "partially_closed") return t("roomStatusPartiallyClosed");
+  if (marker === "closed" || marker === "temporarily_closed") return t("roomStatusClosed");
+  if (marker === "full") return t("roomStatusFull");
+  if (marker === "inactive") return t("roomStatusInactive");
+  if (marker === "availability_published") return t("roomStatusAvailabilityPublished");
+  if (marker === "client_booking") return t("roomStatusClientBooking");
+  return t("roomStatusAvailable");
+}
 
 function roomAvailabilityMessage(reason: string, t: Translation) {
   if (reason === "temporarily_closed") return t("roomStatusClosed");
@@ -357,6 +369,10 @@ export default function BookScreen() {
               <View style={styles.clientWeekDots}>{visibleMarkers.map((marker) => <View key={marker} style={[styles.clientWeekDot, { backgroundColor: roomStatusPresentation(marker).color }]} />)}{overflow > 0 ? <Text style={[styles.clientWeekOverflow, { color: colors.muted }]}>+{overflow}</Text> : null}</View>
             </Pressable>;
           })}</View>
+          <View accessibilityLabel={t("roomCalendarLegend")} style={styles.clientWeekLegend}>
+            <Text style={[styles.clientWeekLegendTitle, { color: colors.muted }]}>{t("roomCalendarLegend")}</Text>
+            <View style={styles.clientWeekLegendItems}>{clientCalendarLegendMarkers.map((marker) => <View key={marker} accessible accessibilityLabel={clientCalendarMarkerLabel(marker, t)} style={styles.clientWeekLegendItem}><View style={[styles.clientWeekLegendDot, { backgroundColor: roomStatusPresentation(marker).color }]} /><Text style={[styles.clientWeekLegendText, { color: colors.muted }]}>{clientCalendarMarkerLabel(marker, t)}</Text></View>)}</View>
+          </View>
           {!previewMode ? <RoomAccessPanel selectedDate={selectedDate} duration={duration} colors={colors} t={t} language={language} rooms={productionRoomSchedule.data?.rooms} roomsLoading={productionRoomSchedule.isLoading} onFeedback={setBookingFeedback} /> : null}
           <Text style={[styles.stepLabel, { color: colors.muted }]}>2. {t("chooseAvailability")}</Text>
         </View>
@@ -572,6 +588,12 @@ const styles = StyleSheet.create({
   clientWeekDots: { minHeight: 7, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 2 },
   clientWeekDot: { width: 6, height: 6, borderRadius: 3 },
   clientWeekOverflow: { fontSize: 8, fontWeight: "900", marginLeft: 1 },
+  clientWeekLegend: { gap: 6, paddingTop: 2 },
+  clientWeekLegendTitle: { fontSize: 9, fontWeight: "900", letterSpacing: 0.9 },
+  clientWeekLegendItems: { flexDirection: "row", flexWrap: "wrap", columnGap: 10, rowGap: 6 },
+  clientWeekLegendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
+  clientWeekLegendDot: { width: 7, height: 7, borderRadius: 4 },
+  clientWeekLegendText: { fontSize: 10, fontWeight: "700", lineHeight: 13 },
   windowList: { gap: 10 },
   windowCard: { gap: 11, padding: 16, borderWidth: 1 },
   windowTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: 10 },

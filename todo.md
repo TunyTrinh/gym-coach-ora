@@ -157,3 +157,6 @@ Validation evidence: type check passed; targeted room-calendar and room-status p
 - [x] Migrate booking feedback and all existing shared dialog consumers to the centered dialog foundation
 - [x] Add deterministic regressions for viewport centering, safe-area padding, responsive maximum width, overlay coverage, and dialog scroll behavior
 - [ ] Validate the popup fix in Preview, public PWA, and an installed native App when a device session is available
+- [x] Inspect Client calendar-dot marker meanings and existing localized status presentation
+- [x] Add a compact, non-color-only Client calendar legend for the weekly booking selector
+- [x] Add regression coverage for Client calendar legend visibility, marker mapping, English, and Vietnamese copy

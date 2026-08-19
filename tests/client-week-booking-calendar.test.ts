@@ -21,4 +21,14 @@ describe("Client weekly booking calendar", () => {
     expect(clientBookingUi).toContain("{ date: selectedDateKey }");
     expect(clientBookingUi).toContain("<RoomAccessPanel selectedDate={selectedDate}");
   });
+
+  it("explains every visible date-dot color with compact localized text instead of relying on color alone", () => {
+    expect(clientBookingUi).toContain("clientCalendarLegendMarkers");
+    expect(clientBookingUi).toContain("clientCalendarMarkerLabel");
+    expect(clientBookingUi).toContain('accessibilityLabel={t("roomCalendarLegend")}');
+    expect(clientBookingUi).toContain("clientWeekLegendItems");
+    expect(clientBookingUi).toContain("roomStatusPresentation(marker).color");
+    expect(clientBookingUi).toContain("roomStatusAvailabilityPublished");
+    expect(clientBookingUi).toContain("roomStatusClientBooking");
+  });
 });
