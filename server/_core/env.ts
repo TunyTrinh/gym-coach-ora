@@ -22,11 +22,8 @@ const COMMON_SECRET_VALUES = new Set([
   "secret",
 ]);
 
-// The managed runtime's established signing secret is immutable from project code.
-// Keep a meaningful length and entropy floor while remaining compatible with that
-// existing environment; new deployments should still supply a longer random value.
-const MIN_SIGNING_SECRET_LENGTH = 20;
-const MIN_SIGNING_SECRET_DISTINCT_CHARACTERS = 12;
+const MIN_SIGNING_SECRET_LENGTH = 32;
+const MIN_SIGNING_SECRET_DISTINCT_CHARACTERS = 16;
 
 export function authEnvironmentErrors(config: Pick<typeof ENV, "appId" | "cookieSecret">) {
   const errors: string[] = [];
@@ -40,7 +37,7 @@ export function authEnvironmentErrors(config: Pick<typeof ENV, "appId" | "cookie
     COMMON_SECRET_VALUES.has(secret.toLowerCase()) ||
     new Set(secret).size < MIN_SIGNING_SECRET_DISTINCT_CHARACTERS
   ) {
-    errors.push("JWT_SECRET must be at least 20 characters and contain sufficient randomness");
+    errors.push("JWT_SECRET must be at least 32 characters and contain sufficient randomness");
   }
 
   return errors;

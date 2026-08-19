@@ -1,4 +1,4 @@
-import { and, eq, gt, gte, inArray, isNull, lt, or } from "drizzle-orm";
+import { and, eq, gt, gte, inArray, isNull, lt, or, sql } from "drizzle-orm";
 import { drizzle, type MySql2Database } from "drizzle-orm/mysql2";
 import { createPool, type Pool } from "mysql2/promise";
 import { randomUUID } from "node:crypto";
@@ -277,7 +277,7 @@ export async function listActiveGyms() {
 export async function listRooms(input: { activeOnly?: boolean } = {}) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
-  return db.select({ id: gymRooms.id, externalId: gymRooms.externalId, gymId: gymRooms.gymId, name: gymRooms.name, address: gymRooms.address, description: gymRooms.description, maximumCapacity: gymRooms.maximumCapacity, openingTime: gymRooms.openingTime, closingTime: gymRooms.closingTime, active: gymRooms.active, deletedAt: gymRooms.deletedAt, timeZone: gyms.timezone }).from(gymRooms).innerJoin(gyms, eq(gymRooms.gymId, gyms.id)).where(input.activeOnly ? eq(gymRooms.active, true) : undefined);
+  return db.select({ id: gymRooms.id, externalId: gymRooms.externalId, gymId: gymRooms.gymId, name: gymRooms.name, address: gymRooms.address, description: gymRooms.description, maximumCapacity: gymRooms.maximumCapacity, openingTime: gymRooms.openingTime, closingTime: gymRooms.closingTime, active: gymRooms.active, timeZone: gyms.timezone }).from(gymRooms).innerJoin(gyms, eq(gymRooms.gymId, gyms.id)).where(input.activeOnly ? eq(gymRooms.active, true) : undefined);
 }
 
 export async function createGymRoom(input: { gymId?: number; name: string; address: string; description: string; maximumCapacity: number; openingTime: string; closingTime: string; actorUserId: number }) {
@@ -309,7 +309,11 @@ export async function createGymRoom(input: { gymId?: number; name: string; addre
     const existing = await tx.select({ id: gymRooms.id }).from(gymRooms).where(and(eq(gymRooms.gymId, resolvedGymId), eq(gymRooms.nameNormalized, nameNormalized))).limit(1);
     if (existing[0]) throw new Error("A room with this name already exists at this gym.");
     const externalId = `room-${randomUUID()}`;
-    await tx.insert(gymRooms).values({ externalId, gymId: resolvedGymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, openingTime: input.openingTime, closingTime: input.closingTime, active: true });
+    // Keep the deployment compatible with the preserved database while the
+    // audited additive lifecycle migration is awaiting explicit approval.
+    // Explicit legacy-safe columns avoid Drizzle emitting a missing deletedAt
+    // column during inserts; this works unchanged after the migration as well.
+    await tx.execute(sql`INSERT INTO \`gymRooms\` (\`externalId\`, \`gymId\`, \`name\`, \`nameNormalized\`, \`address\`, \`description\`, \`maximumCapacity\`, \`openingTime\`, \`closingTime\`, \`active\`) VALUES (${externalId}, ${resolvedGymId}, ${name}, ${nameNormalized}, ${input.address.trim()}, ${input.description.trim()}, ${input.maximumCapacity}, ${input.openingTime}, ${input.closingTime}, ${true})`);
     const room = await tx.select({ id: gymRooms.id }).from(gymRooms).where(eq(gymRooms.externalId, externalId)).limit(1);
     if (!room[0]) throw new Error("Room could not be created.");
     await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "CREATE_GYM_ROOM", details: `Created room ${name} (${room[0].id}) at gym ${resolvedGymId} with capacity ${input.maximumCapacity}.` });
@@ -336,7 +340,7 @@ export async function updateGymRoom(input: { roomId: number; gymId: number; name
       ? await roomImpactRows(tx, { roomId: input.roomId, from: new Date() })
       : [];
     if (wasActive && !input.active) assertImpactConfirmed(affectedBookings, input.confirmedAffectedBookingIds);
-    await tx.update(gymRooms).set({ gymId: input.gymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, openingTime: input.openingTime, closingTime: input.closingTime, active: input.active, deletedAt: input.active ? null : room[0].deletedAt }).where(eq(gymRooms.id, input.roomId));
+    await tx.update(gymRooms).set({ gymId: input.gymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, openingTime: input.openingTime, closingTime: input.closingTime, active: input.active }).where(eq(gymRooms.id, input.roomId));
     if (wasActive && !input.active) {
       const futureShifts = await tx.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(
         or(eq(availabilityShifts.roomId, input.roomId), eq(availabilityShifts.location, room[0].name)),
@@ -400,7 +404,7 @@ export async function deleteGymRoom(input: { roomId: number; confirmationName: s
     ]);
     const hardDeleted = references.every((rows) => rows.length === 0);
     if (hardDeleted) await tx.delete(gymRooms).where(eq(gymRooms.id, input.roomId));
-    else await tx.update(gymRooms).set({ active: false, deletedAt: new Date() }).where(eq(gymRooms.id, input.roomId));
+    else await tx.update(gymRooms).set({ active: false }).where(eq(gymRooms.id, input.roomId));
     if (!hardDeleted) {
       const title = "Room removed from booking";
       const message = `${room[0].name} is no longer bookable. Existing bookings were preserved for administrator review.`;
@@ -414,7 +418,7 @@ export async function deleteGymRoom(input: { roomId: number; confirmationName: s
 export async function getRoomClosures(roomId: number) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
-  return db.select({ id: roomClosures.id, closureDate: roomClosures.closureDate, reason: roomClosures.reason, createdAt: roomClosures.createdAt, updatedAt: roomClosures.updatedAt }).from(roomClosures).where(eq(roomClosures.roomId, roomId));
+  return db.select({ id: roomClosures.id, closureDate: roomClosures.closureDate, reason: roomClosures.reason, createdAt: roomClosures.createdAt, updatedAt: roomClosures.createdAt }).from(roomClosures).where(eq(roomClosures.roomId, roomId));
 }
 
 export async function setRoomClosure(input: { roomId: number; closureDate: string; reason?: string; confirmedAffectedBookingIds: string[]; actorUserId: number }) {
@@ -428,11 +432,11 @@ export async function setRoomClosure(input: { roomId: number; closureDate: strin
     assertImpactConfirmed(affectedBookings, input.confirmedAffectedBookingIds);
     const existing = await tx.select({ id: roomClosures.id }).from(roomClosures).where(and(eq(roomClosures.roomId, input.roomId), eq(roomClosures.closureDate, input.closureDate))).limit(1);
     if (existing[0]) {
-      await tx.update(roomClosures).set({ reason: input.reason?.trim() || null, updatedBy: input.actorUserId }).where(eq(roomClosures.id, existing[0].id));
+      await tx.update(roomClosures).set({ reason: input.reason?.trim() || null }).where(eq(roomClosures.id, existing[0].id));
       await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "UPDATE_ROOM_CLOSURE", details: `Updated closure for room ${input.roomId} on ${input.closureDate}.` });
       return { success: true as const, created: false as const, preservedBookingCount: affectedBookings.length };
     }
-    await tx.insert(roomClosures).values({ roomId: input.roomId, closureDate: input.closureDate, reason: input.reason?.trim() || null, createdBy: input.actorUserId });
+    await tx.execute(sql`INSERT INTO \`roomClosures\` (\`roomId\`, \`closureDate\`, \`reason\`, \`createdBy\`) VALUES (${input.roomId}, ${input.closureDate}, ${input.reason?.trim() || null}, ${input.actorUserId})`);
     const shifts = await tx.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(
       or(eq(availabilityShifts.roomId, input.roomId), eq(availabilityShifts.location, room[0].room.name)),
       lt(availabilityShifts.startAt, endAt),

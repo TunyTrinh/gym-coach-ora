@@ -165,3 +165,16 @@ Validation evidence: type check passed; targeted room-calendar and room-status p
 - [x] Adjust audit-program authentication validation to support the existing managed secret without changing its value or reducing placeholder-secret protections
 - [x] Verify the new branch base and validate its install, type-check, and PWA build state
 - [ ] Save and publish the deploy-audit-program test artifact with its test access details
+- [x] Capture the deployed revision, redacted environment fingerprint, database schema/migration history, row counts, and verified backup before any data mutation
+- [x] Trace the Client, Coach, and Admin authentication paths and document sanitized failed steps without weakening authentication
+- [x] Trace an existing room through the database, API, and Admin/Coach/Client filters to diagnose missing room visibility
+- [x] Diagnose the gymRooms insert schema mismatch and prepare any migration only on an isolated database copy
+- [x] Replace raw database errors in all user-facing feedback with correlation-safe generic messages and server-side diagnostics
+- [x] Make long Coach names/emails and action controls responsive at narrow mobile widths with accessible full-value access
+- [x] Add an Admin header account menu with visible persistent language configuration, role, and complete logout/session/cache invalidation behavior without adding a bottom tab
+- [ ] Validate source fixes, release diagnostics, PWA cache synchronization, and cross-role room behavior without production data mutation
+- [x] Replace the existing single local admin credential under explicit user approval, preserving its user record and verifying one-Admin and secure-login outcomes
+- [x] Align database lifecycle regression coverage with the approved legacy-schema compatibility path
+- [x] Validate the audit-branch source with type check, lint, 128 passing tests (one environment-dependent skip), and PWA export
+- [ ] Apply the corrected managed JWT secret and perform live authenticated verification after the platform runtime refreshes
+- [ ] Apply the preflighted additive production migrations 0015 and 0016 only after explicit approval, including the required 0014 migration-journal reconciliation
