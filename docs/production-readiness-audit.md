@@ -1,5 +1,7 @@
 # Coachora Production Readiness and Optimization Audit
 
+> Historical pre-convergence report. Phase 2 removed the production local-store path; current rules, dispositions, and P0/P1/P2 findings are in `docs/business-rules.md`.
+
 **Audit date:** 13 August 2026 (GMT+7)  
 **Scope:** Existing Coachora PWA, Expo web frontend, Express/tRPC API, MySQL/Drizzle schema, and the supplied self-hosted Docker Compose topology.  
 **Method:** Static code and configuration review, schema review, targeted corrective changes, automated validation, PWA export, and bounded local HTTP measurements.

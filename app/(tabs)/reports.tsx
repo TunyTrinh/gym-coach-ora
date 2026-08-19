@@ -8,29 +8,23 @@ import { useColors } from "@/hooks/use-colors";
 import { startOfLocalDay } from "@/lib/calendar";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
 import { useLanguage } from "@/lib/language-provider";
-import { isLocalTestMode } from "@/lib/local-test-mode";
 import { trpc } from "@/lib/trpc";
-import { useGym } from "@/lib/gym-store";
-import { buildAdminPreviewRoomCalendar } from "@/lib/admin-room-preview";
 
 type Period = "day" | "week";
 
 export default function ReportsScreen() {
   const colors = useColors();
   const { user } = useAuth();
-  const { snapshot } = useGym();
   const { language, t } = useLanguage();
-  const previewMode = isLocalTestMode();
-  const role = previewMode ? snapshot.member.role : user?.role;
+  const role = user?.role;
   const [period, setPeriod] = useState<Period>("day");
   const [roomId, setRoomId] = useState<number | null>(null);
   const [coachName, setCoachName] = useState<string>("all");
-  const roomsQuery = trpc.admin.listRooms.useQuery(undefined, { enabled: role === "admin" && !previewMode });
-  const previewRooms = useMemo(() => previewMode ? buildAdminPreviewRoomCalendar(snapshot).rooms.map((room) => ({ id: Number(room.id), name: room.name, maximumCapacity: room.maximumCapacity })) : [], [previewMode, snapshot]);
+  const roomsQuery = trpc.admin.listRooms.useQuery(undefined, { enabled: role === "admin" });
   const start = useMemo(() => startOfLocalDay(new Date()), []);
   const end = useMemo(() => new Date(start.getTime() + (period === "week" ? 7 : 1) * 86_400_000), [period, start]);
-  const scheduleQuery = trpc.admin.roomSchedule.useQuery({ roomId: roomId ?? 0, from: start.toISOString(), to: end.toISOString() }, { enabled: role === "admin" && !previewMode && Boolean(roomId) });
-  const rooms = useMemo(() => previewMode ? previewRooms : roomsQuery.data ?? [], [previewMode, previewRooms, roomsQuery.data]);
+  const scheduleQuery = trpc.admin.roomSchedule.useQuery({ roomId: roomId ?? 0, from: start.toISOString(), to: end.toISOString() }, { enabled: role === "admin" && Boolean(roomId) });
+  const rooms = useMemo(() => roomsQuery.data ?? [], [roomsQuery.data]);
 
   useEffect(() => { if (!roomId && rooms[0]) setRoomId(rooms[0].id); }, [roomId, rooms]);
 

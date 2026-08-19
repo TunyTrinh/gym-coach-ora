@@ -19,7 +19,6 @@ function shift(overrides: Partial<AvailabilityShift> = {}): AvailabilityShift {
     gymId: "gym-apex",
     createdBy: "coach-maya",
     coachId: "coach-maya",
-    serviceTypeId: "service-pt",
     start: "2026-08-17T09:00:00.000Z",
     end: "2026-08-17T10:00:00.000Z",
     maximumCapacity: 3,

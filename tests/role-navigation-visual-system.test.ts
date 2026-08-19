@@ -6,12 +6,14 @@ const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.ur
 describe("confirmed role navigation and visual system", () => {
   it("uses the exact four-item role navigation with confirmed hidden-route replacements", () => {
     const tabs = read("app/(tabs)/_layout.tsx");
-    expect(tabs).toContain('isCoach ? "Today" : isAdmin ? "Overview"');
+    expect(tabs).toContain('isCoach ? t("today") : isAdmin ? t("overview")');
     expect(tabs).toContain('name="history" options={{ href: isClient ? undefined : null');
     expect(tabs).toContain('name="rooms" options={{ href: isAdmin ? undefined : null');
     expect(tabs).toContain('name="admin" options={{ href: isAdmin ? undefined : null');
     expect(tabs).toContain('name="reports" options={{ href: isAdmin ? undefined : null');
     expect(tabs).toContain('name="book" options={{ href: null }}');
+    expect(tabs.indexOf('name="rooms"')).toBeLessThan(tabs.indexOf('name="admin"'));
+    expect(tabs.indexOf('name="admin"')).toBeLessThan(tabs.indexOf('name="reports"'));
   });
 
   it("keeps Client booking, Client progress, and Coach availability reachable by their confirmed replacement paths", () => {
@@ -21,7 +23,7 @@ describe("confirmed role navigation and visual system", () => {
     expect(home).toContain('router.push("/book")');
     expect(history).toContain('"upcoming" | "past" | "progress"');
     expect(history).toContain('router.push("/progress")');
-    expect(schedule).toContain('onPress={isCoach ? () => router.push("/book") : undefined}');
+    expect(schedule).toContain('onPress={isCoach ? () => router.push("/availability") : undefined}');
   });
 
   it("builds Admin Reports from existing room and booking summary procedures without a new backend route", () => {

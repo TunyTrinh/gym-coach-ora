@@ -5,33 +5,26 @@ import { useMemo } from "react";
 import { OfflineBanner, PrimaryButton, ScreenHeader, StatCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
 import { useNetworkStatus } from "@/hooks/use-network-status";
-import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
-import { isLocalTestMode } from "@/lib/local-test-mode";
 import { trpc } from "@/lib/trpc";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
-import { getBookingSlot } from "@/shared/gym";
 
 import { useAuth } from "@/hooks/use-auth";
 
 export default function HomeScreen() {
   const { user } = useAuth();
-  const { snapshot, upcomingBookings, unreadCount } = useGym();
-  const previewMode = isLocalTestMode();
-  const role = previewMode ? snapshot.member.role : user?.role ?? "client";
+  const role = user?.role ?? "client";
   const { language, t } = useLanguage();
   const isOnline = useNetworkStatus();
-  const productionSchedule = trpc.member.schedule.useQuery(undefined, { enabled: !previewMode && role === "client" });
-  const productionNotifications = trpc.member.notifications.useQuery(undefined, { enabled: !previewMode && Boolean(user) });
-  const nextBooking = previewMode ? upcomingBookings[0] : undefined;
-  const nextSlot = nextBooking ? getBookingSlot(snapshot, nextBooking) : undefined;
+  const productionSchedule = trpc.member.schedule.useQuery(undefined, { enabled: role === "client" });
+  const productionNotifications = trpc.member.notifications.useQuery(undefined, { enabled: Boolean(user) });
   const nextServerBooking = useMemo(() => (productionSchedule.data ?? []).find((booking) => ["pending", "confirmed"].includes(booking.status) && new Date(booking.startAt) > new Date()), [productionSchedule.data]);
-  const hasNextBooking = previewMode ? Boolean(nextBooking) : Boolean(nextServerBooking);
-  const firstName = (previewMode ? snapshot.member.fullName : user?.name?.trim() || "Coachora member").split(" ")[0];
-  const activeUnreadCount = previewMode ? unreadCount : (productionNotifications.data ?? []).filter((notification) => !notification.read).length;
-  const coachSchedule = trpc.availability.coachSchedule.useQuery(undefined, { enabled: !previewMode && role === "coach" });
-  const adminRooms = trpc.admin.listRooms.useQuery(undefined, { enabled: !previewMode && role === "admin" });
-  const adminCoaches = trpc.admin.listCoachAccounts.useQuery(undefined, { enabled: !previewMode && role === "admin" });
+  const hasNextBooking = Boolean(nextServerBooking);
+  const firstName = (user?.name?.trim() || "Coachora member").split(" ")[0];
+  const activeUnreadCount = (productionNotifications.data ?? []).filter((notification) => !notification.read).length;
+  const coachSchedule = trpc.availability.coachSchedule.useQuery(undefined, { enabled: role === "coach" });
+  const adminRooms = trpc.admin.listRooms.useQuery(undefined, { enabled: role === "admin" });
+  const adminCoaches = trpc.admin.listCoachAccounts.useQuery(undefined, { enabled: role === "admin" });
   const coachToday = useMemo(() => (coachSchedule.data ?? []).filter((row) => new Date(row.startAt).toDateString() === new Date().toDateString()), [coachSchedule.data]);
   const coachBookedHours = useMemo(() => coachToday.reduce((total, row) => total + Math.max(0, new Date(row.endAt).getTime() - new Date(row.startAt).getTime()) / 3_600_000, 0), [coachToday]);
 
@@ -43,14 +36,14 @@ export default function HomeScreen() {
       {role === "client" ? <>
         <PrimaryButton title={t("bookSessionTitle")} onPress={() => router.push("/book")} icon="calendar.badge.plus" />
         <Text style={[styles.sectionLabel, { color: "#A1A1AA" }]}>{t("upcomingSchedule").toUpperCase()}</Text>
-        <SurfaceCard style={styles.nextSessionCard} onPress={() => router.push("/schedule")} accessibilityLabel={t("upcomingSchedule")}><View style={styles.listCopy}><Text style={styles.listTitle}>{hasNextBooking ? t("session") : t("noSessionYet")}</Text><Text style={styles.listMeta}>{previewMode && nextSlot ? `${formatDateLocalized(nextSlot.start, language)} · ${formatTimeLocalized(nextSlot.start, language)}` : nextServerBooking ? `${formatDateLocalized(new Date(nextServerBooking.startAt).toISOString(), language)} · ${formatTimeLocalized(new Date(nextServerBooking.startAt).toISOString(), language)}` : t("bookSessionSubtitle")}</Text></View><StatusBadge label={hasNextBooking ? t("booked") : t("available")} tone={hasNextBooking ? "pro" : "success"} /></SurfaceCard>
+        <SurfaceCard style={styles.nextSessionCard} onPress={() => router.push("/schedule")} accessibilityLabel={t("upcomingSchedule")}><View style={styles.listCopy}><Text style={styles.listTitle}>{hasNextBooking ? t("session") : t("noSessionYet")}</Text><Text style={styles.listMeta}>{nextServerBooking ? `${formatDateLocalized(new Date(nextServerBooking.startAt).toISOString(), language)} · ${formatTimeLocalized(new Date(nextServerBooking.startAt).toISOString(), language)}` : t("bookSessionSubtitle")}</Text></View><StatusBadge label={hasNextBooking ? t("booked") : t("available")} tone={hasNextBooking ? "pro" : "success"} /></SurfaceCard>
       </> : null}
 
       {role === "coach" ? <>
         <View style={styles.statRow}><StatCard value={String(coachToday.length)} label="Clients today" /><StatCard value={`${coachBookedHours.toFixed(1)}h`} label="Booked hours" /><StatCard value={String(Math.max(0, 8 - coachToday.length))} label="Open slots" /></View>
         <Text style={[styles.sectionLabel, { color: "#A1A1AA" }]}>UP NEXT</Text>
         <View style={styles.sessionList}>{coachToday.slice(0, 2).map((session) => <SurfaceCard key={session.id} style={styles.sessionRow}><View style={[styles.sessionAccent, { backgroundColor: session.status === "confirmed" ? "#34D399" : "#F59E0B" }]} /><View style={styles.listCopy}><Text style={styles.listTitle}>{session.clientName ?? t("clients")}</Text><Text style={styles.listMeta}>{formatTimeLocalized(session.startAt, language)}–{formatTimeLocalized(session.endAt, language)} · {session.room}</Text></View><StatusBadge label={session.status} tone={session.status === "confirmed" ? "success" : "warning"} /></SurfaceCard>)}</View>
-        <PrimaryButton title="Publish availability" onPress={() => router.push("/book")} icon="plus" />
+        <PrimaryButton title="Publish availability" onPress={() => router.push("/availability")} icon="plus" />
       </> : null}
 
       {role === "admin" ? <>

@@ -7,9 +7,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { TypedConfirmSheet } from "@/components/typed-confirm-sheet";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
-import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
-import { isLocalTestMode } from "@/lib/local-test-mode";
 import { trpc } from "@/lib/trpc";
 
 type FormState = { fullName: string; email: string; specialty: string; gymId: number | null; coachId?: number };
@@ -17,7 +15,6 @@ const emptyForm = (): FormState => ({ fullName: "", email: "", specialty: "", gy
 
 export default function AdminScreen() {
   const { user } = useAuth();
-  const { snapshot } = useGym();
   const { t } = useLanguage();
   const colors = useColors();
   const [form, setForm] = useState(emptyForm);
@@ -26,9 +23,11 @@ export default function AdminScreen() {
   const [feedback, setFeedback] = useState<{ title: string; body: string; tone: "success" | "error" } | null>(null);
   const coachAccounts = trpc.admin.listCoachAccounts.useQuery(undefined, { enabled: user?.role === "admin" });
   const gyms = trpc.admin.listActiveGyms.useQuery(undefined, { enabled: user?.role === "admin" });
+  const utils = trpc.useUtils();
+  const invalidateCoachConsumers = () => Promise.all([utils.catalog.coaches.invalidate(), utils.availability.mine.invalidate(), utils.availability.bookable.invalidate(), utils.availability.bookableAll.invalidate(), utils.availability.coachSchedule.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.roomCalendar.invalidate(), utils.member.schedule.invalidate()]);
   const authorizeCoach = trpc.admin.authorizeCoach.useMutation({
     onSuccess: async () => {
-      await coachAccounts.refetch();
+      await Promise.all([coachAccounts.refetch(), invalidateCoachConsumers()]);
       setShowAuthorize(false);
       setForm(emptyForm());
       setFeedback({ title: t("coachAccountCreated"), body: t("coachAccountCreatedBody"), tone: "success" });
@@ -37,14 +36,14 @@ export default function AdminScreen() {
   });
   const changeAccess = trpc.admin.changeCoachAccess.useMutation({
     onSuccess: async () => {
-      await coachAccounts.refetch();
+      await Promise.all([coachAccounts.refetch(), invalidateCoachConsumers()]);
       setFeedback({ title: t("coachAccessUpdated"), body: t("coachAccessUpdatedBody"), tone: "success" });
     },
     onError: (error) => setFeedback({ title: t("coachAccountCreateFailed"), body: error.message || t("coachAccountCreateFailed"), tone: "error" }),
   });
   const deleteCoach = trpc.admin.deleteCoach.useMutation({
     onSuccess: async () => {
-      await coachAccounts.refetch();
+      await Promise.all([coachAccounts.refetch(), invalidateCoachConsumers()]);
       setCoachToDelete(null);
       setFeedback({ title: t("deleteCoachSuccess"), body: t("deleteConfirmationBody"), tone: "success" });
     },
@@ -59,16 +58,10 @@ export default function AdminScreen() {
     setShowAuthorize(true);
   };
   const isAuthenticatedAdmin = user?.role === "admin";
-  const isPreviewAdmin = !isAuthenticatedAdmin && isLocalTestMode() && snapshot.member.role === "admin";
 
-  if (!isAuthenticatedAdmin && !isPreviewAdmin) {
+  if (!isAuthenticatedAdmin) {
     return <ScreenContainer className="px-5" edges={["top", "bottom", "left", "right"]}><View style={styles.restricted}><ScreenHeader title={t("coachAccounts")} subtitle={t("adminAccessRequired")} label={t("restricted")} /><PrimaryButton title={t("back")} onPress={() => router.back()} /></View></ScreenContainer>;
   }
-
-  if (isPreviewAdmin) return <ScreenContainer className="px-5" edges={["top", "bottom", "left", "right"]}>
-    <View style={styles.topBar}><Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t("back")} style={styles.backButton}><Text style={styles.backText}>‹ {t("back")}</Text></Pressable></View>
-    <View style={styles.content}><ScreenHeader title={t("coachAccounts")} subtitle={t("coachAccountsBody")} label={t("admin")} /><SpectrumCard style={styles.hero}><Text style={styles.heroEyebrow}>{t("admin").toUpperCase()}</Text><Text style={styles.heroTitle}>{t("adminPreviewTitle")}</Text><Text style={styles.heroBody}>{t("adminPreviewReadOnly")}</Text></SpectrumCard><SurfaceCard style={styles.empty}><Text style={[styles.emptyText, { color: colors.muted }]}>{t("coachAccountsBody")}</Text></SurfaceCard></View>
-  </ScreenContainer>;
 
   return <ScreenContainer className="px-5" edges={["top", "bottom", "left", "right"]}>
     <View style={styles.topBar}><Pressable onPress={() => router.back()} accessibilityRole="button" accessibilityLabel={t("back")} style={styles.backButton}><Text style={styles.backText}>‹ {t("back")}</Text></Pressable></View>

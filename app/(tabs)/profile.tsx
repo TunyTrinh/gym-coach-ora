@@ -1,30 +1,24 @@
 import { useState } from "react";
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
 import { router } from "expo-router";
 
-import { Avatar, Divider, GhostButton, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
+import { Avatar, Divider, ScreenHeader, SpectrumCard, StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { usePwaInstall } from "@/hooks/use-pwa-install";
-import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
-import { isLocalTestMode } from "@/lib/local-test-mode";
 
 export default function ProfileScreen() {
   const colors = useColors();
   const { user, logout } = useAuth();
-  const { snapshot, updateRole, resetDemoData } = useGym();
   const { language, setLanguage, t } = useLanguage();
-  const previewMode = isLocalTestMode();
-  const role = previewMode ? snapshot.member.role : user?.role ?? "client";
-  const profile = previewMode
-    ? snapshot.member
-    : {
-        initials: (user?.name ?? "Coachora member").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "CM",
-        fullName: user?.name?.trim() || "Coachora member",
-        email: user?.email ?? "",
-      };
+  const role = user?.role ?? "client";
+  const profile = {
+    initials: (user?.name ?? "Coachora member").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "CM",
+    fullName: user?.name?.trim() || "Coachora member",
+    email: user?.email ?? "",
+  };
   const [pushEnabled, setPushEnabled] = useState(true);
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [showMore, setShowMore] = useState(false);
@@ -36,7 +30,7 @@ export default function ProfileScreen() {
       <SurfaceCard style={styles.profileCard}><Avatar initials={profile.initials} accent="#bba4ff" size={68} /><View style={styles.profileCopy}><Text style={[styles.profileName, { color: colors.foreground }]}>{profile.fullName}</Text><Text style={[styles.profileEmail, { color: colors.muted }]}>{profile.email}</Text><StatusBadge label={role === "client" ? "Client" : role === "coach" ? "Coach" : "Gym Admin"} tone="accent" /></View></SurfaceCard>
       {user ? <Pressable onPress={() => void logout()} accessibilityRole="button" accessibilityLabel={t("signOut")} style={({ pressed }) => [styles.signOutButton, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><Text style={styles.signOutText}>{t("signOut")}</Text></Pressable> : null}
       <Text style={[styles.sectionLabel, { color: colors.muted }]}>MEMBERSHIP</Text>
-      <SpectrumCard style={styles.membershipCard} intensity="muted"><View style={styles.membershipTop}><View style={{ flex: 1 }}><Text style={styles.planName}>{previewMode ? snapshot.member.membershipPlan : "Coachora account"}</Text><Text style={styles.planMeta}>{previewMode ? `Active through ${new Intl.DateTimeFormat(language === "vi" ? "vi-VN" : "en-US", { month: "short", day: "numeric", year: "numeric" }).format(new Date(snapshot.member.membershipEndDate))}` : "Signed in with your verified identity"}</Text></View><StatusBadge label="Active" tone="success" /></View><View style={styles.progressTrack}><View style={styles.progressFill} /></View><Text style={styles.planFootnote}>{previewMode ? "42 days remaining · Unlimited bookings" : "Booking access is managed by your gym administrator."}</Text></SpectrumCard>
+      <SpectrumCard style={styles.membershipCard} intensity="muted"><View style={styles.membershipTop}><View style={{ flex: 1 }}><Text style={styles.planName}>Coachora account</Text><Text style={styles.planMeta}>Signed in with your verified identity</Text></View><StatusBadge label="Active" tone="success" /></View><View style={styles.progressTrack}><View style={styles.progressFill} /></View><Text style={styles.planFootnote}>Booking access is managed by your gym administrator.</Text></SpectrumCard>
       <Pressable onPress={() => setShowMore((value) => !value)} accessibilityRole="button" accessibilityState={{ expanded: showMore }} style={({ pressed }) => [styles.moreRow, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><View><Text style={[styles.moreTitle, { color: colors.foreground }]}>{t("moreOptions")}</Text><Text style={[styles.moreBody, { color: colors.muted }]}>Language, notifications and install help</Text></View><Text style={styles.moreAction}>{showMore ? "Hide" : "Show"}</Text></Pressable>
       {showMore ? <>
         <Text style={[styles.sectionLabel, { color: colors.muted }]}>{t("language").toUpperCase()}</Text>
@@ -68,10 +62,9 @@ export default function ProfileScreen() {
         {installState !== "installed" && installState !== "unsupported" ? <><Text style={[styles.sectionLabel, { color: colors.muted }]}>{t("installCoachora")}</Text><Pressable onPress={() => void requestInstall()} disabled={!canInstall} accessibilityRole={canInstall ? "button" : undefined} accessibilityState={{ disabled: !canInstall }} style={({ pressed }) => [styles.installCard, { backgroundColor: colors.surface, borderColor: colors.border }, canInstall && pressed && styles.pressed]}><View style={styles.installIcon}><Text style={styles.installIconText}>↗</Text></View><View style={styles.installCopy}><Text style={[styles.installTitle, { color: colors.foreground }]}>{canInstall ? t("installNow") : t("addToHomeScreen")}</Text><Text style={[styles.installBody, { color: colors.muted }]}>{canInstall ? t("installReady") : t("installInstructions")}</Text>{canInstall ? <View style={styles.installAction}><Text style={styles.installActionText}>{t("installNow")}</Text></View> : null}</View></Pressable></> : null}</> : null}
       <Text style={[styles.sectionLabel, { color: colors.muted }]}>ACTIVITY</Text>
       <SurfaceCard style={styles.activityCard} onPress={() => router.push("/history")} accessibilityLabel="Open attendance history"><View><Text style={[styles.activityTitle, { color: colors.foreground }]}>Attendance history</Text><Text style={[styles.activityDetail, { color: colors.muted }]}>Review completed sessions and past activity.</Text></View><Text style={styles.activityArrow}>→</Text></SurfaceCard>
-      {isStaff ? <SpectrumCard style={styles.staffCard} onPress={() => router.push("/book")} accessibilityLabel="Open coach availability"><View><Text style={styles.staffEyebrow}>STAFF VIEW</Text><Text style={styles.staffTitle}>{role === "admin" ? "Coach availability oversight" : "Manage your availability"}</Text><Text style={styles.staffBody}>{role === "admin" ? "Review and manage bookable time across coaches." : "Publish, block, and release your future coaching shifts."}</Text></View><Text style={styles.staffArrow}>→</Text></SpectrumCard> : null}
+      {isStaff ? <SpectrumCard style={styles.staffCard} onPress={() => router.push("/availability")} accessibilityLabel="Open coach availability"><View><Text style={styles.staffEyebrow}>STAFF VIEW</Text><Text style={styles.staffTitle}>{role === "admin" ? "Coach availability oversight" : "Manage your availability"}</Text><Text style={styles.staffBody}>{role === "admin" ? "Review and manage bookable time across coaches." : "Publish, block, and release your future coaching shifts."}</Text></View><Text style={styles.staffArrow}>→</Text></SpectrumCard> : null}
       {role === "admin" ? <SpectrumCard style={styles.staffCard} onPress={() => router.push("/admin")} accessibilityRole="button" accessibilityLabel={t("coachAccounts")}><View><Text style={styles.staffEyebrow}>{t("admin").toUpperCase()}</Text><Text style={styles.staffTitle}>{t("coachAccounts")}</Text><Text style={styles.staffBody}>{t("coachAccountsBody")}</Text></View><Text style={styles.staffArrow}>→</Text></SpectrumCard> : null}
       {role === "admin" ? <SpectrumCard style={styles.staffCard} onPress={() => router.push("/rooms")} accessibilityRole="button" accessibilityLabel={t("manageRooms")}><View><Text style={styles.staffEyebrow}>{t("admin").toUpperCase()}</Text><Text style={styles.staffTitle}>{t("manageRooms")}</Text><Text style={styles.staffBody}>{t("roomsBody")}</Text></View><Text style={styles.staffArrow}>→</Text></SpectrumCard> : null}
-      {previewMode ? <><Text style={[styles.sectionLabel, { color: colors.muted }]}>DEMO CONTROLS</Text><SurfaceCard style={styles.demoCard}><Text style={[styles.demoTitle, { color: colors.foreground }]}>Preview role-based views</Text><Text style={[styles.demoBody, { color: colors.muted }]}>Use these controls to review member and staff flows before connecting your gym’s OAuth roles.</Text><View style={styles.roleRow}><RoleButton label="Client" active={snapshot.member.role === "client"} onPress={() => updateRole("client")} /><RoleButton label="Coach" active={snapshot.member.role === "coach"} onPress={() => updateRole("coach")} /><RoleButton label="Admin" active={snapshot.member.role === "admin"} onPress={() => updateRole("admin")} /></View><GhostButton title="Reset demo data" onPress={() => { resetDemoData(); Alert.alert("Demo reset", "Coachora is back to its starting schedule."); }} /></SurfaceCard></> : null}
     </ScrollView>
   </ScreenContainer>;
 }
@@ -79,11 +72,6 @@ export default function ProfileScreen() {
 function PreferenceRow({ label, detail, value, onValueChange }: { label: string; detail: string; value: boolean; onValueChange: (value: boolean) => void }) {
   const colors = useColors();
   return <View style={styles.preferenceRow}><View style={styles.preferenceCopy}><Text style={[styles.preferenceLabel, { color: colors.foreground }]}>{label}</Text><Text style={[styles.preferenceDetail, { color: colors.muted }]}>{detail}</Text></View><Switch value={value} onValueChange={onValueChange} trackColor={{ false: "#303036", true: "#f0448880" }} thumbColor={value ? "#ff82b7" : "#f4f4f5"} accessibilityLabel={label} /></View>;
-}
-
-function RoleButton({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
-  const colors = useColors();
-  return <Pressable onPress={onPress} style={({ pressed }) => [styles.roleButton, { borderColor: active ? "#f04488" : colors.border, backgroundColor: active ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]} accessibilityRole="button"><Text style={[styles.roleButtonText, { color: active ? "#ff82b7" : colors.muted }]}>{label}</Text></Pressable>;
 }
 
 const styles = StyleSheet.create({

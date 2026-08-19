@@ -1,12 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { adaptProductionSchedule } from "../lib/production-schedule";
-import { seedGymData } from "../shared/gym";
 
 describe("production schedule adapter", () => {
   it("uses authoritative rows instead of retaining demo bookings", () => {
-    const snapshot = seedGymData(new Date("2026-08-16T08:00:00.000Z"));
-    const result = adaptProductionSchedule(snapshot, {
+    const result = adaptProductionSchedule({
       role: "client",
       user: { id: 71, name: "Alex Rivera", email: "alex@example.com" },
       rows: [{

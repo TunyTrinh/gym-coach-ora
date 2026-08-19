@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { addMonths, buildMonthGrid, isSameLocalDay, localDayKey, startOfMonth } from "../lib/calendar";
-import { seedGymData } from "../shared/gym";
+import { HEALTH_MEASUREMENT_KEYS } from "../shared/gym";
 
 describe("calendar overview helpers", () => {
   it("creates a stable local calendar key and compares local days", () => {
@@ -20,19 +20,7 @@ describe("calendar overview helpers", () => {
 });
 
 describe("health measurement contract", () => {
-  it("seeds dated measurements with every supported body metric", () => {
-    const snapshot = seedGymData(new Date(2026, 7, 12, 9, 0));
-    const latest = snapshot.measurements[0];
-    expect(snapshot.measurements).toHaveLength(3);
-    expect(latest).toMatchObject({
-      weightKg: expect.any(Number),
-      bodyFatPercentage: expect.any(Number),
-      chestCm: expect.any(Number),
-      waistCm: expect.any(Number),
-      hipsCm: expect.any(Number),
-      armsCm: expect.any(Number),
-      thighsCm: expect.any(Number),
-      recordedAt: expect.any(String),
-    });
+  it("keeps every supported authoritative measurement key", () => {
+    expect(HEALTH_MEASUREMENT_KEYS).toEqual(["weightKg", "bodyFatPercentage", "chestCm", "waistCm", "hipsCm", "armsCm", "thighsCm"]);
   });
 });

@@ -6,6 +6,7 @@ import { auditLogs, availabilityShifts, bookings, coachAuthorizations, coaches, 
 import { ENV } from "./_core/env";
 import { googleAccountRole, normalizeGoogleEmail } from "./google-authorization";
 import { matchesConfirmationName } from "../shared/confirmation-name";
+import { gymDayBounds } from "../shared/business-time";
 
 export function normalizeRoomName(value: string) {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
@@ -23,16 +24,65 @@ function isValidRoomHours(openingTime: string, closingTime: string) {
 const activeBookingStatuses = ["pending", "confirmed"] as const;
 const cancellableAvailabilityStatuses = ["available", "booked", "blocked"] as const;
 
-export function closureDateBounds(closureDate: string) {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(closureDate);
-  if (!match) throw new Error("Choose a valid closure date.");
-  const [year, month, day] = match.slice(1).map(Number);
-  const startAt = new Date(year, month - 1, day, 0, 0, 0, 0);
-  if (startAt.getFullYear() !== year || startAt.getMonth() !== month - 1 || startAt.getDate() !== day) {
-    throw new Error("Choose a valid closure date.");
+export type RoomChangeAction = "deactivate" | "delete" | "closure";
+
+async function roomImpactRows(db: any, input: { roomId: number; from: Date; to?: Date }) {
+  const room = await db.select({ name: gymRooms.name }).from(gymRooms).where(eq(gymRooms.id, input.roomId)).limit(1);
+  if (!room[0]) throw new Error("Room not found.");
+  return db.select({
+    bookingId: bookings.externalId,
+    bookingStatus: bookings.status,
+    startAt: timeSlots.startAt,
+    endAt: timeSlots.endAt,
+    clientUserId: bookings.memberUserId,
+    clientName: users.name,
+    coachName: coaches.fullName,
+    availabilityId: availabilityShifts.externalId,
+  }).from(bookings)
+    .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
+    .innerJoin(users, eq(bookings.memberUserId, users.id))
+    .leftJoin(availabilityShifts, eq(bookings.availabilityShiftId, availabilityShifts.id))
+    .leftJoin(coaches, eq(timeSlots.coachId, coaches.id))
+    .where(and(
+      or(eq(timeSlots.roomId, input.roomId), eq(availabilityShifts.roomId, input.roomId), eq(availabilityShifts.location, room[0].name)),
+      inArray(bookings.status, activeBookingStatuses),
+      gt(timeSlots.endAt, input.from),
+      gt(timeSlots.endAt, new Date()),
+      input.to ? lt(timeSlots.startAt, input.to) : undefined,
+    ));
+}
+
+function assertImpactConfirmed(rows: { bookingId: string }[], confirmedBookingIds: string[]) {
+  const current = rows.map((row) => row.bookingId).sort();
+  const confirmed = [...new Set(confirmedBookingIds)].sort();
+  if (current.length !== confirmed.length || current.some((id, index) => id !== confirmed[index])) {
+    throw new Error("Affected bookings changed. Review the latest preview and confirm again.");
   }
-  const endAt = new Date(year, month - 1, day + 1, 0, 0, 0, 0);
-  return { startAt, endAt };
+}
+
+export async function previewRoomChange(input: { roomId: number; action: RoomChangeAction; closureDate?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database unavailable");
+  const room = await db.select({ id: gymRooms.id, name: gymRooms.name, active: gymRooms.active, timeZone: gyms.timezone })
+    .from(gymRooms).innerJoin(gyms, eq(gymRooms.gymId, gyms.id)).where(eq(gymRooms.id, input.roomId)).limit(1);
+  if (!room[0]) throw new Error("Room not found.");
+  const range = input.action === "closure"
+    ? closureDateBounds(input.closureDate ?? "", room[0].timeZone)
+    : { startAt: new Date(), endAt: undefined };
+  const affectedBookings = await roomImpactRows(db, { roomId: input.roomId, from: range.startAt, to: range.endAt });
+  return {
+    room: room[0],
+    action: input.action,
+    period: { startAt: range.startAt, endAt: range.endAt ?? null },
+    affectedBookings,
+    affectedBookingIds: affectedBookings.map((booking: { bookingId: string }) => booking.bookingId),
+  };
+}
+
+export function closureDateBounds(closureDate: string, timeZone = "UTC") {
+  const bounds = gymDayBounds(closureDate, timeZone);
+  if (!bounds) throw new Error("Choose a valid closure date.");
+  return bounds;
 }
 
 async function notifyUsers(tx: any, userIds: number[], title: string, message: string) {
@@ -55,27 +105,6 @@ async function notifyCoachesForShifts(tx: any, shiftIds: number[], title: string
   await notifyUsers(tx, recipients.flatMap((recipient: { userId: number | null }) => recipient.userId ? [recipient.userId] : []), title, message);
 }
 
-async function cancelFutureBookingsForShifts(tx: any, shiftIds: number[], reason: string, title: string, message: string) {
-  if (!shiftIds.length) return { cancelledBookingCount: 0 };
-  const now = new Date();
-  const rows = await tx.select({ bookingId: bookings.id, clientUserId: bookings.memberUserId, timeSlotId: bookings.timeSlotId })
-    .from(bookings)
-    .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
-    .where(and(inArray(bookings.availabilityShiftId, shiftIds), inArray(bookings.status, activeBookingStatuses), gte(timeSlots.startAt, now)));
-  if (!rows.length) return { cancelledBookingCount: 0 };
-  await tx.update(bookings).set({ status: "cancelled", cancellationTime: now, cancellationReason: reason }).where(inArray(bookings.id, rows.map((row: { bookingId: number }) => row.bookingId)));
-  await tx.update(timeSlots).set({ status: "Cancelled", bookedCount: 0 }).where(inArray(timeSlots.id, rows.map((row: { timeSlotId: number }) => row.timeSlotId)));
-  await tx.insert(notifications).values(rows.map((row: { clientUserId: number; bookingId: number }) => ({
-    userId: row.clientUserId,
-    type: "cancellation" as const,
-    title,
-    message,
-    relatedBookingId: row.bookingId,
-    priority: "Important" as const,
-  })));
-  return { cancelledBookingCount: rows.length };
-}
-
 let _db: MySql2Database | null = null;
 let _pool: Pool | null = null;
 
@@ -94,6 +123,7 @@ export async function getDb() {
         connectionLimit: connectionLimit(),
         queueLimit: 0,
         connectTimeout: 10_000,
+        timezone: "Z",
         enableKeepAlive: true,
         keepAliveInitialDelay: 0,
       });
@@ -247,7 +277,7 @@ export async function listActiveGyms() {
 export async function listRooms(input: { activeOnly?: boolean } = {}) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
-  return db.select({ id: gymRooms.id, externalId: gymRooms.externalId, gymId: gymRooms.gymId, name: gymRooms.name, address: gymRooms.address, description: gymRooms.description, maximumCapacity: gymRooms.maximumCapacity, openingTime: gymRooms.openingTime, closingTime: gymRooms.closingTime, active: gymRooms.active }).from(gymRooms).where(input.activeOnly ? eq(gymRooms.active, true) : undefined);
+  return db.select({ id: gymRooms.id, externalId: gymRooms.externalId, gymId: gymRooms.gymId, name: gymRooms.name, address: gymRooms.address, description: gymRooms.description, maximumCapacity: gymRooms.maximumCapacity, openingTime: gymRooms.openingTime, closingTime: gymRooms.closingTime, active: gymRooms.active, timeZone: gyms.timezone }).from(gymRooms).innerJoin(gyms, eq(gymRooms.gymId, gyms.id)).where(input.activeOnly ? eq(gymRooms.active, true) : undefined);
 }
 
 export async function createGymRoom(input: { gymId?: number; name: string; address: string; description: string; maximumCapacity: number; openingTime: string; closingTime: string; actorUserId: number }) {
@@ -287,7 +317,7 @@ export async function createGymRoom(input: { gymId?: number; name: string; addre
   });
 }
 
-export async function updateGymRoom(input: { roomId: number; gymId: number; name: string; address: string; description: string; maximumCapacity: number; openingTime: string; closingTime: string; active: boolean; actorUserId: number }) {
+export async function updateGymRoom(input: { roomId: number; gymId: number; name: string; address: string; description: string; maximumCapacity: number; openingTime: string; closingTime: string; active: boolean; confirmedAffectedBookingIds: string[]; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
   const name = input.name.trim();
@@ -302,28 +332,22 @@ export async function updateGymRoom(input: { roomId: number; gymId: number; name
     const duplicate = await tx.select({ id: gymRooms.id }).from(gymRooms).where(and(eq(gymRooms.gymId, input.gymId), eq(gymRooms.nameNormalized, nameNormalized))).limit(1);
     if (duplicate[0] && duplicate[0].id !== input.roomId) throw new Error("A room with this name already exists at this gym.");
     const wasActive = room[0].active;
+    const affectedBookings = wasActive && !input.active
+      ? await roomImpactRows(tx, { roomId: input.roomId, from: new Date() })
+      : [];
+    if (wasActive && !input.active) assertImpactConfirmed(affectedBookings, input.confirmedAffectedBookingIds);
     await tx.update(gymRooms).set({ gymId: input.gymId, name, nameNormalized, address: input.address.trim(), description: input.description.trim(), maximumCapacity: input.maximumCapacity, openingTime: input.openingTime, closingTime: input.closingTime, active: input.active }).where(eq(gymRooms.id, input.roomId));
     if (wasActive && !input.active) {
-      const todayStart = new Date();
-      todayStart.setHours(0, 0, 0, 0);
-      const tomorrowStart = new Date(todayStart);
-      tomorrowStart.setDate(tomorrowStart.getDate() + 1);
-      const todayShifts = await tx.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(
+      const futureShifts = await tx.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(
         or(eq(availabilityShifts.roomId, input.roomId), eq(availabilityShifts.location, room[0].name)),
-        lt(availabilityShifts.startAt, tomorrowStart),
-        gt(availabilityShifts.endAt, todayStart),
+        gt(availabilityShifts.endAt, new Date()),
       ));
-      const todayShiftIds = todayShifts.map((shift: { id: number }) => shift.id);
-      const title = "Room inactive today";
-      const message = `${name} is inactive today. Please check your schedule for updates.`;
-      await notifyCoachesForShifts(tx, todayShiftIds, title, message);
-      if (todayShiftIds.length) {
-        const todayBookings = await tx.select({ clientUserId: bookings.memberUserId }).from(bookings)
-          .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
-          .where(and(inArray(bookings.availabilityShiftId, todayShiftIds), inArray(bookings.status, activeBookingStatuses), lt(timeSlots.startAt, tomorrowStart), gt(timeSlots.endAt, todayStart)));
-        await notifyUsers(tx, todayBookings.map((booking: { clientUserId: number }) => booking.clientUserId), title, message);
-      }
-      await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "DEACTIVATE_GYM_ROOM", details: `Marked room ${input.roomId} inactive and notified people with today's shifts.` });
+      const futureShiftIds = futureShifts.map((shift: { id: number }) => shift.id);
+      const title = "Room deactivated";
+      const message = `${name} is inactive. Existing bookings are preserved and require administrator review.`;
+      await notifyCoachesForShifts(tx, futureShiftIds, title, message);
+      await notifyUsers(tx, affectedBookings.map((booking: { clientUserId: number }) => booking.clientUserId), title, message);
+      await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "DEACTIVATE_GYM_ROOM", details: `Marked room ${input.roomId} inactive; preserved ${affectedBookings.length} affected future booking(s).` });
     }
     await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "UPDATE_GYM_ROOM", details: `Updated room ${input.roomId}; active=${input.active}, capacity=${input.maximumCapacity}, hours=${input.openingTime}-${input.closingTime}.` });
     return { success: true as const };
@@ -344,14 +368,9 @@ export async function deleteCoachAccount(input: { coachId: number; confirmationN
       inArray(availabilityShifts.status, cancellableAvailabilityStatuses),
     ));
     const shiftIds = shifts.map((shift: { id: number }) => shift.id);
-    if (shiftIds.length) await tx.update(availabilityShifts).set({ status: "cancelled", updatedBy: input.actorUserId }).where(inArray(availabilityShifts.id, shiftIds));
-    const cancellation = await cancelFutureBookingsForShifts(
-      tx,
-      shiftIds,
-      "Coach access was removed by the administrator.",
-      "Coach session cancelled",
-      `Your session with ${coach[0].fullName} was cancelled because this Coach is no longer available.`,
-    );
+    const affectedBookings = shiftIds.length ? await tx.select({ id: bookings.id, clientUserId: bookings.memberUserId }).from(bookings)
+      .innerJoin(timeSlots, eq(bookings.timeSlotId, timeSlots.id))
+      .where(and(inArray(bookings.availabilityShiftId, shiftIds), inArray(bookings.status, activeBookingStatuses), gt(timeSlots.endAt, now))) : [];
     await tx.update(coaches).set({ active: false }).where(eq(coaches.id, input.coachId));
     await tx.update(coachAuthorizations).set({ status: "revoked" }).where(eq(coachAuthorizations.coachId, input.coachId));
     if (coach[0].userId) await tx.update(users).set({ role: "client" }).where(eq(users.id, coach[0].userId));
@@ -359,34 +378,36 @@ export async function deleteCoachAccount(input: { coachId: number; confirmationN
       actorUserId: input.actorUserId,
       action: "DELETE_COACH_ACCOUNT",
       targetUserId: coach[0].userId,
-      details: `Removed Coach profile ${input.coachId}, demoted the linked account to Client, cancelled ${cancellation.cancelledBookingCount} future booking(s), and preserved history.`,
+      details: `Removed Coach profile ${input.coachId}, demoted the linked account to Client, and preserved ${affectedBookings.length} future booking(s) for administrator resolution.`,
     });
-    return { success: true as const, cancelledBookingCount: cancellation.cancelledBookingCount };
+    return { success: true as const, preservedBookingCount: affectedBookings.length };
   });
 }
 
-export async function deleteGymRoom(input: { roomId: number; confirmationName: string; actorUserId: number }) {
+export async function deleteGymRoom(input: { roomId: number; confirmationName: string; confirmedAffectedBookingIds: string[]; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
   return db.transaction(async (tx: any) => {
     const room = await tx.select().from(gymRooms).where(eq(gymRooms.id, input.roomId)).limit(1);
     if (!room[0]) throw new Error("Room not found.");
     if (!matchesConfirmationName(input.confirmationName, room[0].name)) throw new Error("Type the room name to confirm deletion.");
-    const now = new Date();
-    const shifts = await tx.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(
-      or(eq(availabilityShifts.roomId, input.roomId), eq(availabilityShifts.location, room[0].name)),
-      gt(availabilityShifts.endAt, now),
-      inArray(availabilityShifts.status, cancellableAvailabilityStatuses),
-    ));
-    const shiftIds = shifts.map((shift: { id: number }) => shift.id);
-    if (shiftIds.length) await tx.update(availabilityShifts).set({ status: "cancelled", updatedBy: input.actorUserId }).where(inArray(availabilityShifts.id, shiftIds));
-    const title = "Room closed";
-    const message = `${room[0].name} was removed by the administrator. Please check your schedule for updates.`;
-    await notifyCoachesForShifts(tx, shiftIds, title, message);
-    const cancellation = await cancelFutureBookingsForShifts(tx, shiftIds, "The booked room was removed by the administrator.", "Session cancelled", message);
-    await tx.update(gymRooms).set({ active: false }).where(eq(gymRooms.id, input.roomId));
-    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "DELETE_GYM_ROOM", details: `Soft-deleted room ${input.roomId}, cancelled ${cancellation.cancelledBookingCount} future booking(s), and notified affected accounts.` });
-    return { success: true as const, cancelledBookingCount: cancellation.cancelledBookingCount };
+    const affectedBookings = await roomImpactRows(tx, { roomId: input.roomId, from: new Date() });
+    assertImpactConfirmed(affectedBookings, input.confirmedAffectedBookingIds);
+    const references = await Promise.all([
+      tx.select({ id: timeSlots.id }).from(timeSlots).where(eq(timeSlots.roomId, input.roomId)).limit(1),
+      tx.select({ id: availabilityShifts.id }).from(availabilityShifts).where(eq(availabilityShifts.roomId, input.roomId)).limit(1),
+      tx.select({ id: roomClosures.id }).from(roomClosures).where(eq(roomClosures.roomId, input.roomId)).limit(1),
+    ]);
+    const hardDeleted = references.every((rows) => rows.length === 0);
+    if (hardDeleted) await tx.delete(gymRooms).where(eq(gymRooms.id, input.roomId));
+    else await tx.update(gymRooms).set({ active: false }).where(eq(gymRooms.id, input.roomId));
+    if (!hardDeleted) {
+      const title = "Room removed from booking";
+      const message = `${room[0].name} is no longer bookable. Existing bookings were preserved for administrator review.`;
+      await notifyUsers(tx, affectedBookings.map((booking: { clientUserId: number }) => booking.clientUserId), title, message);
+    }
+    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: hardDeleted ? "HARD_DELETE_UNUSED_GYM_ROOM" : "SOFT_DELETE_GYM_ROOM", details: `${hardDeleted ? "Hard-deleted unused" : "Soft-deleted referenced"} room ${input.roomId}; preserved ${affectedBookings.length} future booking(s).` });
+    return { success: true as const, hardDeleted, preservedBookingCount: affectedBookings.length };
   });
 }
 
@@ -396,33 +417,35 @@ export async function getRoomClosures(roomId: number) {
   return db.select({ id: roomClosures.id, closureDate: roomClosures.closureDate, reason: roomClosures.reason, createdAt: roomClosures.createdAt }).from(roomClosures).where(eq(roomClosures.roomId, roomId));
 }
 
-export async function setRoomClosure(input: { roomId: number; closureDate: string; reason?: string; actorUserId: number }) {
+export async function setRoomClosure(input: { roomId: number; closureDate: string; reason?: string; confirmedAffectedBookingIds: string[]; actorUserId: number }) {
   const db = await getDb();
   if (!db) throw new Error("Database unavailable");
-  const { startAt, endAt } = closureDateBounds(input.closureDate);
   return db.transaction(async (tx: any) => {
-    const room = await tx.select().from(gymRooms).where(eq(gymRooms.id, input.roomId)).limit(1);
+    const room = await tx.select({ room: gymRooms, timeZone: gyms.timezone }).from(gymRooms).innerJoin(gyms, eq(gymRooms.gymId, gyms.id)).where(eq(gymRooms.id, input.roomId)).limit(1);
     if (!room[0]) throw new Error("Room not found.");
+    const { startAt, endAt } = closureDateBounds(input.closureDate, room[0].timeZone);
+    const affectedBookings = await roomImpactRows(tx, { roomId: input.roomId, from: startAt, to: endAt });
+    assertImpactConfirmed(affectedBookings, input.confirmedAffectedBookingIds);
     const existing = await tx.select({ id: roomClosures.id }).from(roomClosures).where(and(eq(roomClosures.roomId, input.roomId), eq(roomClosures.closureDate, input.closureDate))).limit(1);
     if (existing[0]) {
       await tx.update(roomClosures).set({ reason: input.reason?.trim() || null, createdBy: input.actorUserId }).where(eq(roomClosures.id, existing[0].id));
       await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "UPDATE_ROOM_CLOSURE", details: `Updated closure for room ${input.roomId} on ${input.closureDate}.` });
-      return { success: true as const, created: false as const, cancelledBookingCount: 0 };
+      return { success: true as const, created: false as const, preservedBookingCount: affectedBookings.length };
     }
     await tx.insert(roomClosures).values({ roomId: input.roomId, closureDate: input.closureDate, reason: input.reason?.trim() || null, createdBy: input.actorUserId });
     const shifts = await tx.select({ id: availabilityShifts.id }).from(availabilityShifts).where(and(
-      or(eq(availabilityShifts.roomId, input.roomId), eq(availabilityShifts.location, room[0].name)),
+      or(eq(availabilityShifts.roomId, input.roomId), eq(availabilityShifts.location, room[0].room.name)),
       lt(availabilityShifts.startAt, endAt),
       gt(availabilityShifts.endAt, startAt),
     ));
     const shiftIds = shifts.map((shift: { id: number }) => shift.id);
     const title = "Room closed temporarily";
     const reasonText = input.reason?.trim() ? ` Reason: ${input.reason.trim()}.` : "";
-    const message = `${room[0].name} is closed on ${input.closureDate}.${reasonText} Please check your schedule for updates.`;
+    const message = `${room[0].room.name} is closed on ${input.closureDate}.${reasonText} Existing bookings are preserved for administrator review.`;
     await notifyCoachesForShifts(tx, shiftIds, title, message);
-    const cancellation = await cancelFutureBookingsForShifts(tx, shiftIds, "The booked room is temporarily closed.", "Session cancelled", message);
-    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "CREATE_ROOM_CLOSURE", details: `Closed room ${input.roomId} on ${input.closureDate}; cancelled ${cancellation.cancelledBookingCount} future booking(s).` });
-    return { success: true as const, created: true as const, cancelledBookingCount: cancellation.cancelledBookingCount };
+    await notifyUsers(tx, affectedBookings.map((booking: { clientUserId: number }) => booking.clientUserId), title, message);
+    await tx.insert(auditLogs).values({ actorUserId: input.actorUserId, action: "CREATE_ROOM_CLOSURE", details: `Closed room ${input.roomId} on ${input.closureDate}; preserved ${affectedBookings.length} affected future booking(s).` });
+    return { success: true as const, created: true as const, preservedBookingCount: affectedBookings.length };
   });
 }
 

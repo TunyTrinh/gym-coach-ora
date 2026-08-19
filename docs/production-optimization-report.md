@@ -1,5 +1,7 @@
 # Coachora Production Optimization Completion Report
 
+> Historical pre-convergence report. Phase 2 removed the production local-store path; current rules, dispositions, and P0/P1/P2 findings are in `docs/business-rules.md`.
+
 **Date:** 13 August 2026 (GMT+7)  
 **Branch:** `optimize-program`  
 **Scope:** The existing Coachora PWA, Expo web frontend, Express/tRPC API, MySQL/Drizzle schema, continuous-availability booking path, self-hosted deployment assets, and live development/process footprint.

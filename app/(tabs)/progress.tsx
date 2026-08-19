@@ -8,10 +8,8 @@ import { ScreenContainer } from "@/components/screen-container";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { useReducedMotion } from "@/hooks/use-reduced-motion";
-import { useGym } from "@/lib/gym-store";
 import { haptic } from "@/lib/haptics";
 import { useLanguage } from "@/lib/language-provider";
-import { isLocalTestMode } from "@/lib/local-test-mode";
 import { trpc } from "@/lib/trpc";
 import type { HealthMeasurementInput, HealthMeasurementKey, HealthMeasurementRecord } from "@/shared/gym";
 
@@ -30,19 +28,17 @@ const emptyForm = () => ({ date: localDateString(new Date()), weightKg: "", body
 export default function ProgressScreen() {
   const colors = useColors();
   const { user } = useAuth();
-  const { snapshot, saveMeasurement } = useGym();
   const { t } = useLanguage();
-  const previewMode = isLocalTestMode();
-  const role = previewMode ? snapshot.member.role : user?.role ?? "client";
+  const role = user?.role ?? "client";
   const [metricKey, setMetricKey] = useState<HealthMeasurementKey>("weightKg");
   const [showForm, setShowForm] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const [form, setForm] = useState(emptyForm);
   const reducedMotion = useReducedMotion();
-  const productionMeasurements = trpc.member.measurements.useQuery(undefined, { enabled: !previewMode && role === "client" });
+  const productionMeasurements = trpc.member.measurements.useQuery(undefined, { enabled: role === "client" });
   const saveProductionMeasurement = trpc.member.saveMeasurement.useMutation();
   const utils = trpc.useUtils();
-  const records = useMemo(() => (previewMode ? snapshot.measurements : (productionMeasurements.data ?? []).map((record) => ({ ...record, recordedAt: new Date(record.recordedAt).toISOString() }))).sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()), [previewMode, productionMeasurements.data, snapshot.measurements]);
+  const records = useMemo(() => (productionMeasurements.data ?? []).map((record) => ({ ...record, recordedAt: new Date(record.recordedAt).toISOString() })).sort((a, b) => new Date(b.recordedAt).getTime() - new Date(a.recordedAt).getTime()), [productionMeasurements.data]);
   const activeMetric = metrics.find((metric) => metric.key === metricKey)!;
   const activeEntries = [...records].filter((record) => typeof record[metricKey] === "number").reverse();
   const latest = activeEntries.at(-1);
@@ -59,10 +55,8 @@ export default function ProgressScreen() {
       const value = Number(raw);
       if (Number.isFinite(value) && value > 0) measurement[metric.key] = value;
     });
-    const result = previewMode
-      ? await saveMeasurement(measurement)
-      : await saveProductionMeasurement.mutateAsync(measurement).then(() => ({ success: true as const, message: "Measurement saved to your private progress history." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Measurement could not be saved." }));
-    if (result.success && !previewMode) await utils.member.measurements.invalidate();
+    const result = await saveProductionMeasurement.mutateAsync(measurement).then(() => ({ success: true as const, message: "Measurement saved to your private progress history." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Measurement could not be saved." }));
+    if (result.success) await utils.member.measurements.invalidate();
     if (result.success) haptic.success(); else haptic.error();
     Alert.alert(result.success ? "Progress saved" : "Couldn’t save", result.success ? result.message ?? "Measurement saved." : result.error);
     if (result.success) { setShowForm(false); setForm(emptyForm()); }
@@ -76,7 +70,7 @@ export default function ProgressScreen() {
         <SurfaceCard style={styles.restrictedCard}>
           <Text style={[styles.restrictedTitle, { color: colors.foreground }]}>{isAdmin ? t("coachAccounts") : "Manage availability"}</Text>
           <Text style={[styles.restrictedCopy, { color: colors.muted }]}>{isAdmin ? t("coachAccountsBody") : "Publish or manage coach time from the staff workspace."}</Text>
-          <PrimaryButton title={isAdmin ? t("coachAccounts") : "Open availability"} onPress={() => router.replace(isAdmin ? "/admin" : "/book")} />
+          <PrimaryButton title={isAdmin ? t("coachAccounts") : "Open availability"} onPress={() => router.replace(isAdmin ? "/admin" : "/availability")} />
         </SurfaceCard>
       </View>
     </ScreenContainer>;

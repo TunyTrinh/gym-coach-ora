@@ -1,5 +1,7 @@
 # Coachora Production Audit Notes
 
+> Historical Phase 1 context. Phase 2 resolved the local-store/source-of-truth observations below; see `docs/business-rules.md` for the current severity-tagged report.
+
 ## Initial Inventory
 
 Coachora is an Expo SDK 54 / React Native web PWA with an Express and tRPC backend, Drizzle ORM, MySQL migrations, custom localization, service-worker assets, and Vitest regression coverage. The primary runtime procedures are in `server/routers.ts`; booking, availability, and coach UI share domain types from `shared/gym.ts` and helpers under `lib/`.

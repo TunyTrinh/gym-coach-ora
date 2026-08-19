@@ -27,7 +27,6 @@ function bookingStatus(status: string): BookingStatus {
 }
 
 export function adaptProductionSchedule(
-  base: GymSnapshot,
   input: { role: Role; user?: { id?: number | null; name?: string | null; email?: string | null } | null; rows: ScheduleRow[] },
 ): GymSnapshot {
   const coaches = new Map<string, GymSnapshot["coaches"][number]>();
@@ -45,7 +44,6 @@ export function adaptProductionSchedule(
       gymId: "database-gym",
       coachId,
       availabilityShiftId: row.availabilityId ?? undefined,
-      serviceTypeId: undefined,
       start: new Date(row.startAt).toISOString(),
       end: new Date(row.endAt).toISOString(),
       maximumCapacity: row.maximumCapacity,
@@ -69,7 +67,6 @@ export function adaptProductionSchedule(
         id: row.availabilityId,
         gymId: "database-gym",
         coachId: "database-coach",
-        serviceTypeId: undefined,
         start: new Date(row.startAt).toISOString(),
         end: new Date(row.endAt).toISOString(),
         maximumCapacity: row.availabilityCapacity ?? row.maximumCapacity,
@@ -82,14 +79,14 @@ export function adaptProductionSchedule(
 
   const fullName = input.user?.name?.trim() || "Coachora member";
   return {
-    ...base,
-    member: { ...base.member, id: `member-${input.user?.id ?? "anonymous"}`, fullName, email: input.user?.email ?? "", initials: initials(fullName), role: input.role },
-    services: [],
+    gyms: [],
+    member: { id: `member-${input.user?.id ?? "anonymous"}`, fullName, email: input.user?.email ?? "", phone: "", membershipPlan: "", membershipEndDate: "", initials: initials(fullName), role: input.role },
     coaches: [...coaches.values()],
     availabilityShifts: [...availability.values()],
     slots,
     bookings,
     notifications: [],
     measurements: [],
+    announcements: [],
   };
 }

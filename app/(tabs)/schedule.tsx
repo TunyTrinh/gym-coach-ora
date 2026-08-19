@@ -8,9 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
 import { intervalsOverlap } from "@/lib/availability-shifts";
 import { addMonths, buildMonthGrid, isSameLocalDay, localDayKey, startOfLocalDay, startOfMonth } from "@/lib/calendar";
-import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
-import { isLocalTestMode } from "@/lib/local-test-mode";
 import { adaptProductionSchedule } from "@/lib/production-schedule";
 import { trpc } from "@/lib/trpc";
 import { formatDateLocalized, formatTimeLocalized, localeFor } from "@/lib/i18n";
@@ -46,10 +44,8 @@ type FeedbackSheet = {
 export default function ScheduleScreen() {
   const colors = useColors();
   const { user } = useAuth();
-  const { snapshot, upcomingBookings, cancelBooking, checkInBooking, markAttendance } = useGym();
   const { language, t } = useLanguage();
-  const previewMode = isLocalTestMode();
-  const role = previewMode ? snapshot.member.role : user?.role ?? "client";
+  const role = user?.role ?? "client";
   const isCoach = role === "coach";
   const [now, setNow] = useState(() => new Date());
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
@@ -58,8 +54,8 @@ export default function ScheduleScreen() {
   const [feedbackSheet, setFeedbackSheet] = useState<FeedbackSheet | null>(null);
   const [cancellationBookingId, setCancellationBookingId] = useState<string | null>(null);
   const [cancellationBusy, setCancellationBusy] = useState(false);
-  const memberSchedule = trpc.member.schedule.useQuery(undefined, { enabled: !previewMode && role === "client" });
-  const coachSchedule = trpc.availability.coachSchedule.useQuery(undefined, { enabled: !previewMode && isCoach });
+  const memberSchedule = trpc.member.schedule.useQuery(undefined, { enabled: role === "client" });
+  const coachSchedule = trpc.availability.coachSchedule.useQuery(undefined, { enabled: isCoach });
   const roomCalendarMonthEnd = useMemo(() => {
     const lastDay = addMonths(visibleMonth, 1);
     lastDay.setDate(lastDay.getDate() - 1);
@@ -69,19 +65,19 @@ export default function ScheduleScreen() {
     roomFilterId === "all"
       ? { from: localDayKey(visibleMonth), to: localDayKey(roomCalendarMonthEnd) }
       : { from: localDayKey(visibleMonth), to: localDayKey(roomCalendarMonthEnd), roomId: roomFilterId },
-    { enabled: !previewMode && isCoach },
+    { enabled: isCoach },
   );
   const roomScheduleQuery = trpc.availability.roomSchedule.useQuery(
     { date: localDayKey(selectedDate) },
-    { enabled: !previewMode && isCoach },
+    { enabled: isCoach },
   );
   const cancelServerBooking = trpc.availability.cancel.useMutation();
   const checkInServerBooking = trpc.availability.checkIn.useMutation();
   const markServerAttendance = trpc.availability.markAttendance.useMutation();
   const utils = trpc.useUtils();
   const activeSnapshot = useMemo(
-    () => previewMode ? snapshot : adaptProductionSchedule(snapshot, { role, user, rows: isCoach ? (coachSchedule.data ?? []) : (memberSchedule.data ?? []) }),
-    [coachSchedule.data, isCoach, memberSchedule.data, previewMode, role, snapshot, user],
+    () => adaptProductionSchedule({ role, user, rows: isCoach ? (coachSchedule.data ?? []) : (memberSchedule.data ?? []) }),
+    [coachSchedule.data, isCoach, memberSchedule.data, role, user],
   );
   const activeUpcomingBookings = useMemo(
     () => activeSnapshot.bookings.filter((booking) => booking.memberId === activeSnapshot.member.id && ["Confirmed", "Pending"].includes(booking.status) && new Date(getBookingSlot(activeSnapshot, booking)?.start ?? 0) > new Date()).sort((left, right) => new Date(getBookingSlot(activeSnapshot, left)?.start ?? 0).getTime() - new Date(getBookingSlot(activeSnapshot, right)?.start ?? 0).getTime()),
@@ -94,10 +90,10 @@ export default function ScheduleScreen() {
   }, []);
 
   const calendarBookings = useMemo(() => {
-    if (!isCoach) return previewMode ? upcomingBookings : activeUpcomingBookings;
+    if (!isCoach) return activeUpcomingBookings;
     return activeSnapshot.bookings
       .sort((a, b) => new Date(getBookingSlot(activeSnapshot, a)?.start ?? 0).getTime() - new Date(getBookingSlot(activeSnapshot, b)?.start ?? 0).getTime());
-  }, [activeSnapshot, activeUpcomingBookings, isCoach, previewMode, upcomingBookings]);
+  }, [activeSnapshot, activeUpcomingBookings, isCoach]);
 
   const bookingsByDay = useMemo(() => {
     const result = new Map<string, typeof calendarBookings>();
@@ -135,12 +131,9 @@ export default function ScheduleScreen() {
     const bookingId = cancellationBookingId;
     if (!bookingId || cancellationBusy) return;
     setCancellationBusy(true);
-    const result = previewMode
-      ? await cancelBooking(bookingId, "Plans changed")
-      : await cancelServerBooking.mutateAsync({ bookingId, reason: "Plans changed" }).then(() => ({ success: true as const, message: "Booking cancelled and capacity released for that time." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "This booking could not be cancelled." }));
-    if (result.success && !previewMode) {
-      await utils.member.schedule.invalidate();
-      await utils.availability.coachSchedule.invalidate();
+    const result = await cancelServerBooking.mutateAsync({ bookingId, reason: "Plans changed" }).then(() => ({ success: true as const, message: "Booking cancelled and capacity released for that time." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "This booking could not be cancelled." }));
+    if (result.success) {
+      await Promise.all([utils.member.schedule.invalidate(), utils.availability.coachSchedule.invalidate(), utils.availability.mine.invalidate(), utils.availability.bookable.invalidate(), utils.availability.bookableAll.invalidate(), utils.availability.previewCapacity.invalidate(), utils.availability.previewRoomCapacity.invalidate(), utils.availability.roomSchedule.invalidate(), utils.availability.roomCalendar.invalidate(), utils.admin.roomSchedule.invalidate()]);
     }
     setCancellationBusy(false);
     setCancellationBookingId(null);
@@ -152,10 +145,8 @@ export default function ScheduleScreen() {
   };
 
   const handleCheckIn = async (bookingId: string) => {
-    const result = previewMode
-      ? await checkInBooking(bookingId)
-      : await checkInServerBooking.mutateAsync({ bookingId }).then(() => ({ success: true as const, message: "You’re checked in. Have a great session." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Check-in is unavailable." }));
-    if (result.success && !previewMode) await utils.member.schedule.invalidate();
+    const result = await checkInServerBooking.mutateAsync({ bookingId }).then(() => ({ success: true as const, message: "You’re checked in. Have a great session." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Check-in is unavailable." }));
+    if (result.success) await utils.member.schedule.invalidate();
     setFeedbackSheet({
       success: result.success,
       title: result.success ? t("checkedInAlert") : t("checkInUnavailable"),
@@ -164,10 +155,8 @@ export default function ScheduleScreen() {
   };
 
   const handleAttendance = async (bookingId: string, status: "Completed" | "No-show") => {
-    const result = previewMode
-      ? await markAttendance(bookingId, status)
-      : await markServerAttendance.mutateAsync({ bookingId, status: status === "Completed" ? "completed" : "no_show" }).then(() => ({ success: true as const, message: status === "Completed" ? "Member marked completed." : "Member marked no-show." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Attendance could not be updated." }));
-    if (result.success && !previewMode) await utils.availability.coachSchedule.invalidate();
+    const result = await markServerAttendance.mutateAsync({ bookingId, status: status === "Completed" ? "completed" : "no_show" }).then(() => ({ success: true as const, message: status === "Completed" ? "Member marked completed." : "Member marked no-show." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Attendance could not be updated." }));
+    if (result.success) await utils.availability.coachSchedule.invalidate();
     setFeedbackSheet({
       success: result.success,
       title: result.success ? t("attendanceSaved") : t("couldNotUpdateShift"),
@@ -182,7 +171,7 @@ export default function ScheduleScreen() {
         <SurfaceCard style={styles.staffCard}>
           <Text style={[styles.staffTitle, { color: colors.foreground }]}>{t("coachSchedule")}</Text>
           <Text style={[styles.staffCopy, { color: colors.muted }]}>{t("manageCoachTime")}</Text>
-          <PrimaryButton title={t("openStaffWorkspace")} onPress={() => router.push("/book")} />
+          <PrimaryButton title={t("openStaffWorkspace")} onPress={() => router.push("/availability")} />
         </SurfaceCard>
       </View>
     </ScreenContainer>;
@@ -194,7 +183,7 @@ export default function ScheduleScreen() {
         title={isCoach ? t("coachSchedule") : t("scheduleTitle")}
         subtitle={isCoach ? t("manageCoachTime") : t("scheduleSubtitle")}
         label={isCoach ? t("coachLabel").toUpperCase() : t("scheduleHeader")}
-        onPress={isCoach ? () => router.push("/book") : undefined}
+        onPress={isCoach ? () => router.push("/availability") : undefined}
         icon="plus"
         buttonAccessibilityLabel={t("addAvailability")}
       />
@@ -204,12 +193,12 @@ export default function ScheduleScreen() {
           <Text style={[styles.coachActionTitle, { color: colors.foreground }]}>{t("availabilityWorkspace")}</Text>
           <Text style={[styles.coachActionText, { color: colors.muted }]}>{t("manageCoachTime")}</Text>
         </View>
-        <Pressable onPress={() => router.push("/book")} style={({ pressed }) => [styles.coachActionButton, pressed && styles.pressed]} accessibilityRole="button">
+        <Pressable onPress={() => router.push("/availability")} style={({ pressed }) => [styles.coachActionButton, pressed && styles.pressed]} accessibilityRole="button">
           <Text style={styles.coachActionButtonText}>{t("addAvailability")}</Text>
         </Pressable>
       </SurfaceCard> : null}
 
-      {isCoach && !previewMode ? <>
+      {isCoach ? <>
         {(roomScheduleQuery.data?.rooms.length ?? 0) > 4 ? <View style={styles.roomFilterSection}>
           <Text style={[styles.roomFilterLabel, { color: colors.muted }]}>{t("filterRooms")}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomFilterRail}>
@@ -239,7 +228,7 @@ export default function ScheduleScreen() {
         />
       </> : null}
 
-      {!isCoach || previewMode ? <SurfaceCard style={styles.calendarCard}>
+      {!isCoach ? <SurfaceCard style={styles.calendarCard}>
         <View style={styles.monthHeader}>
           <View><Text style={[styles.monthEyebrow, { color: "#ff82b7" }]}>{t("monthView")}</Text><Text style={[styles.monthTitle, { color: colors.foreground }]}>{monthTitle}</Text></View>
           <View style={styles.monthActions}>
@@ -282,7 +271,7 @@ export default function ScheduleScreen() {
       {selectedBookings.length === 0 ? <SurfaceCard style={styles.emptyCard}>
         <Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("nothingBooked")}</Text>
         <Text style={[styles.emptyMessage, { color: colors.muted }]}>{isCoach ? t("scheduleAppears") : t("chooseDayOrBook")}</Text>
-        <PrimaryButton title={isCoach ? t("addAvailability") : t("browseSessions")} onPress={() => router.push(isCoach ? "/book" : "/book")} />
+        <PrimaryButton title={isCoach ? t("addAvailability") : t("browseSessions")} onPress={() => router.push(isCoach ? "/availability" : "/book")} />
       </SurfaceCard> : selectedBookings.map((booking) => {
         const slot = getBookingSlot(activeSnapshot, booking);
         if (!slot) return null;

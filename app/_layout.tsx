@@ -8,7 +8,6 @@ import "react-native-reanimated";
 import { Platform } from "react-native";
 import "@/lib/_core/nativewind-pressable";
 import { ThemeProvider } from "@/lib/theme-provider";
-import { GymProvider } from "@/lib/gym-store";
 import { LanguageProvider } from "@/lib/language-provider";
 import { AuthProvider } from "@/hooks/use-auth";
 import { AuthGate } from "@/components/auth-gate";
@@ -64,9 +63,8 @@ export default function RootLayout() {
       <LanguageProvider>
         <AuthProvider>
           <AuthGate>
-            <GymProvider>
-              <trpc.Provider client={trpcClient} queryClient={queryClient}>
-                <QueryClientProvider client={queryClient}>
+            <trpc.Provider client={trpcClient} queryClient={queryClient}>
+              <QueryClientProvider client={queryClient}>
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="(tabs)" />
                     <Stack.Screen name="notifications" options={{ presentation: "modal" }} />
@@ -75,9 +73,8 @@ export default function RootLayout() {
                     <Stack.Screen name="oauth/callback" />
                   </Stack>
                   <StatusBar style="light" />
-                </QueryClientProvider>
-              </trpc.Provider>
-            </GymProvider>
+              </QueryClientProvider>
+            </trpc.Provider>
           </AuthGate>
         </AuthProvider>
       </LanguageProvider>

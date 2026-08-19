@@ -6,9 +6,7 @@ import { ScreenContainer } from "@/components/screen-container";
 import { StatusBadge, SurfaceCard } from "@/components/gym-ui";
 import { useAuth } from "@/hooks/use-auth";
 import { useColors } from "@/hooks/use-colors";
-import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
-import { isLocalTestMode } from "@/lib/local-test-mode";
 import { trpc } from "@/lib/trpc";
 
 function localizeNotification(title: string, message: string, t: (key: any) => string) {
@@ -25,22 +23,18 @@ function localizeNotification(title: string, message: string, t: (key: any) => s
 export default function NotificationsScreen() {
   const colors = useColors();
   const { user } = useAuth();
-  const { snapshot, unreadCount, markNotificationRead, markAllNotificationsRead } = useGym();
   const { language, t } = useLanguage();
-  const previewMode = isLocalTestMode();
-  const serverNotifications = trpc.member.notifications.useQuery(undefined, { enabled: !previewMode && Boolean(user) });
+  const serverNotifications = trpc.member.notifications.useQuery(undefined, { enabled: Boolean(user) });
   const markServerNotificationRead = trpc.member.markNotificationRead.useMutation();
   const markAllServerNotificationsRead = trpc.member.markAllNotificationsRead.useMutation();
   const utils = trpc.useUtils();
-  const items = previewMode ? snapshot.notifications : (serverNotifications.data ?? []).map((item) => ({ ...item, id: String(item.id), createdAt: new Date(item.createdAt).toISOString() }));
-  const activeUnreadCount = previewMode ? unreadCount : items.filter((item) => !item.read).length;
+  const items = (serverNotifications.data ?? []).map((item) => ({ ...item, id: String(item.id), createdAt: new Date(item.createdAt).toISOString() }));
+  const activeUnreadCount = items.filter((item) => !item.read).length;
   const markRead = async (notificationId: string) => {
-    if (previewMode) { markNotificationRead(notificationId); return; }
     await markServerNotificationRead.mutateAsync({ notificationId: Number(notificationId) });
     await utils.member.notifications.invalidate();
   };
   const markAllRead = async () => {
-    if (previewMode) { markAllNotificationsRead(); return; }
     await markAllServerNotificationsRead.mutateAsync();
     await utils.member.notifications.invalidate();
   };
