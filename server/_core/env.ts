@@ -1,6 +1,16 @@
+type SigningSecretConfig = {
+  COACHORA_SESSION_SECRET?: string;
+  JWT_SECRET?: string;
+};
+
+export function resolveCookieSecret(config?: SigningSecretConfig) {
+  const source = config ?? (process.env as Record<string, string | undefined>);
+  return source.COACHORA_SESSION_SECRET?.trim() || source.JWT_SECRET?.trim() || "";
+}
+
 export const ENV = {
   appId: process.env.APP_ID ?? process.env.VITE_APP_ID ?? "",
-  cookieSecret: process.env.JWT_SECRET ?? "",
+  cookieSecret: resolveCookieSecret(),
   databaseUrl: process.env.DATABASE_URL ?? "",
   oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
   ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
@@ -31,13 +41,13 @@ export function authEnvironmentErrors(config: Pick<typeof ENV, "appId" | "cookie
 
   if (!config.appId.trim()) errors.push("APP_ID (or VITE_APP_ID) is required");
   if (!secret) {
-    errors.push("JWT_SECRET is required");
+    errors.push("A session signing secret is required");
   } else if (
     secret.length < MIN_SIGNING_SECRET_LENGTH ||
     COMMON_SECRET_VALUES.has(secret.toLowerCase()) ||
     new Set(secret).size < MIN_SIGNING_SECRET_DISTINCT_CHARACTERS
   ) {
-    errors.push("JWT_SECRET must be at least 32 characters and contain sufficient randomness");
+    errors.push("The session signing secret must be at least 32 characters and contain sufficient randomness");
   }
 
   return errors;

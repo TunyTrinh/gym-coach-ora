@@ -12,14 +12,22 @@ const releasePath = resolve(outputDir, "release.json");
 const hash = (value) => createHash("sha256").update(value).digest("hex");
 const artifactFingerprint = hash(`${readFileSync(indexPath)}\n${readFileSync(manifestPath)}`).slice(0, 20);
 const releaseId = process.env.COACHORA_RELEASE_ID ?? artifactFingerprint;
-let sourceRevision = process.env.SOURCE_REVISION ?? "local";
+let sourceRevision = process.env.SOURCE_REVISION?.trim() ?? "";
 
-if (sourceRevision === "local") {
+if (!sourceRevision) {
   try {
-    sourceRevision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    const workingTree = execFileSync("git", ["status", "--porcelain"], { encoding: "utf8" }).trim();
+    if (!workingTree) {
+      sourceRevision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
+    }
   } catch {
-    // A source fingerprint still identifies the exact exported artifact when git metadata is unavailable.
+    // Fall through to the exported-artifact identity below.
   }
+}
+
+if (!sourceRevision) {
+  // The output artifact remains verifiable when Git metadata is unavailable or the tree is uncommitted.
+  sourceRevision = `artifact:${artifactFingerprint}`;
 }
 
 const serviceWorker = readFileSync(serviceWorkerPath, "utf8");

@@ -178,3 +178,12 @@ Validation evidence: type check passed; targeted room-calendar and room-status p
 - [x] Validate the audit-branch source with type check, lint, 128 passing tests (one environment-dependent skip), and PWA export
 - [ ] Apply the corrected managed JWT secret and perform live authenticated verification after the platform runtime refreshes
 - [ ] Apply the preflighted additive production migrations 0015 and 0016 only after explicit approval, including the required 0014 migration-journal reconciliation
+- [x] Add a project-managed server-only signing-secret override, with the same 32-character entropy requirement, because the platform-provided JWT secret remains immutable and too short
+- [x] Restore the reported live Admin login by verifying backend availability, signing-secret configuration, and the preserved one-Admin credential without weakening authentication
+- [x] Inventory the active Preview and public PWA commits, artifacts, API origins, feature flags, service-worker state, and authenticated entry behavior
+- [x] Compare shared implementation coverage for UI, APIs, validation, translations, role permissions, rooms, bookings, and schema migration history
+- [x] Consolidate any confirmed Preview/PWA divergence into shared source with regression coverage and no duplicate runtime business rules
+- [ ] Validate a representative feature update across Preview and public PWA from one tested source state without publishing or changing production data
+- [ ] Report parity root causes, safe consolidations, environment-only boundaries, and test evidence
+- [ ] Prepare the user-authorized release checkpoint without a GitHub push, then verify the promoted public artifact after the user publishes through the project UI
+- [x] Make PWA release manifests fall back to a deterministic artifact identity rather than the unverifiable `local` source revision when Git metadata is unavailable

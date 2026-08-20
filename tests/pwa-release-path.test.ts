@@ -22,6 +22,9 @@ describe("PWA release path", () => {
     const releaseTemplate = readFileSync(resolve(process.cwd(), "public/release.json"), "utf8");
     expect(script).toContain("release.json");
     expect(script).toContain("sourceRevision");
+    expect(script).toContain("artifact:${artifactFingerprint}");
+    expect(script).toContain('git", ["status", "--porcelain"]');
+    expect(script).not.toContain('process.env.SOURCE_REVISION ?? "local"');
     expect(releaseTemplate).toContain("__BUILD_ID__");
   });
 });
