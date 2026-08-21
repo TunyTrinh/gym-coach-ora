@@ -50,6 +50,9 @@ export function AdminAccountMenu() {
             <Text numberOfLines={2} style={[styles.email, { color: colors.muted }]}>{subtitle}</Text>
             <Text style={styles.role}>{t("adminHub")}</Text>
           </View>
+          <Pressable onPress={() => setOpen(false)} accessibilityRole="button" accessibilityLabel={t("close")} hitSlop={8} style={({ pressed }) => [styles.closeButton, { borderColor: colors.border }, pressed && styles.pressed]}>
+            <Text style={[styles.closeButtonText, { color: colors.foreground }]}>×</Text>
+          </Pressable>
         </View>
         <View style={styles.languageSection}>
           <Text style={[styles.label, { color: colors.muted }]}>{t("language")}</Text>
@@ -74,6 +77,8 @@ const styles = StyleSheet.create({
   name: { fontSize: 17, fontWeight: "900", lineHeight: 22 },
   email: { fontSize: 12, lineHeight: 17 },
   role: { color: "#ff82b7", fontSize: 10, fontWeight: "900", letterSpacing: 0.8, marginTop: 3 },
+  closeButton: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.06)", flexShrink: 0 },
+  closeButtonText: { fontSize: 28, fontWeight: "400", lineHeight: 30, textAlign: "center", includeFontPadding: false },
   languageSection: { gap: 8 },
   label: { fontSize: 10, fontWeight: "900", letterSpacing: 1.1 },
   languageChoices: { flexDirection: "row", gap: 8 },
