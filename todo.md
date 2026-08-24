@@ -188,3 +188,5 @@ Validation evidence: type check passed; targeted room-calendar and room-status p
 - [ ] Prepare the user-authorized release checkpoint without a GitHub push, then verify the promoted public artifact after the user publishes through the project UI
 - [x] Make PWA release manifests fall back to a deterministic artifact identity rather than the unverifiable `local` source revision when Git metadata is unavailable
 - [x] Add an accessible visible × button to dismiss the Admin account menu without changing the signed-in session
+- [x] Diagnose and repair the reported Google sign-in failure without weakening Client or Coach authorization
+- [x] Diagnose and repair the reported Google sign-in failure without weakening Client or Coach authorization
