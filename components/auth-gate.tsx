@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/use-auth";
 import * as Api from "@/lib/_core/api";
 import * as Auth from "@/lib/_core/auth";
 import { useLanguage } from "@/lib/language-provider";
-import { isLocalTestMode } from "@/lib/local-test-mode";
+import { PreviewAccountSwitcher } from "@/components/preview-account-switcher";
 
 function googleSignInUrl() {
   return `${getApiBaseUrl()}/api/auth/google`;
@@ -52,7 +52,8 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
     }
   };
 
-  if (isOAuthCallback || isAuthenticated || isLocalTestMode()) return <>{children}</>;
+  if (isOAuthCallback) return <>{children}</>;
+  if (isAuthenticated) return <PreviewAccountSwitcher>{children}</PreviewAccountSwitcher>;
 
   if (loading) {
     return <View style={styles.loading}><ActivityIndicator color="#ff82b7" /><Text style={styles.loadingText}>{t("loading")}</Text></View>;

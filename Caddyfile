@@ -1,7 +1,7 @@
 {$APP_DOMAIN} {
   tls {$ACME_EMAIL}
   encode zstd gzip
-  @pwaAssets path /sw.js /manifest.json
+  @pwaAssets path /sw.js /manifest.json /release.json
   header @pwaAssets Cache-Control "no-cache, no-store, must-revalidate"
   header {
     -Server

@@ -2,12 +2,13 @@ import { COOKIE_NAME, ONE_YEAR_MS } from "../../shared/const.js";
 import type { Express, Request, Response } from "express";
 import { randomBytes } from "node:crypto";
 import { parse as parseCookie } from "cookie";
-import { getLocalUserByUsername, getUserByOpenId, syncVerifiedGoogleUser, updateUserLastSignedIn } from "../db";
+import { getLocalUserByUsername, getUserByOpenId, listPreviewDebugAccounts, syncVerifiedGoogleUser, updateUserLastSignedIn } from "../db";
 import { hasVerifiedGoogleIdentity, isAdminLocalAccount } from "../google-authorization";
 import { isValidLocalPassword, isValidLocalUsername, normalizeLocalUsername, verifyLocalPassword } from "../local-credentials";
 import { getSessionCookieOptions } from "./cookies";
 import { ENV } from "./env";
 import { sdk } from "./sdk";
+import { isPreviewDebugHost } from "../../lib/preview-debug";
 
 function getQueryParam(req: Request, key: string): string | undefined {
   const value = req.query[key];
@@ -42,6 +43,8 @@ const GOOGLE_STATE_TTL_MS = 10 * 60 * 1000;
 const LOCAL_LOGIN_WINDOW_MS = 60_000;
 const LOCAL_LOGIN_MAX_ATTEMPTS = 5;
 const localLoginAttempts = new Map<string, { count: number; resetAt: number }>();
+const PREVIEW_DEBUG_COOKIE = "coachora_preview_debug_admin";
+const PREVIEW_DEBUG_TTL_MS = 30 * 60 * 1000;
 
 function googleIsConfigured() {
   return Boolean(ENV.googleClientId && ENV.googleClientSecret && (ENV.googleRedirectUri || ENV.appBaseUrl));
@@ -76,7 +79,76 @@ function clearLocalLoginRateLimit(req: Request) {
   localLoginAttempts.delete(req.ip || req.socket.remoteAddress || "unknown");
 }
 
+function isManagedPreviewRequest(req: Request) {
+  return isPreviewDebugHost(process.env.NODE_ENV !== "production", req.hostname);
+}
+
+function previewDebugCookieOptions(req: Request) {
+  return { ...getSessionCookieOptions(req), sameSite: "lax" as const, maxAge: PREVIEW_DEBUG_TTL_MS };
+}
+
+async function requirePreviewDebugAdmin(req: Request, res: Response) {
+  if (!isManagedPreviewRequest(req)) {
+    res.status(404).json({ error: "Preview debug tools are unavailable." });
+    return null;
+  }
+
+  try {
+    const debugToken = parseCookie(req.headers.cookie ?? "")[PREVIEW_DEBUG_COOKIE];
+    const debugSession = await sdk.verifySession(debugToken);
+    const authenticated = debugSession ? null : await sdk.authenticateRequest(req);
+    const actor = await getUserByOpenId(debugSession?.openId ?? authenticated?.openId ?? "");
+    if (!actor || actor.role !== "admin") {
+      res.status(403).json({ error: "An authenticated admin is required for Preview account switching." });
+      return null;
+    }
+
+    if (!debugSession) {
+      const controlToken = await sdk.createSessionToken(actor.openId, { name: actor.name || "Coachora Administrator", expiresInMs: PREVIEW_DEBUG_TTL_MS });
+      res.cookie(PREVIEW_DEBUG_COOKIE, controlToken, previewDebugCookieOptions(req));
+    }
+    return actor;
+  } catch {
+    res.status(403).json({ error: "An authenticated admin is required for Preview account switching." });
+    return null;
+  }
+}
+
 export function registerOAuthRoutes(app: Express) {
+  app.get("/api/debug/accounts", async (req: Request, res: Response) => {
+    const actor = await requirePreviewDebugAdmin(req, res);
+    if (!actor) return;
+    const accounts = await listPreviewDebugAccounts();
+    res.json({ actor: buildUserResponse(actor), accounts: accounts.map(buildUserResponse) });
+  });
+
+  app.post("/api/debug/switch-account", async (req: Request, res: Response) => {
+    const actor = await requirePreviewDebugAdmin(req, res);
+    if (!actor) return;
+    const accountId = typeof req.body?.accountId === "number" ? req.body.accountId : Number(req.body?.accountId);
+    if (!Number.isInteger(accountId) || accountId <= 0) {
+      res.status(400).json({ error: "Choose a valid account." });
+      return;
+    }
+    const target = (await listPreviewDebugAccounts()).find((account) => account.id === accountId);
+    if (!target) {
+      res.status(404).json({ error: "The selected account no longer exists." });
+      return;
+    }
+    const sessionToken = await sdk.createSessionToken(target.openId, { name: target.name || "Coachora member", expiresInMs: PREVIEW_DEBUG_TTL_MS });
+    res.cookie(COOKIE_NAME, sessionToken, { ...getSessionCookieOptions(req), maxAge: PREVIEW_DEBUG_TTL_MS });
+    res.json({ user: buildUserResponse(target), expiresInMs: PREVIEW_DEBUG_TTL_MS });
+  });
+
+  app.post("/api/debug/exit", async (req: Request, res: Response) => {
+    if (!isManagedPreviewRequest(req)) {
+      res.status(404).json({ error: "Preview debug tools are unavailable." });
+      return;
+    }
+    res.clearCookie(PREVIEW_DEBUG_COOKIE, { ...previewDebugCookieOptions(req), maxAge: -1 });
+    res.json({ success: true });
+  });
+
   app.post("/api/auth/local/login", async (req: Request, res: Response) => {
     if (!localLoginRateLimitAllows(req)) {
       res.status(429).json({ error: "Too many sign-in attempts. Please wait a minute." });
@@ -197,8 +269,7 @@ export function registerOAuthRoutes(app: Express) {
     try {
       const user = await sdk.authenticateRequest(req);
       res.json({ user: buildUserResponse(user) });
-    } catch (error) {
-      console.error("[Auth] /api/auth/me failed:", error);
+    } catch {
       res.status(401).json({ error: "Not authenticated", user: null });
     }
   });

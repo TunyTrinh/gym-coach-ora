@@ -11,8 +11,11 @@ import { addMonths, buildMonthGrid, isSameLocalDay, localDayKey, startOfLocalDay
 import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
 import { isLocalTestMode } from "@/lib/local-test-mode";
+import { adaptProductionSchedule } from "@/lib/production-schedule";
+import { trpc } from "@/lib/trpc";
 import { formatDateLocalized, formatTimeLocalized, localeFor } from "@/lib/i18n";
-import { getBookingSlot, getCoach, getService } from "@/shared/gym";
+import { getBookingSlot, getCoach } from "@/shared/gym";
+import { roomStatusPresentation, visibleRoomCalendarMarkers, type RoomStatusMarker } from "@/shared/room-status-presentation";
 
 const weekDayReference = new Date(2024, 0, 7);
 
@@ -45,41 +48,67 @@ export default function ScheduleScreen() {
   const { user } = useAuth();
   const { snapshot, upcomingBookings, cancelBooking, checkInBooking, markAttendance } = useGym();
   const { language, t } = useLanguage();
-  const role = isLocalTestMode() ? snapshot.member.role : user?.role ?? snapshot.member.role;
+  const previewMode = isLocalTestMode();
+  const role = previewMode ? snapshot.member.role : user?.role ?? "client";
   const isCoach = role === "coach";
   const [now, setNow] = useState(() => new Date());
   const [visibleMonth, setVisibleMonth] = useState(() => startOfMonth(new Date()));
   const [selectedDate, setSelectedDate] = useState(() => startOfLocalDay(new Date()));
+  const [roomFilterId, setRoomFilterId] = useState<number | "all">("all");
   const [feedbackSheet, setFeedbackSheet] = useState<FeedbackSheet | null>(null);
   const [cancellationBookingId, setCancellationBookingId] = useState<string | null>(null);
   const [cancellationBusy, setCancellationBusy] = useState(false);
+  const memberSchedule = trpc.member.schedule.useQuery(undefined, { enabled: !previewMode && role === "client" });
+  const coachSchedule = trpc.availability.coachSchedule.useQuery(undefined, { enabled: !previewMode && isCoach });
+  const roomCalendarMonthEnd = useMemo(() => {
+    const lastDay = addMonths(visibleMonth, 1);
+    lastDay.setDate(lastDay.getDate() - 1);
+    return lastDay;
+  }, [visibleMonth]);
+  const roomCalendarQuery = trpc.availability.roomCalendar.useQuery(
+    roomFilterId === "all"
+      ? { from: localDayKey(visibleMonth), to: localDayKey(roomCalendarMonthEnd) }
+      : { from: localDayKey(visibleMonth), to: localDayKey(roomCalendarMonthEnd), roomId: roomFilterId },
+    { enabled: !previewMode && isCoach },
+  );
+  const roomScheduleQuery = trpc.availability.roomSchedule.useQuery(
+    { date: localDayKey(selectedDate) },
+    { enabled: !previewMode && isCoach },
+  );
+  const cancelServerBooking = trpc.availability.cancel.useMutation();
+  const checkInServerBooking = trpc.availability.checkIn.useMutation();
+  const markServerAttendance = trpc.availability.markAttendance.useMutation();
+  const utils = trpc.useUtils();
+  const activeSnapshot = useMemo(
+    () => previewMode ? snapshot : adaptProductionSchedule(snapshot, { role, user, rows: isCoach ? (coachSchedule.data ?? []) : (memberSchedule.data ?? []) }),
+    [coachSchedule.data, isCoach, memberSchedule.data, previewMode, role, snapshot, user],
+  );
+  const activeUpcomingBookings = useMemo(
+    () => activeSnapshot.bookings.filter((booking) => booking.memberId === activeSnapshot.member.id && ["Confirmed", "Pending"].includes(booking.status) && new Date(getBookingSlot(activeSnapshot, booking)?.start ?? 0) > new Date()).sort((left, right) => new Date(getBookingSlot(activeSnapshot, left)?.start ?? 0).getTime() - new Date(getBookingSlot(activeSnapshot, right)?.start ?? 0).getTime()),
+    [activeSnapshot],
+  );
 
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 30_000);
     return () => clearInterval(timer);
   }, []);
 
-  const coachId = isCoach ? "coach-maya" : undefined;
   const calendarBookings = useMemo(() => {
-    if (!isCoach) return upcomingBookings;
-    return snapshot.bookings
-      .filter((booking) => {
-        const slot = getBookingSlot(snapshot, booking);
-        return Boolean(slot && slot.coachId === coachId);
-      })
-      .sort((a, b) => new Date(getBookingSlot(snapshot, a)?.start ?? 0).getTime() - new Date(getBookingSlot(snapshot, b)?.start ?? 0).getTime());
-  }, [coachId, isCoach, snapshot, upcomingBookings]);
+    if (!isCoach) return previewMode ? upcomingBookings : activeUpcomingBookings;
+    return activeSnapshot.bookings
+      .sort((a, b) => new Date(getBookingSlot(activeSnapshot, a)?.start ?? 0).getTime() - new Date(getBookingSlot(activeSnapshot, b)?.start ?? 0).getTime());
+  }, [activeSnapshot, activeUpcomingBookings, isCoach, previewMode, upcomingBookings]);
 
   const bookingsByDay = useMemo(() => {
     const result = new Map<string, typeof calendarBookings>();
     calendarBookings.forEach((booking) => {
-      const slot = getBookingSlot(snapshot, booking);
+      const slot = getBookingSlot(activeSnapshot, booking);
       if (!slot) return;
       const key = localDayKey(slot.start);
       result.set(key, [...(result.get(key) ?? []), booking]);
     });
     return result;
-  }, [calendarBookings, snapshot]);
+  }, [activeSnapshot, calendarBookings]);
 
   const calendarDays = useMemo(() => buildMonthGrid(visibleMonth), [visibleMonth]);
   const selectedBookings = bookingsByDay.get(localDayKey(selectedDate)) ?? [];
@@ -106,7 +135,13 @@ export default function ScheduleScreen() {
     const bookingId = cancellationBookingId;
     if (!bookingId || cancellationBusy) return;
     setCancellationBusy(true);
-    const result = await cancelBooking(bookingId, "Plans changed");
+    const result = previewMode
+      ? await cancelBooking(bookingId, "Plans changed")
+      : await cancelServerBooking.mutateAsync({ bookingId, reason: "Plans changed" }).then(() => ({ success: true as const, message: "Booking cancelled and capacity released for that time." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "This booking could not be cancelled." }));
+    if (result.success && !previewMode) {
+      await utils.member.schedule.invalidate();
+      await utils.availability.coachSchedule.invalidate();
+    }
     setCancellationBusy(false);
     setCancellationBookingId(null);
     setFeedbackSheet({
@@ -117,7 +152,10 @@ export default function ScheduleScreen() {
   };
 
   const handleCheckIn = async (bookingId: string) => {
-    const result = await checkInBooking(bookingId);
+    const result = previewMode
+      ? await checkInBooking(bookingId)
+      : await checkInServerBooking.mutateAsync({ bookingId }).then(() => ({ success: true as const, message: "You’re checked in. Have a great session." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Check-in is unavailable." }));
+    if (result.success && !previewMode) await utils.member.schedule.invalidate();
     setFeedbackSheet({
       success: result.success,
       title: result.success ? t("checkedInAlert") : t("checkInUnavailable"),
@@ -126,7 +164,10 @@ export default function ScheduleScreen() {
   };
 
   const handleAttendance = async (bookingId: string, status: "Completed" | "No-show") => {
-    const result = await markAttendance(bookingId, status);
+    const result = previewMode
+      ? await markAttendance(bookingId, status)
+      : await markServerAttendance.mutateAsync({ bookingId, status: status === "Completed" ? "completed" : "no_show" }).then(() => ({ success: true as const, message: status === "Completed" ? "Member marked completed." : "Member marked no-show." })).catch((error: unknown) => ({ success: false as const, error: error instanceof Error ? error.message : "Attendance could not be updated." }));
+    if (result.success && !previewMode) await utils.availability.coachSchedule.invalidate();
     setFeedbackSheet({
       success: result.success,
       title: result.success ? t("attendanceSaved") : t("couldNotUpdateShift"),
@@ -153,6 +194,9 @@ export default function ScheduleScreen() {
         title={isCoach ? t("coachSchedule") : t("scheduleTitle")}
         subtitle={isCoach ? t("manageCoachTime") : t("scheduleSubtitle")}
         label={isCoach ? t("coachLabel").toUpperCase() : t("scheduleHeader")}
+        onPress={isCoach ? () => router.push("/book") : undefined}
+        icon="plus"
+        buttonAccessibilityLabel={t("addAvailability")}
       />
 
       {isCoach ? <SurfaceCard style={styles.coachActionCard}>
@@ -165,7 +209,37 @@ export default function ScheduleScreen() {
         </Pressable>
       </SurfaceCard> : null}
 
-      <SurfaceCard style={styles.calendarCard}>
+      {isCoach && !previewMode ? <>
+        {(roomScheduleQuery.data?.rooms.length ?? 0) > 4 ? <View style={styles.roomFilterSection}>
+          <Text style={[styles.roomFilterLabel, { color: colors.muted }]}>{t("filterRooms")}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.roomFilterRail}>
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: roomFilterId === "all" }} onPress={() => setRoomFilterId("all")} style={({ pressed }) => [styles.roomFilterChip, { borderColor: roomFilterId === "all" ? "#f04488" : colors.border, backgroundColor: roomFilterId === "all" ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.roomFilterChipText, { color: roomFilterId === "all" ? "#ff82b7" : colors.foreground }]}>{t("allRooms")}</Text></Pressable>
+            {(roomScheduleQuery.data?.rooms ?? []).map((room) => <Pressable key={room.id} accessibilityRole="button" accessibilityState={{ selected: roomFilterId === room.id }} onPress={() => setRoomFilterId(room.id)} style={({ pressed }) => [styles.roomFilterChip, { borderColor: roomFilterId === room.id ? "#f04488" : colors.border, backgroundColor: roomFilterId === room.id ? "#2b1f2a" : colors.surface }, pressed && styles.pressed]}><Text style={[styles.roomFilterChipText, { color: roomFilterId === room.id ? "#ff82b7" : colors.foreground }]}>{room.name}</Text></Pressable>)}
+          </ScrollView>
+        </View> : null}
+        <CoachRoomCalendar
+          month={visibleMonth}
+          selectedDate={localDayKey(selectedDate)}
+          rows={roomCalendarQuery.data ?? []}
+          loading={roomCalendarQuery.isLoading}
+          language={language}
+          t={t}
+          colors={colors}
+          roomFilterId={roomFilterId}
+          onMonthChange={setVisibleMonth}
+          onDateChange={(date) => setSelectedDate(startOfLocalDay(new Date(`${date}T00:00:00`)))}
+        />
+        <CoachRoomSchedule
+          date={localDayKey(selectedDate)}
+          rooms={roomFilterId === "all" ? (roomScheduleQuery.data?.rooms ?? []) : (roomScheduleQuery.data?.rooms ?? []).filter((room) => room.id === roomFilterId)}
+          loading={roomScheduleQuery.isLoading}
+          language={language}
+          t={t}
+          colors={colors}
+        />
+      </> : null}
+
+      {!isCoach || previewMode ? <SurfaceCard style={styles.calendarCard}>
         <View style={styles.monthHeader}>
           <View><Text style={[styles.monthEyebrow, { color: "#ff82b7" }]}>{t("monthView")}</Text><Text style={[styles.monthTitle, { color: colors.foreground }]}>{monthTitle}</Text></View>
           <View style={styles.monthActions}>
@@ -191,14 +265,14 @@ export default function ScheduleScreen() {
             >
               <Text style={[styles.dayNumber, { color: isCurrentMonth ? colors.foreground : colors.muted }, isSelected && styles.selectedDayText]}>{day.getDate()}</Text>
               {isCoach ? <View style={styles.dayBlocks}>{visibleBlocks.map((booking) => {
-                const slot = getBookingSlot(snapshot, booking);
+                const slot = getBookingSlot(activeSnapshot, booking);
                 return slot ? <View key={booking.id} style={[styles.miniBlock, { backgroundColor: blockColor(slot.start) }]}><Text numberOfLines={1} style={styles.miniBlockText}>{formatTimeLocalized(slot.start, language)}</Text></View> : null;
               })}{dayBookings.length > 2 ? <Text style={[styles.moreBlocks, { color: isSelected ? "#ffffff" : "#ff82b7"}]}>+{dayBookings.length - 2}</Text> : null}</View> : dayBookings.length > 0 ? <View style={[styles.bookingDot, { backgroundColor: dayBookings.length > 1 ? "#ff82b7" : "#8a77ef" }]}><Text style={styles.bookingDotText}>{dayBookings.length}</Text></View> : <View style={styles.dotSpacer} />}
             </Pressable>
           </View>;
         })}</View>
         <Text style={[styles.calendarHint, { color: colors.muted }]}>{t("calendarHint")}</Text>
-      </SurfaceCard>
+      </SurfaceCard> : null}
 
       <View style={styles.daySummaryHeader}>
         <View><Text style={[styles.summaryEyebrow, { color: "#a98af0" }]}>{t("selectedDay")}</Text><Text style={[styles.summaryTitle, { color: colors.foreground }]}>{selectedTitle}</Text></View>
@@ -210,19 +284,18 @@ export default function ScheduleScreen() {
         <Text style={[styles.emptyMessage, { color: colors.muted }]}>{isCoach ? t("scheduleAppears") : t("chooseDayOrBook")}</Text>
         <PrimaryButton title={isCoach ? t("addAvailability") : t("browseSessions")} onPress={() => router.push(isCoach ? "/book" : "/book")} />
       </SurfaceCard> : selectedBookings.map((booking) => {
-        const slot = getBookingSlot(snapshot, booking);
+        const slot = getBookingSlot(activeSnapshot, booking);
         if (!slot) return null;
-        const service = getService(snapshot, slot.serviceTypeId);
-        const coach = getCoach(snapshot, slot.coachId);
-        const bookingDuration = booking.durationMinutes ?? service?.durationMinutes ?? Math.round((new Date(slot.end).getTime() - new Date(slot.start).getTime()) / 60_000);
+        const coach = getCoach(activeSnapshot, slot.coachId);
+        const bookingDuration = booking.durationMinutes ?? Math.round((new Date(slot.end).getTime() - new Date(slot.start).getTime()) / 60_000);
         const minutesUntil = Math.round((new Date(slot.start).getTime() - now.getTime()) / 60_000);
         const checkInOpen = minutesUntil <= 30 && minutesUntil >= -30;
 
         if (isCoach) {
-          const window = snapshot.availabilityShifts.find((item) => item.id === slot.availabilityShiftId);
-          const concurrent = snapshot.bookings.filter((item) => {
+          const window = activeSnapshot.availabilityShifts.find((item) => item.id === slot.availabilityShiftId);
+          const concurrent = activeSnapshot.bookings.filter((item) => {
             if (!["Confirmed", "Pending"].includes(item.status)) return false;
-            const other = getBookingSlot(snapshot, item);
+            const other = getBookingSlot(activeSnapshot, item);
             return Boolean(other && other.availabilityShiftId === slot.availabilityShiftId && intervalsOverlap(slot.start, slot.end, other.start, other.end));
           }).length;
           const remaining = Math.max(0, (window?.maximumCapacity ?? slot.maximumCapacity) - concurrent);
@@ -230,7 +303,7 @@ export default function ScheduleScreen() {
           return <SurfaceCard key={booking.id} style={styles.coachBookingCard}>
             <View style={styles.bookingTop}><View><Text style={[styles.bookingTime, { color: colors.foreground }]}>{formatTimeLocalized(slot.start, language)}–{formatTimeLocalized(slot.end, language)}</Text><Text style={[styles.bookingDate, { color: "#ff82b7" }]}>{bookingDuration} {t("minutes")} · {slot.room}</Text></View><StatusBadge label={statusLabel(booking.status, t)} tone={booking.status === "Confirmed" ? "success" : booking.status === "Pending" ? "warning" : "neutral"} /></View>
             <View style={[styles.timeBlock, { backgroundColor: blockColor(slot.start) }]}><Text style={styles.timeBlockTime}>{formatTimeLocalized(slot.start, language)}–{formatTimeLocalized(slot.end, language)}</Text><Text style={styles.timeBlockClient}>{clientName}</Text></View>
-            <View style={styles.clientRow}><Avatar initials={initials(clientName)} accent="#b7e4dd" size={36} /><View style={styles.clientCopy}><Text style={[styles.clientName, { color: colors.foreground }]}>{clientName}</Text><Text style={[styles.clientMeta, { color: colors.muted }]}>{service?.name ?? t("session")}</Text></View></View>
+            <View style={styles.clientRow}><Avatar initials={initials(clientName)} accent="#b7e4dd" size={36} /><View style={styles.clientCopy}><Text style={[styles.clientName, { color: colors.foreground }]}>{clientName}</Text><Text style={[styles.clientMeta, { color: colors.muted }]}>{t("session")}</Text></View></View>
             <View style={[styles.capacityPanel, { borderColor: colors.border, backgroundColor: colors.surface }]}><View><Text style={[styles.capacityValue, { color: colors.foreground }]}>{concurrent}</Text><Text style={[styles.capacityLabel, { color: colors.muted }]}>{t("concurrentBooked")}</Text></View><View style={styles.capacityRight}><Text style={[styles.capacityValue, { color: "#ff82b7" }]}>{remaining}</Text><Text style={[styles.capacityLabel, { color: colors.muted }]}>{t("remainingCapacity")}</Text></View></View>
             {booking.status === "Confirmed" ? <View style={styles.coachActions}><Pressable onPress={() => handleAttendance(booking.id, "Completed")} style={[styles.attendanceButton, { backgroundColor: `${colors.success}18` }]}><Text style={[styles.attendanceButtonText, { color: colors.success }]}>{t("markDone")}</Text></Pressable><Pressable onPress={() => handleAttendance(booking.id, "No-show")} style={[styles.attendanceButton, { backgroundColor: `${colors.error}14` }]}><Text style={[styles.attendanceButtonText, { color: colors.error }]}>{t("noShow")}</Text></Pressable></View> : null}
           </SurfaceCard>;
@@ -239,7 +312,7 @@ export default function ScheduleScreen() {
         return <SurfaceCard key={booking.id} style={styles.bookingCard}>
           <View style={styles.bookingTop}><View><Text style={[styles.bookingTime, { color: colors.foreground }]}>{formatTimeLocalized(slot.start, language)} <Text style={[styles.bookingDuration, { color: colors.muted }]}>· {bookingDuration} {t("minutes")}</Text></Text><Text style={[styles.bookingDate, { color: "#ff82b7" }]}>{formatDateLocalized(slot.start, language, { weekday: "short", month: "short", day: "numeric" }).toUpperCase()}</Text></View><StatusBadge label={booking.checkInTime ? t("checkedIn") : statusLabel(booking.status, t)} tone={booking.checkInTime ? "success" : "accent"} /></View>
           <View style={[styles.bookingRule, { backgroundColor: colors.border }]} />
-          <View style={styles.bookingMain}>{coach ? <Avatar initials={coach.initials} accent={coach.accent} size={40} /> : <View style={styles.openIcon}><Text style={styles.openIconText}>⌁</Text></View>}<View style={styles.bookingCopy}><Text style={[styles.bookingService, { color: colors.foreground }]}>{service?.name}</Text><Text style={[styles.bookingCoach, { color: colors.muted }]}>{coach?.fullName ?? t("selfGuidedAccess")}</Text><Text style={[styles.bookingLocation, { color: colors.muted }]}>{slot.room}</Text></View></View>
+          <View style={styles.bookingMain}>{coach ? <Avatar initials={coach.initials} accent={coach.accent} size={40} /> : <View style={styles.openIcon}><Text style={styles.openIconText}>⌁</Text></View>}<View style={styles.bookingCopy}><Text style={[styles.bookingService, { color: colors.foreground }]}>{coach ? t("session") : t("selfGuidedAccess")}</Text><Text style={[styles.bookingCoach, { color: colors.muted }]}>{coach?.fullName ?? t("selfGuidedAccess")}</Text><Text style={[styles.bookingLocation, { color: colors.muted }]}>{slot.room}</Text></View></View>
           <View style={styles.actionRow}>{checkInOpen && !booking.checkInTime ? <View style={styles.actionFill}><PrimaryButton title={t("checkIn")} onPress={() => handleCheckIn(booking.id)} icon="checkmark.circle.fill" /></View> : <View style={styles.windowNote}><Text style={[styles.windowText, { color: colors.muted }]}>{booking.checkInTime ? t("checkInRecorded") : `${t("checkInOpens")} ${Math.max(1, minutesUntil - 30)} ${t("minutes")} `}</Text></View>}<Pressable onPress={() => handleCancel(booking.id)} accessibilityRole="button" accessibilityLabel={t("cancelBooking")} style={({ pressed }) => [styles.cancelButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.cancelText, { color: colors.error }]}>{t("cancel")}</Text></Pressable></View>
         </SurfaceCard>;
       })}
@@ -320,10 +393,65 @@ export default function ScheduleScreen() {
   </ScreenContainer>;
 }
 
+function CoachRoomCalendar({ month, selectedDate, rows, loading, language, t, colors, roomFilterId, onMonthChange, onDateChange }: { month: Date; selectedDate: string; rows: { date: string; markers: string[]; publishedCount: number; bookingCount: number }[]; loading: boolean; language: "en" | "vi"; t: (key: any) => string; colors: ReturnType<typeof useColors>; roomFilterId: number | "all"; onMonthChange: (month: Date) => void; onDateChange: (date: string) => void }) {
+  const days = buildMonthGrid(month);
+  const rowByDate = new Map(rows.map((row) => [row.date, row]));
+  const markerLabel = (marker: string) => marker === "partially_closed" ? t("roomStatusPartiallyClosed") : marker === "closed" ? t("roomStatusClosed") : marker === "full" ? t("roomStatusFull") : marker === "inactive" ? t("roomStatusInactive") : marker === "availability_published" ? t("roomStatusAvailabilityPublished") : marker === "client_booking" ? t("roomStatusClientBooking") : t("roomStatusAvailable");
+  const legendMarkers: RoomStatusMarker[] = ["available", "partially_closed", "closed", "full", "inactive"];
+
+  return <SurfaceCard style={styles.roomCalendarCard}>
+    <View style={styles.roomCalendarTitleRow}>
+      <View>
+        <Text style={[styles.roomCalendarEyebrow, { color: "#ff82b7" }]}>{t("monthView")}</Text>
+        <Text style={[styles.roomCalendarMonth, { color: colors.foreground }]}>{formatDateLocalized(month, language, { month: "long", year: "numeric" })}</Text>
+      </View>
+      <View style={styles.roomCalendarNav}>
+        <Pressable onPress={() => onMonthChange(addMonths(month, -1))} accessibilityRole="button" accessibilityLabel={t("previousMonth")} style={({ pressed }) => [styles.roomCalendarNavButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.roomCalendarNavText, { color: colors.foreground }]}>‹</Text></Pressable>
+        <Pressable onPress={() => onMonthChange(startOfMonth(new Date()))} accessibilityRole="button" accessibilityLabel={t("today")} style={({ pressed }) => [styles.roomCalendarTodayButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.roomCalendarTodayText, { color: colors.foreground }]}>{t("today")}</Text></Pressable>
+        <Pressable onPress={() => onMonthChange(addMonths(month, 1))} accessibilityRole="button" accessibilityLabel={t("nextMonth")} style={({ pressed }) => [styles.roomCalendarNavButton, { borderColor: colors.border }, pressed && styles.pressed]}><Text style={[styles.roomCalendarNavText, { color: colors.foreground }]}>›</Text></Pressable>
+      </View>
+    </View>
+    {loading ? <Text style={[styles.roomScheduleLoading, { color: colors.muted }]}>{t("loading")}</Text> : <>
+      <View style={styles.roomCalendarWeekdays}>{days.slice(0, 7).map((day) => <Text key={day.toISOString()} style={[styles.roomCalendarWeekday, { color: colors.muted }]}>{formatDateLocalized(day, language, { weekday: "narrow" })}</Text>)}</View>
+      <View style={styles.roomCalendarGrid}>{days.map((day) => {
+        const date = localDayKey(day);
+        const row = rowByDate.get(date);
+        const selected = date === selectedDate;
+        const inMonth = day.getMonth() === month.getMonth();
+        const markers = visibleRoomCalendarMarkers(row?.markers ?? []).filter((marker) => marker !== "availability_published" && marker !== "client_booking");
+        const visibleMarkers = markers.slice(0, 3);
+        const overflow = markers.length - visibleMarkers.length;
+        return <Pressable key={date} onPress={() => onDateChange(date)} accessibilityRole="button" accessibilityLabel={`${formatDateLocalized(day, language, { weekday: "long", month: "long", day: "numeric" })}. ${roomFilterId === "all" ? `${t("allRooms")}. ` : ""}${markers.map(markerLabel).join(", ") || t("roomStatusAvailable")}`} accessibilityState={{ selected }} style={({ pressed }) => [styles.roomCalendarDay, { borderColor: selected ? "#f04488" : colors.border, backgroundColor: selected ? "#2b1f2a" : colors.surface, opacity: inMonth ? 1 : 0.44 }, pressed && styles.pressed]}><Text style={[styles.roomCalendarDayNumber, { color: selected ? "#ff82b7" : colors.foreground }]}>{day.getDate()}</Text><View style={styles.roomCalendarDots}>{visibleMarkers.map((marker) => <View key={marker} style={[styles.roomCalendarDot, { backgroundColor: roomStatusPresentation(marker).color }]} />)}{overflow > 0 ? <Text style={[styles.roomCalendarOverflow, { color: colors.muted }]}>+{overflow}</Text> : null}</View></Pressable>;
+      })}</View>
+      <View accessibilityLabel={t("roomCalendarLegend")} style={styles.roomLegendWrap}>{legendMarkers.map((marker) => <View key={marker} style={styles.roomLegendItem}><View style={[styles.roomLegendDot, { backgroundColor: roomStatusPresentation(marker).color }]} /><Text style={[styles.roomLegendText, { color: colors.muted }]}>{markerLabel(marker)}</Text></View>)}</View>
+    </>}
+  </SurfaceCard>;
+}
+
+function CoachRoomSchedule({ date, rooms, loading, language, t, colors }: { date: string; rooms: any[]; loading: boolean; language: "en" | "vi"; t: (key: any) => string; colors: ReturnType<typeof useColors> }) {
+  const status = (value: string) => value === "full" ? t("roomStatusFull") : value === "temporarily_closed" ? t("roomStatusClosed") : value === "inactive" ? t("roomStatusInactive") : value === "outside_hours" ? t("roomStatusOutsideHours") : t("roomStatusAvailable");
+  return <View style={styles.roomSchedule}>
+    <Text style={[styles.roomScheduleLabel, { color: colors.muted }]}>{`${t("roomScheduleToday").toUpperCase()} · ${formatDateLocalized(new Date(`${date}T00:00:00`), language, { weekday: "long", month: "long", day: "numeric" })}`}</Text>
+    {loading ? <Text style={[styles.roomScheduleLoading, { color: colors.muted }]}>{t("loading")}</Text> : rooms.map((room) => {
+      const marker: RoomStatusMarker = room.statusReason === "outside_hours" ? "temporarily_closed" : room.statusReason;
+      const visual = roomStatusPresentation(marker);
+      const context = room.statusReason === "temporarily_closed"
+        ? (room.closureReason ?? `${t("nextAvailableTime")}: ${room.nextAvailableSlot ? formatTimeLocalized(String(room.nextAvailableSlot), language) : "—"}`)
+        : room.statusReason === "full"
+          ? `${room.occupancy}/${room.maximumCapacity} ${t("roomCapacityRemaining")}`
+          : room.windows?.some((window: any) => window.status === "available")
+            ? t("roomStatusAvailabilityPublished")
+            : `${room.occupancy}/${room.maximumCapacity} ${t("roomCapacityRemaining")}`;
+      return <SurfaceCard key={room.id} style={[styles.roomScheduleDetail, { borderColor: colors.border }]}><View style={styles.roomScheduleDetailTop}><View style={styles.roomScheduleCopy}><Text style={[styles.roomScheduleName, { color: colors.foreground }]}>{room.name}</Text><Text numberOfLines={1} style={[styles.roomScheduleMeta, { color: colors.muted }]}>{context}</Text></View><View style={[styles.roomStatusPill, { backgroundColor: visual.background }]}><View style={[styles.roomStatusPillDot, { backgroundColor: visual.color }]} /><Text style={[styles.roomStatusPillText, { color: visual.color }]}>{status(room.statusReason)}</Text></View></View></SurfaceCard>;
+    })}
+  </View>;
+}
+
 const styles = StyleSheet.create({
   content: { paddingTop: 10, paddingBottom: 40, gap: 16 },
   staffRestricted: { paddingTop: 10, gap: 18 }, staffCard: { gap: 12, padding: 19 }, staffTitle: { fontSize: 20, fontWeight: "900" }, staffCopy: { fontSize: 13, lineHeight: 20 },
   coachActionCard: { padding: 16, flexDirection: "row", alignItems: "center", gap: 12 }, coachActionCopy: { flex: 1, gap: 3 }, coachActionTitle: { fontSize: 15, fontWeight: "900" }, coachActionText: { fontSize: 11, lineHeight: 16 }, coachActionButton: { paddingHorizontal: 12, minHeight: 36, borderRadius: 12, justifyContent: "center", backgroundColor: "#f04488" }, coachActionButtonText: { color: "#ffffff", fontSize: 11, fontWeight: "900" },
+  roomFilterSection: { gap: 7 }, roomFilterLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.1 }, roomFilterRail: { gap: 8, paddingRight: 14 }, roomFilterChip: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 12, paddingVertical: 8 }, roomFilterChipText: { fontSize: 11, fontWeight: "800" }, roomCalendarCard: { padding: 14, gap: 10 }, roomCalendarTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }, roomCalendarEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, roomCalendarMonth: { fontSize: 20, fontWeight: "900", marginTop: 2 }, roomCalendarNav: { flexDirection: "row", alignItems: "center", gap: 6 }, roomCalendarNavButton: { width: 36, height: 36, borderWidth: 1, borderRadius: 18, alignItems: "center", justifyContent: "center" }, roomCalendarNavText: { fontSize: 25, fontWeight: "700", marginTop: -3 }, roomCalendarTodayButton: { height: 36, borderWidth: 1, borderRadius: 18, paddingHorizontal: 10, alignItems: "center", justifyContent: "center" }, roomCalendarTodayText: { fontSize: 11, fontWeight: "900" }, roomCalendarWeekdays: { flexDirection: "row", marginTop: 2 }, roomCalendarWeekday: { width: "14.2857%", textAlign: "center", fontSize: 10, fontWeight: "800" }, roomCalendarGrid: { flexDirection: "row", flexWrap: "wrap", rowGap: 5 }, roomCalendarDay: { width: "14.2857%", minHeight: 52, borderWidth: 1, borderRadius: 9, paddingTop: 6, alignItems: "center" }, roomCalendarDayNumber: { fontSize: 13, fontWeight: "900" }, roomCalendarDots: { minHeight: 12, marginTop: 5, flexDirection: "row", alignItems: "center", gap: 3 }, roomCalendarDot: { width: 6, height: 6, borderRadius: 3 }, roomCalendarOverflow: { fontSize: 8, fontWeight: "900", marginLeft: 1 }, roomLegendWrap: { flexDirection: "row", flexWrap: "wrap", gap: 12, borderTopWidth: 1, borderTopColor: "#303036", paddingTop: 11 }, roomLegendItem: { flexDirection: "row", alignItems: "center", gap: 5 }, roomLegendDot: { width: 7, height: 7, borderRadius: 3.5 }, roomLegendText: { fontSize: 10, fontWeight: "700" }, roomSchedule: { gap: 7 }, roomScheduleLabel: { fontSize: 10, fontWeight: "800", letterSpacing: 1.1, marginTop: 2 }, roomScheduleLoading: { fontSize: 12 }, roomScheduleDetail: { padding: 13 }, roomScheduleDetailTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }, roomScheduleCopy: { flex: 1, gap: 3 }, roomScheduleName: { fontSize: 14, fontWeight: "900" }, roomScheduleMeta: { fontSize: 11, lineHeight: 15 }, roomStatusPill: { flexDirection: "row", alignItems: "center", gap: 5, paddingHorizontal: 9, paddingVertical: 6, borderRadius: 10 }, roomStatusPillDot: { width: 6, height: 6, borderRadius: 3 }, roomStatusPillText: { fontSize: 10, fontWeight: "900" },
   calendarCard: { padding: 14, gap: 13 }, monthHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 }, monthEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, monthTitle: { fontSize: 19, fontWeight: "800", marginTop: 3 }, monthActions: { flexDirection: "row", alignItems: "center", gap: 6 }, iconButton: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, alignItems: "center", justifyContent: "center" }, iconButtonText: { fontSize: 28, lineHeight: 28, marginTop: -3 }, todayButton: { height: 34, borderRadius: 17, borderWidth: 1, paddingHorizontal: 11, justifyContent: "center" }, todayButtonText: { fontSize: 11, fontWeight: "800" },
   weekRow: { flexDirection: "row" }, weekDay: { width: "14.285%", textAlign: "center", fontSize: 9, fontWeight: "800" }, grid: { flexDirection: "row", flexWrap: "wrap" }, dayCell: { width: "14.285%", aspectRatio: 0.88, padding: 2 }, dayButton: { flex: 1, alignItems: "center", borderRadius: 10, paddingTop: 4 }, selectedDay: { backgroundColor: "#5b2141" }, selectedDayText: { color: "#ffffff", fontWeight: "900" }, dayNumber: { fontSize: 12, fontWeight: "800" }, dayBlocks: { width: "100%", gap: 2, paddingHorizontal: 2, marginTop: 3 }, miniBlock: { minHeight: 13, borderRadius: 3, paddingHorizontal: 2, justifyContent: "center" }, miniBlockText: { color: "#ffffff", fontSize: 6.5, fontWeight: "900", textAlign: "center" }, moreBlocks: { fontSize: 7, fontWeight: "900", textAlign: "center", marginTop: 1 }, bookingDot: { minWidth: 14, height: 14, paddingHorizontal: 3, borderRadius: 7, alignItems: "center", justifyContent: "center", marginTop: 3 }, bookingDotText: { fontSize: 8, color: "#ffffff", fontWeight: "900" }, dotSpacer: { height: 14, marginTop: 3 }, calendarHint: { borderTopWidth: 1, borderTopColor: "#303036", paddingTop: 11, fontSize: 10, fontWeight: "700", textAlign: "center" },
   daySummaryHeader: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", marginTop: 4 }, summaryEyebrow: { fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, summaryTitle: { fontSize: 20, fontWeight: "800", marginTop: 3 }, summaryCount: { fontSize: 12, fontWeight: "800", marginBottom: 2 },

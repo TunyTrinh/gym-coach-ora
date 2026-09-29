@@ -111,7 +111,7 @@ async function startServer() {
       maxAge: "1y",
       immutable: true,
       setHeaders: (res, filePath) => {
-        if (filePath.endsWith("sw.js") || filePath.endsWith("manifest.json") || filePath.endsWith(".html")) {
+        if (filePath.endsWith("sw.js") || filePath.endsWith("manifest.json") || filePath.endsWith("release.json") || filePath.endsWith(".html")) {
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         }
       },

@@ -1,4 +1,4 @@
-import { boolean, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
+import { boolean, date, index, int, mysqlEnum, mysqlTable, text, timestamp, uniqueIndex, varchar } from "drizzle-orm/mysql-core";
 
 export const users = mysqlTable("users", {
   id: int("id").autoincrement().primaryKey(),
@@ -38,18 +38,33 @@ export const gymRooms = mysqlTable("gymRooms", {
   address: text("address").notNull(),
   description: text("description").notNull(),
   maximumCapacity: int("maximumCapacity").notNull(),
+  openingTime: varchar("openingTime", { length: 5 }).default("00:00").notNull(),
+  closingTime: varchar("closingTime", { length: 5 }).default("23:59").notNull(),
   active: boolean("active").default(true).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
 }, (table) => ({
   gymRoomNameUnique: uniqueIndex("gym_rooms_gym_name_unique").on(table.gymId, table.nameNormalized),
-  gymRoomActiveIndex: index("gym_rooms_gym_active_idx").on(table.gymId, table.active),
+	gymRoomActiveIndex: index("gym_rooms_gym_active_idx").on(table.gymId, table.active),
+}));
+
+/** An Admin-recorded temporary closure for one physical room on one calendar date. */
+export const roomClosures = mysqlTable("roomClosures", {
+	id: int("id").autoincrement().primaryKey(),
+	roomId: int("roomId").notNull(),
+	closureDate: date("closureDate", { mode: "string" }).notNull(),
+	reason: text("reason"),
+	createdBy: int("createdBy").notNull(),
+	createdAt: timestamp("createdAt").defaultNow().notNull(),
+}, (table) => ({
+	roomClosureDateUnique: uniqueIndex("room_closures_room_date_unique").on(table.roomId, table.closureDate),
+	roomClosureDateIndex: index("room_closures_date_idx").on(table.closureDate),
 }));
 
 export const coaches = mysqlTable("coaches", {
   id: int("id").autoincrement().primaryKey(),
   externalId: varchar("externalId", { length: 64 }).notNull().unique(),
-  gymId: int("gymId").notNull(),
+  gymId: int("gymId"),
   userId: int("userId"),
   fullName: varchar("fullName", { length: 255 }).notNull(),
   specialty: varchar("specialty", { length: 255 }).notNull(),
@@ -88,7 +103,8 @@ export const timeSlots = mysqlTable("timeSlots", {
   gymId: int("gymId").notNull(),
   coachId: int("coachId"),
   roomId: int("roomId"),
-  serviceTypeId: int("serviceTypeId").notNull(),
+  /** Optional for standalone room-access bookings. */
+  serviceTypeId: int("serviceTypeId"),
   startAt: timestamp("startAt").notNull(),
   endAt: timestamp("endAt").notNull(),
   maximumCapacity: int("maximumCapacity").notNull(),
@@ -97,7 +113,10 @@ export const timeSlots = mysqlTable("timeSlots", {
   room: varchar("room", { length: 128 }).notNull(),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
   updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-});
+}, (table) => ({
+  roomStartIndex: index("time_slots_room_start_idx").on(table.roomId, table.startAt),
+  coachStartIndex: index("time_slots_coach_start_idx").on(table.coachId, table.startAt),
+}));
 
 export const availabilityShifts = mysqlTable("availabilityShifts", {
   id: int("id").autoincrement().primaryKey(),
@@ -105,7 +124,8 @@ export const availabilityShifts = mysqlTable("availabilityShifts", {
   gymId: int("gymId").notNull(),
   coachId: int("coachId").notNull(),
   roomId: int("roomId"),
-  serviceTypeId: int("serviceTypeId").notNull(),
+  /** Services are selected at Coach-led booking time, not while publishing availability. */
+  serviceTypeId: int("serviceTypeId"),
   startAt: timestamp("startAt").notNull(),
   endAt: timestamp("endAt").notNull(),
   maximumCapacity: int("maximumCapacity").default(1).notNull(),
@@ -123,6 +143,7 @@ export const availabilityShifts = mysqlTable("availabilityShifts", {
   coachStartIndex: index("availability_shifts_coach_start_idx").on(table.coachId, table.startAt),
   statusStartIndex: index("availability_shifts_status_start_idx").on(table.status, table.startAt),
   roomStartIndex: index("availability_shifts_room_start_idx").on(table.roomId, table.startAt),
+  roomStatusStartIndex: index("availability_shifts_room_status_start_idx").on(table.roomId, table.status, table.startAt),
 }));
 
 export const bookings = mysqlTable("bookings", {
@@ -143,6 +164,7 @@ export const bookings = mysqlTable("bookings", {
 }, (table) => ({
   availabilityStatusSlotIndex: index("bookings_availability_status_slot_idx").on(table.availabilityShiftId, table.status, table.timeSlotId),
   memberStatusSlotIndex: index("bookings_member_status_slot_idx").on(table.memberUserId, table.status, table.timeSlotId),
+  timeSlotStatusIndex: index("bookings_time_slot_status_idx").on(table.timeSlotId, table.status),
 }));
 
 export const notifications = mysqlTable("notifications", {

@@ -13,6 +13,7 @@ const MAPPING = {
   "calendar": "calendar-today",
   "calendar.badge.plus": "event-available",
   "chart.line.uptrend.xyaxis": "show-chart",
+  "chart.bar": "bar-chart",
   "clock": "schedule",
   "bell.fill": "notifications-none",
   "bell.badge.fill": "notifications",

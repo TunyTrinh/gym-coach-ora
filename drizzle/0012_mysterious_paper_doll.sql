@@ -1,0 +1,1 @@
+ALTER TABLE `coaches` MODIFY COLUMN `gymId` int;

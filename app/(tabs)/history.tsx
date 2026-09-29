@@ -8,13 +8,14 @@ import { useColors } from "@/hooks/use-colors";
 import { useGym } from "@/lib/gym-store";
 import { useLanguage } from "@/lib/language-provider";
 import { formatDateLocalized, formatTimeLocalized } from "@/lib/i18n";
-import { getBookingSlot, getCoach, getService } from "@/shared/gym";
+import { getBookingSlot, getCoach } from "@/shared/gym";
 
 export default function HistoryScreen() {
   const colors = useColors();
   const { snapshot, historyBookings } = useGym();
   const { language, t } = useLanguage();
   const [filter, setFilter] = useState<"all" | "Completed" | "Cancelled" | "No-show">("all");
+  const [section, setSection] = useState<"upcoming" | "past" | "progress">("upcoming");
   const filtered = useMemo(() => historyBookings.filter((booking) => filter === "all" || booking.status === filter), [filter, historyBookings]);
   const completedCount = historyBookings.filter((booking) => booking.status === "Completed").length;
   const eligibleCount = historyBookings.filter((booking) => booking.status !== "Cancelled").length;
@@ -23,18 +24,19 @@ export default function HistoryScreen() {
   return <ScreenContainer className="px-5" edges={["top", "left", "right"]}>
     <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
       <ScreenHeader title={t("historyTitle")} subtitle={t("historySubtitle")} label={t("yourProgress")} />
-      <SpectrumCard style={styles.summaryCard} intensity="muted"><Text style={styles.summaryEyebrow}>{t("attendanceSummary")}</Text><Text style={styles.summaryTitle}>{t("keepMomentum")}</Text><View style={styles.summaryStats}><SummaryMetric value={String(completedCount)} label={t("completed")} /><SummaryMetric value={`${checkInRate}%`} label={t("attendance")} /><SummaryMetric value={String(Math.max(0, completedCount))} label={t("checkIns")} /></View></SpectrumCard>
-      <Pressable onPress={() => router.push("/progress")} accessibilityRole="button" style={({ pressed }) => [styles.healthEntry, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><View><Text style={styles.healthEyebrow}>{t("healthProgressCard")}</Text><Text style={[styles.healthTitle, { color: colors.foreground }]}>{t("measurementsAndTrends")}</Text><Text style={[styles.healthCopy, { color: colors.muted }]}>{t("compareMeasurements")}</Text></View><Text style={styles.healthArrow}>→</Text></Pressable>
+      <View style={[styles.segmentedControl, { backgroundColor: colors.surface, borderColor: colors.border }]}>{(["upcoming", "past", "progress"] as const).map((item) => <Pressable key={item} onPress={() => setSection(item)} accessibilityRole="button" accessibilityState={{ selected: section === item }} style={({ pressed }) => [styles.segmentButton, section === item && styles.segmentActive, pressed && styles.pressed]}><Text style={[styles.segmentText, { color: section === item ? "#ffffff" : colors.muted }]}>{item === "upcoming" ? t("upcomingSchedule") : item === "past" ? t("history") : t("progress")}</Text></Pressable>)}</View>
+      {section === "upcoming" ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("upcomingSchedule")}</Text><Text style={[styles.emptyText, { color: colors.muted }]}>{t("upcomingSessionsAndUpdates")}</Text><GhostButton title={t("schedule")} onPress={() => router.push("/schedule")} icon="calendar" /></SurfaceCard> : null}
+      {section === "progress" ? <Pressable onPress={() => router.push("/progress")} accessibilityRole="button" style={({ pressed }) => [styles.healthEntry, { borderColor: colors.border, backgroundColor: colors.surface }, pressed && styles.pressed]}><View><Text style={styles.healthEyebrow}>{t("healthProgressCard")}</Text><Text style={[styles.healthTitle, { color: colors.foreground }]}>{t("measurementsAndTrends")}</Text><Text style={[styles.healthCopy, { color: colors.muted }]}>{t("compareMeasurements")}</Text></View><Text style={styles.healthArrow}>→</Text></Pressable> : null}
+      {section === "past" ? <><SpectrumCard style={styles.summaryCard} intensity="muted"><Text style={styles.summaryEyebrow}>{t("attendanceSummary")}</Text><Text style={styles.summaryTitle}>{t("keepMomentum")}</Text><View style={styles.summaryStats}><SummaryMetric value={String(completedCount)} label={t("completed")} /><SummaryMetric value={`${checkInRate}%`} label={t("attendance")} /><SummaryMetric value={String(Math.max(0, completedCount))} label={t("checkIns")} /></View></SpectrumCard>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filters}><HistoryFilter label={t("allActivity")} active={filter === "all"} onPress={() => setFilter("all")} /><HistoryFilter label={t("completed")} active={filter === "Completed"} onPress={() => setFilter("Completed")} /><HistoryFilter label={t("cancelled")} active={filter === "Cancelled"} onPress={() => setFilter("Cancelled")} /><HistoryFilter label={t("noShow")} active={filter === "No-show"} onPress={() => setFilter("No-show")} /></ScrollView>
       <View style={styles.list}>{filtered.length === 0 ? <SurfaceCard style={styles.emptyCard}><Text style={[styles.emptyTitle, { color: colors.foreground }]}>{t("noActivityYet")}</Text><Text style={[styles.emptyText, { color: colors.muted }]}>{t("historyEmpty")}</Text></SurfaceCard> : filtered.map((booking) => {
         const slot = getBookingSlot(snapshot, booking);
         if (!slot) return null;
-        const service = getService(snapshot, slot.serviceTypeId);
         const coach = getCoach(snapshot, slot.coachId);
         const tone = booking.status === "Completed" ? "success" : booking.status === "Cancelled" ? "neutral" : "error";
-        return <SurfaceCard key={booking.id} style={styles.historyCard}><View style={styles.historyTop}><View><Text style={[styles.historyDate, { color: colors.foreground }]}>{formatDateLocalized(slot.start, language, { month: "short", day: "numeric", year: "numeric" })}</Text><Text style={[styles.historyTime, { color: colors.muted }]}>{formatDateLocalized(slot.start, language, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeLocalized(slot.start, language)}</Text></View><StatusBadge label={statusLabel(booking.status, t)} tone={tone} /></View><View style={[styles.historyRule, { backgroundColor: colors.border }]} /><Text style={[styles.historyService, { color: colors.foreground }]}>{service?.name}</Text><Text style={[styles.historyMeta, { color: colors.muted }]}>{coach?.fullName ?? t("openGym")} · {slot.room}</Text>{booking.checkInTime ? <Text style={[styles.checkInText, { color: colors.success }]}>{t("checkedInAt")} {formatTimeLocalized(booking.checkInTime, language)}</Text> : booking.cancellationReason ? <Text style={[styles.checkInText, { color: colors.muted }]}>{t("reason")}: {booking.cancellationReason}</Text> : null}</SurfaceCard>;
+        return <SurfaceCard key={booking.id} style={styles.historyCard}><View style={styles.historyTop}><View><Text style={[styles.historyDate, { color: colors.foreground }]}>{formatDateLocalized(slot.start, language, { month: "short", day: "numeric", year: "numeric" })}</Text><Text style={[styles.historyTime, { color: colors.muted }]}>{formatDateLocalized(slot.start, language, { weekday: "short", month: "short", day: "numeric" })} · {formatTimeLocalized(slot.start, language)}</Text></View><StatusBadge label={statusLabel(booking.status, t)} tone={tone} /></View><View style={[styles.historyRule, { backgroundColor: colors.border }]} /><Text style={[styles.historyService, { color: colors.foreground }]}>{coach ? t("session") : t("openGym")}</Text><Text style={[styles.historyMeta, { color: colors.muted }]}>{coach?.fullName ?? t("openGym")} · {slot.room}</Text>{booking.checkInTime ? <Text style={[styles.checkInText, { color: colors.success }]}>{t("checkedInAt")} {formatTimeLocalized(booking.checkInTime, language)}</Text> : booking.cancellationReason ? <Text style={[styles.checkInText, { color: colors.muted }]}>{t("reason")}: {booking.cancellationReason}</Text> : null}</SurfaceCard>;
       })}</View>
-      <GhostButton title={t("exportAttendance")} onPress={() => undefined} icon="arrow.right" />
+      <GhostButton title={t("exportAttendance")} onPress={() => undefined} icon="arrow.right" /></> : null}
     </ScrollView>
   </ScreenContainer>;
 }
@@ -62,6 +64,7 @@ const styles = StyleSheet.create({
   summaryValue: { color: "#ffffff", fontSize: 25, fontWeight: "800" },
   summaryLabel: { color: "rgba(255,255,255,0.72)", fontSize: 11, fontWeight: "700", marginTop: 2 },
   healthEntry: { minHeight: 98, borderWidth: 1, borderRadius: 20, padding: 17, flexDirection: "row", alignItems: "center", justifyContent: "space-between" }, healthEyebrow: { color: "#ff82b7", fontSize: 9, fontWeight: "900", letterSpacing: 1.2 }, healthTitle: { fontSize: 16, fontWeight: "800", marginTop: 4 }, healthCopy: { fontSize: 12, marginTop: 4 }, healthArrow: { color: "#ff82b7", fontSize: 24, fontWeight: "700" },
+  segmentedControl: { flexDirection: "row", borderWidth: 1, borderRadius: 14, padding: 4, gap: 4 }, segmentButton: { flex: 1, minHeight: 36, alignItems: "center", justifyContent: "center", borderRadius: 10 }, segmentActive: { backgroundColor: "#f04488" }, segmentText: { fontSize: 11, fontWeight: "800" },
   filters: { gap: 8, paddingRight: 18 },
   filter: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 13, paddingVertical: 9 },
   list: { gap: 11 },
