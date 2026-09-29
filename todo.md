@@ -160,3 +160,6 @@ Validation evidence: type check passed; targeted room-calendar and room-status p
 - [x] Inspect Client calendar-dot marker meanings and existing localized status presentation
 - [x] Add a compact, non-color-only Client calendar legend for the weekly booking selector
 - [x] Add regression coverage for Client calendar legend visibility, marker mapping, English, and Vietnamese copy
+
+- [x] Merge the verified optimize-program commit into the GitHub main branch
+- [x] Push main and verify GitHub shows the merged commit
